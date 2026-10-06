@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 import os
 from collections import deque
-from navigation_safety import GasMemory, MovementArbiter, corridor_share, evaluate_gas_risk, gas_boxes_mask
+from navigation_safety import GasMemory, MovementArbiter, corridor_share, evaluate_gas_risk, gas_boxes_mask, prepare_gas_mask
 
 from detect import Detect
 from gas_config import validate_gas_config
@@ -256,7 +256,8 @@ class Play:
         if time.time()-self.gas_observed_at>self.gas_memory_ttl:
             return True
         center,radius=self.get_player_hit_circle(self.gas_player_box)
-        return any(evaluate_gas_risk(self.gas_mask,center,radius,
+        mask = self.gas_risk_mask()
+        return any(evaluate_gas_risk(mask,center,radius,
                     (math.cos(angle),math.sin(angle)),self.gas_reach,
                     self.gas_lookahead,self.gas_sensitivity).near>self.gas_sensitivity
                    for angle in GAS_ESCAPE_ANGLES)
@@ -761,6 +762,7 @@ class Play:
         """
         self.gas_boxes = []
         self.gas_mask = None
+        self._gas_risk_source = self._gas_risk_integral = None
         self.gas_player_box = None
         self.gas_coverage = 0.0
         self.gas_escape_direction = None
@@ -799,7 +801,24 @@ class Play:
         height = self.window_controller.height or brawl_stars_height
         return width / 2, height / 2
 
+    def gas_risk_mask(self):
+        """Reuse sums until detection replaces this instance's gas observation.
+
+        GasMemory produces a new array on every update; published masks are
+        never changed in place. Retain the source reference to avoid ID reuse.
+        Positions, walls and risk scores are still evaluated on every frame.
+        """
+        mask = self.gas_mask
+        if mask is None:
+            self._gas_risk_source = self._gas_risk_integral = None
+            return None
+        if getattr(self, '_gas_risk_source', None) is not mask:
+            self._gas_risk_integral = prepare_gas_mask(mask)
+            self._gas_risk_source = mask
+        return self._gas_risk_integral
+
     def gas_direction_share(self, mask, x, y, player_width, player_height, direction_x, direction_y, reach, start=0.0):
+        mask = self.gas_risk_mask() if mask is self.gas_mask else prepare_gas_mask(mask)
         return corridor_share(mask, x, y, player_width, player_height,
                               direction_x, direction_y, reach, start)
 
@@ -815,6 +834,7 @@ class Play:
         center, radius = self.get_player_hit_circle(player_box)
         if mask is None or center is None:
             return None
+        mask = self.gas_risk_mask() if mask is self.gas_mask else prepare_gas_mask(mask)
         direction, reason, options, requested = self.movement_arbiter.choose(
             (0.,0.), mask=mask, center=center, radius=radius,
             walls_block=lambda m, d: self.is_path_blocked(player_box, m, walls or [], d),
@@ -830,7 +850,7 @@ class Play:
         if center is None:
             return None
         from dataclasses import asdict
-        return asdict(evaluate_gas_risk(self.gas_mask, center, radius, movement,
+        return asdict(evaluate_gas_risk(self.gas_risk_mask(), center, radius, movement,
                                        self.gas_reach, self.gas_lookahead, self.gas_sensitivity))
 
     def arbitrate_movement(self, movement, player_box, data):
@@ -840,7 +860,7 @@ class Play:
                                      'override_reason': 'GAS_DETECTION_UNCERTAIN'}
             return (0.,0.)
         final, reason, directions, requested = self.movement_arbiter.choose(
-            movement, mask=self.gas_mask, center=center, radius=radius,
+            movement, mask=self.gas_risk_mask(), center=center, radius=radius,
             walls_block=lambda m, d: self.is_path_blocked(player_box, m, data['wall'], d),
             frame_size=(self.frame.shape[1], self.frame.shape[0]),
             reach=self.gas_reach, lookahead=self.gas_lookahead,
