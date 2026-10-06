@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="{{ ui_language }}">
+<head>
+<meta name="xlam-resource-version" content="{{ resource_version }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="xlam-ui-token" content="{{ ui_api_token }}">
+    <title>xlamBOT — настройки</title>
+    <link rel="icon" type="image/png" href="/api/assets/support/xlambot_logo.png">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/panel.css') }}?v={{ ui_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/studio.css') }}?v={{ ui_version }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/interface.css') }}?v={{ ui_version }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/sprites.css') }}?v={{ ui_version }}"><script src="{{ url_for('static', filename='js/settings-fields.js') }}?v={{ ui_version }}"></script><script src="{{ url_for('static', filename='js/i18n.js') }}?v={{ ui_version }}" defer></script></head>
+<body class="studio-body app-page">
+    {% set active_page='settings' %}{% include '_sprites.html' %}{% include '_navigation.html' %}
+    <header class="studio-header"><div class="page-heading"><div><div class="page-kicker">ПЕРСОНАЛЬНАЯ НАСТРОЙКА</div><h1>Настрой под себя<span class="heading-dot">.</span></h1><p>Бойцы, поведение бота и история твоих матчей.</p></div><span class="studio-decoration sprite-spike" aria-hidden="true"></span></div>
+        <a class="studio-brand" href="/panel">
+            <img class="studio-logo" src="/api/assets/support/xlambot_logo.png" alt="xlamBOT">
+            <div>
+                <h1 class="studio-title">xlamBOT</h1>
+                <p class="studio-subtitle">Настройки, очередь, плейстайлы, история</p>
+            </div>
+        </a>
+        <nav class="studio-tabs" id="tabs">
+            <button class="studio-tab is-active" data-tab="dashboard" type="button">Обзор</button>
+            <button class="studio-tab" data-tab="brawlers" type="button">Боец</button>
+            <button class="studio-tab" data-tab="playstyles" type="button">Плейстайлы</button>
+            <button class="studio-tab" data-tab="settings" type="button">Настройки</button>
+            <button class="studio-tab" data-tab="history" type="button">История</button>
+            <button class="studio-tab" data-tab="logs" type="button">Логи</button>
+        </nav>
+        <div class="studio-header-right">
+            <span id="pollAge" class="poll-age">нет связи</span>
+            <a class="btn btn-ghost" href="/panel" title="Панель управления ботом">Панель бота</a>
+            <a class="btn btn-ghost channel-link" href="https://t.me/xlamModz" target="_blank" rel="noreferrer" title="Канал с обновлениями">Канал</a>
+        </div>
+    </header>
+
+    <main class="studio-main">
+        <section class="studio-view is-active" id="view-dashboard"></section>
+        <section class="studio-view" id="view-brawlers"></section>
+        <section class="studio-view" id="view-playstyles"></section>
+        <section class="studio-view" id="view-settings"></section>
+        <section class="studio-view" id="view-history"></section>
+        <section class="studio-view" id="view-logs"></section>
+    </main>
+
+    <div id="toast" class="toast hidden"></div>
+    <script src="{{ url_for('static', filename='js/ui-session.js') }}?v={{ ui_version }}"></script><script src="{{ url_for('static', filename='js/studio.js') }}?v={{ ui_version }}"></script>
+<script src="{{ url_for('static', filename='js/resource_updates.js') }}?v={{ ui_version }}"></script>
+</body>
+</html>
