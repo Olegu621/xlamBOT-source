@@ -1273,8 +1273,8 @@ class Play:
         if not hasattr(self, '_thinking_base_intervals'):
             self._thinking_base_intervals = (self.walls_treshold, self.gas_detect_interval)
         self.thinking_level = level
-        self.walls_treshold = min(self._thinking_base_intervals[0], profile['walls_interval'])
-        self.gas_detect_interval = min(self._thinking_base_intervals[1], profile['gas_interval'])
+        self.walls_treshold = self._thinking_base_intervals[0] if profile['walls_interval'] is None else min(self._thinking_base_intervals[0], profile['walls_interval'])
+        self.gas_detect_interval = self._thinking_base_intervals[1] if profile['gas_interval'] is None else min(self._thinking_base_intervals[1], profile['gas_interval'])
         self.movement_arbiter.direction_count = profile['directions']
         self.movement_arbiter.planning_steps = profile['planning_steps']
         # Switching levels never carries cached perception from the old budget.
