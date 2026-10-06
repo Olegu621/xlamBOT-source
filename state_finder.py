@@ -134,6 +134,9 @@ def get_in_game_state(image):
         from disconnect_dialog import idle_disconnect_reload_position
         if idle_disconnect_reload_position(image) is not None:
             return "idle_disconnect"
+        from reward_received import is_reward_received
+        if is_reward_received(image):
+            return "reward_received"
         # First, because the dialog covers the lobby and the lobby template still
         # matches through it. Checked later, the lobby would win every time and
         # the dialog would never be seen.

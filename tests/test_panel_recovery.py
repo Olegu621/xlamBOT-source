@@ -14,6 +14,7 @@ os.chdir(ROOT)
 import team_panel
 import disconnect_dialog
 import built_in_playstyles
+import reward_received
 import state_finder
 import settings_schema
 import brawler_calibration
@@ -42,6 +43,25 @@ def idle_overlay(width=680, height=380, title=True, reload=True):
     return frame
 
 class RecoveryTests(unittest.TestCase):
+    def test_received_reward_requires_caption_and_blue_background(self):
+        frame=np.full((386,678,3),(0,65,180),np.uint8)
+        header=reward_received._HEADER
+        frame[73:73+header.shape[0],292:292+header.shape[1]]=header
+        self.assertTrue(reward_received.is_reward_received(frame))
+        self.assertEqual(state_finder.get_in_game_state(frame),'reward_received')
+        frame[280:370]=30
+        self.assertFalse(reward_received.is_reward_received(frame))
+
+    def test_stale_reward_state_cannot_click_lobby(self):
+        manager=StageManager.__new__(StageManager)
+        manager.runtime_control=None
+        clicks=[]
+        manager.window_controller=SimpleNamespace(
+            screenshot=lambda:np.zeros((720,1280,3),np.uint8),
+            release_all_inputs=lambda:None, click=lambda *a,**kw:clicks.append(a))
+        manager.dismiss_received_reward()
+        self.assertEqual(clicks,[])
+
     def test_idle_disconnect_requires_title_and_reload_at_any_resolution(self):
         for width, height in [(680, 380), (1280, 720), (1920, 864), (1920, 1080)]:
             frame = idle_overlay(width, height)

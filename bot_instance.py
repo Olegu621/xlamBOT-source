@@ -610,7 +610,12 @@ class BotInstance:
                     # Still dialogs must be dismissed too; waiting for a new
                     # picture before checking them would leave them up forever.
                     if self.Time_management.idle_check():
-                        self.lobby_automator.check_for_idle(frame)
+                        # scrcpy can stop emitting identical frames on a still
+                        # reward/dialog. Reclassify only recognized overlays;
+                        # never send a generic proceed tap on a static screen.
+                        overlay_state = get_state(frame)
+                        if overlay_state in ('reward_received', 'team_panel', 'idle_disconnect', 'connection_lost'):
+                            self.handle_detected_state(overlay_state)
                     if t_now - self._last_static_notice >= 30:
                         self._last_static_notice = t_now
                         print(f"[{self.device_label}] Screen looks static for {stale_age:.0f}s (feed alive, continuing).")

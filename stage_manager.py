@@ -59,6 +59,7 @@ class StageManager:
             'shop': self.close_known_menu,
             'brawler_selection': self.close_known_menu,
             'brawler_choice': self.choose_reward_brawler,
+            'reward_received': self.dismiss_received_reward,
             'team_panel': self.close_team_panel,
             'popup': self.close_pop_up,
             'match': lambda: 0,
@@ -664,6 +665,22 @@ class StageManager:
         # instead of sending fixed 1280x720 device coordinates.
         self.window_controller.click(765, 555, already_include_ratio=False)
         self._sleep_interruptible(0.8, allow_pause=False)
+
+    def dismiss_received_reward(self):
+        from reward_received import is_reward_received
+        if self._should_stop() or self._should_pause():
+            return
+        now = time.monotonic()
+        if now - getattr(self, '_reward_received_last_tap', float('-inf')) < 1:
+            return
+        frame = self.window_controller.screenshot()
+        if not is_reward_received(frame):
+            return
+        self.window_controller.release_all_inputs()
+        self.window_controller.gameplay_frame_time = None
+        self._reward_received_last_tap = now
+        height, width = frame.shape[:2]
+        self.window_controller.click(width // 2, round(height * .88), already_include_ratio=True)
 
     def click_star_drop(self, drop_type="regular"):
         if hasattr(self, '_star_drop_thread') and self._star_drop_thread.is_alive():
