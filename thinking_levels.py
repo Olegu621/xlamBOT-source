@@ -4,6 +4,7 @@ import math,time
 
 PROFILES={
  'low':{'walls_interval':.20,'gas_interval':.20,'directions':8,'planning_steps':1},
+ 'standard':{'walls_interval':None,'gas_interval':None,'directions':8,'planning_steps':3},
  'medium':{'walls_interval':.10,'gas_interval':.15,'directions':12,'planning_steps':2},
  'high':{'walls_interval':.05,'gas_interval':.08,'directions':16,'planning_steps':3},
  'maximum':{'walls_interval':0.,'gas_interval':0.,'directions':32,'planning_steps':5},
@@ -41,7 +42,7 @@ class ThinkingQuality:
         if self.observed_fps<=15 and self.capacity_fps<=17:
             desired=LEVELS[max(0,index-1)];reason='low_fps' if index else 'minimum'
         elif self.observed_fps>=30 and self.capacity_fps>=35:
-            desired=LEVELS[min(3,index+1)];reason='headroom' if index<3 else 'maximum'
+            desired=LEVELS[min(len(LEVELS)-1,index+1)];reason='headroom' if index<len(LEVELS)-1 else 'maximum'
         elif capture_fps is not None and 0<capture_fps<=15 and self.capacity_fps>20:
             reason='capture_limit'
         faster_analysis=LEVELS.index(desired)>index

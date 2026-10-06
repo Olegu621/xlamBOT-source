@@ -16,7 +16,7 @@ def masked(settings):
 
 def validate(name, value, original, path=''):
     label = path or name
-    if name == "thinking_mode" and value not in {"low", "medium", "high", "maximum"}:
+    if name == "thinking_mode" and (not isinstance(value, str) or value not in {"low", "standard", "medium", "high", "maximum"}):
         raise ValueError("Выберите уровень думалки из списка")
     if isinstance(original, bool):
         valid = isinstance(value, bool)
