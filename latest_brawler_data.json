@@ -1,0 +1,956 @@
+[
+ {
+  "brawler": "8bit",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "alli",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "amber",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "angelo",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "ash",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "barley",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "bea",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "belle",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "berry",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "bibi",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "bo",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "bolt",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "bonnie",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "brock",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "bull",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "buster",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "buzz",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "byron",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "carl",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "charlie",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "chester",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "chuck",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "clancy",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "colette",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "colt",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "cordelius",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "crow",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "damian",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "darryl",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "doug",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "draco",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "dynamike",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "edgar",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "elprimo",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "emz",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "eve",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "fang",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "finx",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "frank",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "gale",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "gene",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "gigi",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "glowy",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "gray",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "griff",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "grom",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "gus",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "hank",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "jacky",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "jaeyong",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "janet",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "jessie",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "juju",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "kaze",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "kenji",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "kit",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "larrylawrie",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "leon",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "lily",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "lola",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "lou",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "lumi",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "maisie",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "mandy",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "max",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "meeple",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "meg",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "melodie",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "mico",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "mina",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "moe",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "mortis",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "mrp",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "najia",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "nani",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "nita",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "nori",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "ollie",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "otis",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "pam",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "pearl",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "penny",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "pierce",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "piper",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "poco",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "rico",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "rosa",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "rt",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "ruffs",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "sam",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "sandy",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "shade",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "shelly",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "sirius",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "spike",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "sprout",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "squeak",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "starrnova",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "stu",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "surge",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "tara",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "tick",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "trunk",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "wendy",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "willow",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "ziggy",
+  "type": "trophies",
+  "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ }
+]
