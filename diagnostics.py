@@ -41,9 +41,6 @@ def health_check(serial=None, load_models=False):
             if not (get_config_root()/name).is_file():
                 raise FileNotFoundError(name)
         for p in get_config_root().glob('*.toml'):toml.load(p)
-        from gas_config import validate_gas_config
-        from utils import load_toml_as_dict
-        validate_gas_config(load_toml_as_dict('cfg/bot_config.toml'))
         add('Configs','OK',get_config_root())
     except Exception as e:add('Configs','ERROR',e)
     add('UI','OK' if resolve_project_path('templates','panel.html').is_file() else 'ERROR','panel.html')

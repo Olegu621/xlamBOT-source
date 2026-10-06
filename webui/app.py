@@ -166,11 +166,7 @@ def create_app(xlambot_main, start_discord_bot=False):
     app.config["discord_bot"] = discord_bot
     app.config["device_manager"] = device_manager
     app.config["training_recorder"] = training_recorder
-    from .audit_service import AuditService
-    audit_service = AuditService(DATA_ROOT)
-    app.extensions["audit_service"] = audit_service
     def update_busy():
-        if audit_service.busy(): return True
         states = device_manager.all_statuses() + [runtime_manager.get_status()]
         if any(s.get('is_running') or s.get('state') in {'starting', 'stopping', 'pausing', 'paused'} for s in states):
             return True
@@ -809,36 +805,6 @@ def create_app(xlambot_main, start_discord_bot=False):
     def bootstrap():
         return jsonify(data_service.get_bootstrap_payload())
 
-    @app.get('/api/audit/devices/<key>')
-    def audit_status(key):
-        return jsonify(ok=True, audit=audit_service.status(key))
-
-    @app.post('/api/audit/devices/<key>/start')
-    def audit_start(key):
-        payload=request.get_json(silent=True) or {}
-        status=device_manager.get_status(key)
-        if not status.get('is_running'):
-            return jsonify(ok=False,message='Сначала запустите бот на этом устройстве'),409
-        port=int(request.environ['SERVER_PORT'])
-        return jsonify(ok=True,audit=audit_service.start(key, f'http://127.0.0.1:{port}', payload.get('target',10)))
-
-    @app.post('/api/audit/devices/<key>/stop')
-    def audit_stop(key):
-        return jsonify(ok=True,audit=audit_service.stop(key))
-
-    @app.get('/api/audit/devices/<key>/export')
-    def audit_export(key):
-        path=audit_service.export(key)
-        return send_file(path, as_attachment=True, download_name='xlamBOT-match-audit.zip')
-
-    @app.get('/api/devices/<key>/replay')
-    def replay_current_observation(key):
-        from replay_navigation import replay
-        telemetry = device_manager.telemetry(key)
-        with device_profiles.use_profile(key):
-            result = replay(telemetry.get('world') or {})
-        return jsonify(ok=True, device=key, replay=result)
-
     @app.get('/api/diagnostics')
     def diagnostics():
         from diagnostics import health_check
@@ -849,7 +815,6 @@ def create_app(xlambot_main, start_discord_bot=False):
         shutdown = app.extensions.get('shutdown_server')
         if shutdown is None:
             return jsonify({'ok':False,'message':'Server shutdown unavailable'}),409
-        audit_service.stop_all()
         device_manager.stop_all()
         import threading
         threading.Thread(target=shutdown, daemon=True, name='xlambot-shutdown').start()

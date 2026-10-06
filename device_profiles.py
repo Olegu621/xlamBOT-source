@@ -137,9 +137,6 @@ def update_settings(key: str, section: str, updates: dict[str, Any]) -> dict[str
                 merged[name] = {**merged[name], **value}
             else:
                 merged[name] = value
-        if Path(section).name == "bot_config.toml":
-            from gas_config import validate_gas_config
-            merged = validate_gas_config(merged)
         utils.save_dict_as_toml(merged, section)
         utils.invalidate_toml_cache(section)
         return merged
