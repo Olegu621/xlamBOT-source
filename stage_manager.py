@@ -804,7 +804,18 @@ class StageManager:
 
 
     def close_team_panel(self):
-        # Heading recognition authorizes this non-game UI close button.
-        if self._should_stop() or self._should_pause():return
-        self.window_controller.click(1835,50,already_include_ratio=False,delay=.15)
+        if self._should_stop() or self._should_pause():
+            return
+        now = time.monotonic()
+        if now - getattr(self, '_team_panel_last_click', float('-inf')) < .8:
+            return
+        from state_finder import team_panel_close_position
+        # Recheck the current screenshot: the cached state may describe an
+        # overlay which has already closed. Coordinates come from this device.
+        position = team_panel_close_position(self.window_controller.screenshot())
+        if position is None or self._should_stop() or self._should_pause():
+            return
+        self.window_controller.release_all_inputs()
+        self._team_panel_last_click = now
+        self.window_controller.click(*position, already_include_ratio=True, delay=.15)
 
