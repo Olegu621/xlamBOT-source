@@ -97,7 +97,7 @@
     const GAME_STATE_LABELS = {
         lobby: 'лобби', match: 'матч', match_making: 'поиск матча',
         brawler_selection: 'выбор бойца', brawler_choice: 'выбор награды', shop: 'магазин', popup: 'окно',
-        connection_lost: 'нет связи', prestige_milestone: 'престиж',
+        connection_lost: 'нет связи', idle_disconnect: 'перезагрузка связи', prestige_milestone: 'престиж',
         trophy_reward: 'награда', star_drop_regular: 'звёздное дропание',
         star_drop_angelic: 'звёздное дропание', star_drop_demonic: 'звёздное дропание',
         star_drop_starr_nova: 'звёздное дропание',
@@ -574,12 +574,12 @@
                 ? `${label} · кадр застрял (${Math.round(age)} с)`
                 : label;
             stateEl.className = 'preview-state' + (stale ? ' is-stale' : '')
-                + (telemetry.detected_state === 'connection_lost' ? ' is-alert' : '');
+                + (['connection_lost', 'idle_disconnect'].includes(telemetry.detected_state) ? ' is-alert' : '');
             stateEl.title = stale
                 ? `Последний кадр пришёл ${Math.round(age)} с назад. Поток видео, `
                   + 'скорее всего, завис: бот жив, но ничего не видит. '
                   + 'Помогает перезапуск бота.'
-                : (telemetry.detected_state === 'connection_lost'
+                : (['connection_lost', 'idle_disconnect'].includes(telemetry.detected_state)
                     ? 'Игра потеряла связь с сервером и показывает окно с кнопкой '
                       + '«RETRY LOGIN». Бот закрывает его сам.'
                     : '');

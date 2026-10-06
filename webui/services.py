@@ -485,7 +485,8 @@ class WebDataService:
 
     def get_playstyles_payload(self) -> dict[str, Any]:
         bot_config = self._load_config("cfg/bot_config.toml")
-        current_playstyle = bot_config.get("current_playstyle", "default_up.xlambot")
+        from built_in_playstyles import canonical_playstyle
+        current_playstyle = canonical_playstyle(bot_config.get("current_playstyle"))
         playstyles = []
         for item in get_playstyles_list():
             metadata = item.get("metadata") or {}
@@ -506,74 +507,25 @@ class WebDataService:
         return {"current": current, "items": playstyles}
 
     def activate_playstyle(self, filename: str) -> dict[str, Any]:
-        target_path = resolve_playstyle_path(filename)
-        if not target_path.exists():
+        from built_in_playstyles import BUILT_IN_PLAYSTYLES, canonical_playstyle
+        selected = canonical_playstyle(filename)
+        if selected != str(filename or "").strip().lower() or selected not in BUILT_IN_PLAYSTYLES:
             raise FileNotFoundError(f"Playstyle '{filename}' was not found.")
 
-        metadata, script = load_playstyle_script(filename)
+        metadata, script = load_playstyle_script(selected)
         if not script.strip():
             raise ValueError("Playstyle file is empty or invalid.")
 
         bot_config = self._load_config("cfg/bot_config.toml")
-        bot_config["current_playstyle"] = filename
+        bot_config["current_playstyle"] = selected
         self._save_config("cfg/bot_config.toml", bot_config)
         return {"ok": True, "playstyles": self.get_playstyles_payload(), "metadata": metadata}
 
     def delete_playstyle(self, filename: str) -> dict[str, Any]:
-        safe_filename = secure_filename(filename)
-        if safe_filename != filename or not safe_filename.endswith(".xlambot"):
-            raise ValueError("Invalid playstyle filename.")
-
-        filename = safe_filename
-        target_path = resolve_playstyle_path(filename)
-        if not target_path.exists():
-            raise FileNotFoundError(f"Playstyle '{filename}' was not found.")
-
-        bot_config = self._load_config("cfg/bot_config.toml")
-        if bot_config.get("current_playstyle") == filename:
-            raise ValueError("Cannot delete the currently active playstyle.")
-
-        target_path.unlink()
-        return {"ok": True, "playstyles": self.get_playstyles_payload()}
+        raise ValueError("Built-in playstyles cannot be deleted.")
 
     def import_playstyle(self, file_storage) -> dict[str, Any]:
-        if file_storage is None or not file_storage.filename:
-            raise ValueError("No playstyle file uploaded.")
-
-        original_name = secure_filename(file_storage.filename)
-        base_name = Path(original_name).stem or "imported_playstyle"
-        filename = f"{base_name}.xlambot"
-        target_path = resolve_playstyle_path(filename)
-
-        temp_path = resolve_playstyle_path(f".__upload__{filename}")
-        file_storage.save(temp_path)
-
-        try:
-            with open(temp_path, "r", encoding="utf-8") as handle:
-                metadata_line = handle.readline().strip()
-                if not metadata_line:
-                    raise ValueError("Missing playstyle metadata header.")
-                json.loads(metadata_line)
-
-            uploaded_content = temp_path.read_text(encoding="utf-8")
-
-            if target_path.exists():
-                existing_content = target_path.read_text(encoding="utf-8")
-                if existing_content == uploaded_content:
-                    return {"ok": True, "filename": target_path.name, "playstyles": self.get_playstyles_payload()}
-
-            if target_path.exists():
-                suffix = 2
-                while resolve_playstyle_path(f"{base_name}_{suffix}.xlambot").exists():
-                    suffix += 1
-                target_path = resolve_playstyle_path(f"{base_name}_{suffix}.xlambot")
-
-            shutil.move(str(temp_path), str(target_path))
-        finally:
-            if temp_path.exists():
-                temp_path.unlink()
-
-        return {"ok": True, "filename": target_path.name, "playstyles": self.get_playstyles_payload()}
+        raise ValueError("Only Aggressive and Survivor are supported.")
 
     def get_settings_payload(self, section: str) -> dict[str, Any]:
         section = section.lower()
@@ -581,7 +533,9 @@ class WebDataService:
             return self._select_fields(self._load_config("cfg/general_config.toml"), self.GENERAL_FIELDS)
         if section == "bot":
             payload = self._select_fields(self._load_config("cfg/bot_config.toml"), self.BOT_FIELDS)
-            payload["current_playstyle"] = self._load_config("cfg/bot_config.toml").get("current_playstyle", "default_up.xlambot")
+            from built_in_playstyles import canonical_playstyle
+            payload["current_playstyle"] = canonical_playstyle(
+                self._load_config("cfg/bot_config.toml").get("current_playstyle"))
             return payload
         if section == "timers":
             return self._select_fields(self._load_config("cfg/time_tresholds.toml"), self.TIMER_FIELDS)

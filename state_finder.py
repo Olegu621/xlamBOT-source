@@ -131,6 +131,9 @@ def get_in_game_state(image):
         last_debug_print_time = current_time
 
     try:
+        from disconnect_dialog import idle_disconnect_reload_position
+        if idle_disconnect_reload_position(image) is not None:
+            return "idle_disconnect"
         # First, because the dialog covers the lobby and the lobby template still
         # matches through it. Checked later, the lobby would win every time and
         # the dialog would never be seen.
@@ -154,7 +157,7 @@ def get_in_game_state(image):
         if should_print_debug_info: print("Checking for offer popup...")
         if is_in_offer_popup(image): return "popup"
         if should_print_debug_info: print("Checking for brawl pass or star road (shop state)...")
-        if is_in_brawl_pass(image) or is_in_star_road(image): return "shop"
+        if is_in_brawl_pass(image): return "shop"
         if should_print_debug_info: print("Checking for prestige milestone...")
         if is_in_prestige_milestone(image): return "prestige_milestone"
         if should_print_debug_info: print("Checking for star drop...")
@@ -178,7 +181,8 @@ def team_panel_close_position(image):
 
 
 def is_in_shop(image) -> bool:
-    return is_template_in_region(image, states_path + 'powerpoint.png', region_data["powerpoint"])
+    return (is_template_in_region(image, states_path + 'powerpoint.png', region_data["powerpoint"])
+            and is_in_star_road(image))
 
 
 def is_respawning(image) -> bool:
@@ -218,7 +222,37 @@ def is_in_connection_lost(image) -> bool:
 
 
 def is_in_brawler_selection(image) -> bool:
-    return is_template_in_region(image, states_path + 'brawler_menu_heart.png', region_data["brawler_menu_heart"]) or is_template_in_region(image, states_path + 'brawler_menu_search.png', region_data["brawler_menu_search"])
+    # One colourful icon also occurs in the lobby. Requiring both controls keeps
+    # a false state from turning into a blind click in the main menu.
+    return (is_template_in_region(image, states_path + 'brawler_menu_heart.png',
+                                  region_data["brawler_menu_heart"], threshold=.83)
+            and is_template_in_region(image, states_path + 'brawler_menu_search.png',
+                                      region_data["brawler_menu_search"], threshold=.83))
+
+
+def menu_back_position(image):
+    """Locate Back only after independently confirming a closable game menu."""
+    from disconnect_dialog import idle_disconnect_reload_position
+    if (image is None or idle_disconnect_reload_position(image) is not None
+            or team_panel_close_position(image) is not None or is_in_lobby(image)):
+        return None
+    if not (is_in_brawler_selection(image) or is_in_shop(image) or is_in_brawl_pass(image)):
+        return None
+    height, width = image.shape[:2]
+    x, y, rw, rh = region_data['go_back_arrow']
+    left, top = int(x * width / orig_screen_width), int(y * height / orig_screen_height)
+    right = left + int(rw * width / orig_screen_width)
+    bottom = top + int(rh * height / orig_screen_height)
+    crop = image[top:bottom, left:right]
+    template = load_template(states_path + 'go_back_arrow.png', width, height)
+    if template is None or crop.size == 0 or any(crop.shape[i] < template.shape[i] for i in (0, 1)):
+        return None
+    result = cv2.matchTemplate(crop, template, cv2.TM_CCOEFF_NORMED)
+    _, score, _, location = cv2.minMaxLoc(result)
+    if score < .88:
+        return None
+    return (left + location[0] + template.shape[1] // 2,
+            top + location[1] + template.shape[0] // 2)
 
 
 def is_in_offer_popup(image) -> bool:
