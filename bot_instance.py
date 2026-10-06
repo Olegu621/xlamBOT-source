@@ -71,7 +71,9 @@ class BotInstance:
         self.life_stats = {}
         self._error = ""
 
-        current_playstyle = load_toml_as_dict("cfg/bot_config.toml").get("current_playstyle", "default_up.xlambot")
+        from built_in_playstyles import canonical_playstyle
+        current_playstyle = canonical_playstyle(
+            load_toml_as_dict("cfg/bot_config.toml").get("current_playstyle"))
         raw_max_fps = load_toml_as_dict("cfg/general_config.toml").get("max_fps")
         try:
             self.max_fps = int(raw_max_fps)
@@ -267,16 +269,38 @@ class BotInstance:
             self.window_controller.gameplay_frame_time = None
         if state is None:
             return
+        if state == "idle_disconnect":
+            self.set_latest_state(state)
+            from disconnect_dialog import idle_disconnect_reload_position
+            frame = self.window_controller.screenshot()
+            reload_position = idle_disconnect_reload_position(frame)
+            if reload_position is None:
+                return
+            if time.time() - self._connection_lost_handled < 2:
+                return
+            print(f"[{self.device_label}] Idle Disconnect, tapping the confirmed RELOAD button")
+            self._connection_lost_handled = time.time()
+            self.window_controller.release_all_inputs()
+            self.window_controller.click(*reload_position, already_include_ratio=True)
+            return
         if state == "connection_lost":
+            self.set_latest_state(state)
             # The connection-lost dialog is not a game state, so it must not be
             # stored as one: the bot would then believe it is somewhere it is
             # not. Tapping RETRY LOGIN is the whole handling.
-            self.window_controller.screenshot()
+            from state_finder import is_in_connection_lost
+            frame = self.window_controller.screenshot()
+            if not is_in_connection_lost(frame):
+                return
             retry = load_toml_as_dict("cfg/lobby_config.toml").get(
                 "template_matching", {}).get("connection_lost_retry", [618, 655])
-            if not self._connection_lost_handled or time.time() - self._connection_lost_handled > 5:
-                print(f"[{self.device_label}] Connection lost dialog, tapping RETRY LOGIN")
-                self._connection_lost_handled = time.time()
+            if len(retry) >= 4:
+                retry = [(retry[0] + retry[2]) / 2, (retry[1] + retry[3]) / 2]
+            if time.time() - self._connection_lost_handled < 2:
+                return
+            print(f"[{self.device_label}] Connection lost dialog, tapping RETRY LOGIN")
+            self._connection_lost_handled = time.time()
+            self.window_controller.release_all_inputs()
             self.window_controller.click(retry[0], retry[1], already_include_ratio=False)
             return
         self.set_latest_state(state)

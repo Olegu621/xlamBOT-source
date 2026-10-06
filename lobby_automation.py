@@ -3,6 +3,7 @@ import time
 from pathlib import Path
 
 import cv2
+from state_finder import get_state
 from utils import (
     count_hsv_pixels,
     load_toml_as_dict, config_bool, load_brawlers_info,
@@ -22,25 +23,19 @@ class LobbyAutomation:
         self.idle_disconnect_hsv_high_bounds = load_toml_as_dict("cfg/lobby_config.toml").get("hsv_bounds", {}).get("idle_reconnect_high_bounds", [[10, 22, 42], [10, 22, 90], [118, 66, 46]])
 
     def check_for_idle(self, frame):
-        wr = self.window_controller.width_ratio
-        hr = self.window_controller.height_ratio
-        x_start, x_end = int(460 * wr), int(1460 * wr)
-        y_start, y_end = int(400 * hr), int(675 * hr)
-        if self.verbose_debug:
-            print(f"gray pixels (if > {self.gray_pixels_treshold} then bot will try to unidle)")
-        for idle_disconnect_hsv_high_bound in self.idle_disconnect_hsv_high_bounds:
-            gray_pixels = count_hsv_pixels(frame[y_start:y_end, x_start:x_end], (0, 0, 0), tuple(idle_disconnect_hsv_high_bound), self.window_controller)
-            if self.verbose_debug:
-                try:
-                    cv2.imwrite(f"./debug_frames/idle_detection_{gray_pixels}_{len(os.listdir('./debug_frames'))}.png", cv2.cvtColor(frame[y_start:y_end, x_start:x_end], cv2.COLOR_BGR2RGB))
-                except Exception:
-                    pass
-            if gray_pixels > self.gray_pixels_treshold:
-                print("Idle detected, clicking to unidle")
-                self.window_controller.release_all_inputs()
-                self.window_controller.gameplay_frame_time = None
-                for idle_reconnect_coord in self.idle_reconnect_coords:
-                    self.window_controller.click(idle_reconnect_coord[0], idle_reconnect_coord[1], already_include_ratio=False)
+        from disconnect_dialog import idle_disconnect_reload_position
+        position = idle_disconnect_reload_position(frame)
+        if position is None or time.monotonic() - getattr(self, '_last_idle_reload', 0) < 2:
+            return
+        # Recheck the current screen: a dialog from a cached frame cannot
+        # authorize a click on a lobby that has already appeared.
+        position = idle_disconnect_reload_position(self.window_controller.screenshot())
+        if position is None:
+            return
+        self._last_idle_reload = time.monotonic()
+        self.window_controller.release_all_inputs()
+        self.window_controller.gameplay_frame_time = None
+        self.window_controller.click(*position, already_include_ratio=True)
 
 
     @staticmethod
@@ -171,9 +166,12 @@ class LobbyAutomation:
             print("Brawler sorting coordinates are missing from buttons_config.toml.")
             return "error"
 
-        self.window_controller.screenshot()
-        if get_latest_state() != "lobby":
-            print(f"Not in the lobby (state '{get_latest_state()}'), not changing brawler.")
+        def fresh_state():
+            return get_state(self.window_controller.screenshot())
+
+        state = fresh_state()
+        if state != "lobby":
+            print(f"Not in the lobby (state '{state}'), not changing brawler.")
             return "stuck"
 
         # A single tap can be swallowed: a popup may still be fading, or the
@@ -183,22 +181,24 @@ class LobbyAutomation:
         for attempt in range(3):
             if self._sleep_interruptible(0.5, runtime_control, stop_event):
                 return "aborted"
+            if fresh_state() != "lobby":
+                return "stuck"
             self.window_controller.click(open_menu[0], open_menu[1], already_include_ratio=False)
             if self._sleep_interruptible(1.5, runtime_control, stop_event):
                 return "aborted"
-            self.window_controller.screenshot()
-            if get_latest_state() == "brawler_selection":
+            state = fresh_state()
+            if state == "brawler_selection":
                 opened = True
                 break
             print(f"Brawler menu did not open on attempt {attempt + 1}, "
-                  f"state is '{get_latest_state()}'")
+                   f"state is '{state}'")
         if not opened:
             print("Brawler menu would not open; treating the switch as failed so "
                   "it is retried on the next lobby tick instead of costing a "
                   "whole quota.")
             return "error"
 
-        if get_latest_state() == "connection_lost":
+        if fresh_state() != "brawler_selection":
             print("Connection lost dialog is up over the brawler menu; not "
                   "touching the sort so the main loop can dismiss it.")
             return "stuck"
@@ -215,13 +215,12 @@ class LobbyAutomation:
         # entry lands on the dialog instead, the sort is never applied, and the
         # grid keeps the order it already had - so the same brawler stays first
         # and the rotation looks broken while every log line claims success.
-        self.window_controller.screenshot()
-        state = get_latest_state()
-        if state == "connection_lost":
+        state = fresh_state()
+        if state in ("connection_lost", "idle_disconnect"):
             print("Connection lost dialog is covering the sort list; leaving the "
                   "sort untouched so it can be retried after the dialog closes.")
             return "stuck"
-        if state not in ("brawler_selection", "lobby"):
+        if state != "brawler_selection":
             print(f"Expected the brawler menu after opening the sort, but the "
                   f"screen is '{state}'; not choosing a sort.")
             return "stuck"
@@ -245,9 +244,8 @@ class LobbyAutomation:
                 for attempt in range(6):
                     if self._sleep_interruptible(0.8, runtime_control, stop_event):
                         return "aborted"
-                    self.window_controller.screenshot()
-                    frame, _ = self.window_controller.get_latest_frame()
-                    state = get_latest_state()
+                    frame = self.window_controller.screenshot()
+                    state = get_state(frame)
                     if frame is None:
                         continue
                     card = trophy_reader.read_card(frame, card_index=index)
@@ -272,6 +270,9 @@ class LobbyAutomation:
         except Exception as error:  # noqa: BLE001
             print(f"Reading the lowest-trophy card failed: {error}")
 
+        if fresh_state() != "brawler_selection":
+            print("Brawler grid was not confirmed before card selection; no tap sent.")
+            return "stuck"
         self.window_controller.click(first_card[0], first_card[1], already_include_ratio=False)
         if self._sleep_interruptible(1.2, runtime_control, stop_event):
             return "aborted"
@@ -279,9 +280,9 @@ class LobbyAutomation:
         if self._sleep_interruptible(1.5, runtime_control, stop_event):
             return "aborted"
 
-        self.window_controller.screenshot()
-        if get_latest_state() != "lobby":
-            print(f"After picking the lowest trophy brawler the screen is '{get_latest_state()}'.")
+        state = fresh_state()
+        if state != "lobby":
+            print(f"After picking the lowest trophy brawler the screen is '{state}'.")
             return "stuck"
         picked = self._last_picked or {}
         who = f": {picked['brawler']}" if picked.get("brawler") else (

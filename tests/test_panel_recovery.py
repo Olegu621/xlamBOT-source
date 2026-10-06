@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 os.chdir(ROOT)
 import team_panel
+import disconnect_dialog
+import built_in_playstyles
 import state_finder
 import settings_schema
 import brawler_calibration
@@ -29,7 +31,25 @@ def overlay(width=1280, height=720, heading=True, close=True):
             frame[top:top+image.shape[0], left:left+image.shape[1]] = image
     return frame
 
+def idle_overlay(width=680, height=380, title=True, reload=True):
+    frame = np.full((height, width, 3), 55, np.uint8)
+    for encoded, x, y, enabled in [(disconnect_dialog.TITLE, 182/680, 144/380, title),
+                                    (disconnect_dialog.RELOAD, 177/680, 218/380, reload)]:
+        if enabled:
+            image = disconnect_dialog._template(encoded, width, height)
+            left, top = round(width*x), round(height*y)
+            frame[top:top+image.shape[0], left:left+image.shape[1]] = image
+    return frame
+
 class RecoveryTests(unittest.TestCase):
+    def test_idle_disconnect_requires_title_and_reload_at_any_resolution(self):
+        for width, height in [(680, 380), (1280, 720), (1920, 864), (1920, 1080)]:
+            frame = idle_overlay(width, height)
+            self.assertIsNotNone(disconnect_dialog.idle_disconnect_reload_position(frame))
+            self.assertEqual(state_finder.get_in_game_state(frame), "idle_disconnect")
+        self.assertIsNone(disconnect_dialog.idle_disconnect_reload_position(idle_overlay(title=False)))
+        self.assertIsNone(disconnect_dialog.idle_disconnect_reload_position(idle_overlay(reload=False)))
+
     def test_overlay_requires_heading_and_close_button(self):
         for width,height in [(445,247),(960,540),(1280,720),(1920,1080)]:
             self.assertIsNotNone(team_panel.team_panel_close_position(overlay(width,height)))
@@ -60,6 +80,28 @@ class RecoveryTests(unittest.TestCase):
         manager.close_team_panel()
         self.assertEqual(len(clicks),1)
 
+    def test_generic_menu_close_never_taps_team_panel(self):
+        manager=StageManager.__new__(StageManager)
+        clicks=[]
+        manager.window_controller=SimpleNamespace(
+            screenshot=lambda:overlay(), release_all_inputs=lambda:None,
+            click=lambda *a,**kw:clicks.append((a,kw)))
+        manager.close_known_menu()
+        self.assertEqual(clicks, [])
+
+    def test_brawler_selection_requires_two_independent_markers(self):
+        with patch.object(state_finder, 'is_template_in_region', side_effect=[True, False]):
+            self.assertFalse(state_finder.is_in_brawler_selection(np.zeros((720,1280,3),np.uint8)))
+
+
+class PlaystyleTests(unittest.TestCase):
+    def test_only_two_playstyles_are_exposed_and_legacy_names_migrate(self):
+        self.assertEqual(set(built_in_playstyles.BUILT_IN_PLAYSTYLES),
+                         {"aggressive.xlambot", "survivor.xlambot"})
+        self.assertEqual({item["filename"] for item in utils.get_playstyles_list()},
+                         {"aggressive.xlambot", "survivor.xlambot"})
+        self.assertEqual(built_in_playstyles.canonical_playstyle("showdown_survivor.xlambot"),
+                         "survivor.xlambot")
 class CalibrationTests(unittest.TestCase):
     def test_variable_point_set_and_fixed_coordinates(self):
         for original,value in [([],['brawlers_menu']),(['brawlers_menu'],['brawlers_menu','brawlers_card_00']),

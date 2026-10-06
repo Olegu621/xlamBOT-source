@@ -901,16 +901,14 @@ def interpret_playstyle_code(playstyle_code, context):
 
 def load_playstyle_script(filename):
     try:
-        script_path = resolve_playstyle_path(filename)
-        text = read_text_auto(script_path)
+        from built_in_playstyles import BUILT_IN_PLAYSTYLES, canonical_playstyle
+        filename = canonical_playstyle(filename)
+        text = BUILT_IN_PLAYSTYLES[filename]
         lines = text.splitlines(True)
         metadata_header = lines[0].strip() if lines else ""
         metadata = json.loads(metadata_header) if metadata_header else {}
         playstyle_source = text
         return metadata, playstyle_source
-    except FileNotFoundError:
-        print(f"Error: The playstyle file '{filename}' was not found.")
-        return {}, ""
     except Exception as e:
         print(f"An error occurred while loading the .xlambot script: {e}")
         traceback.print_exc()
@@ -918,19 +916,14 @@ def load_playstyle_script(filename):
 
 
 def get_playstyles_list():
-    playstyles_dir = resolve_project_path("playstyles")
-    playstyles = []
-    if playstyles_dir.exists():
-        for filename in os.listdir(playstyles_dir):
-            if filename.endswith(".xlambot"):
-                metadata, _ = load_playstyle_script(filename)
-                playstyles.append({"filename": filename, "metadata": metadata})
-    return playstyles
+    from built_in_playstyles import BUILT_IN_PLAYSTYLES
+    return [{"filename": filename, "metadata": load_playstyle_script(filename)[0]}
+            for filename in BUILT_IN_PLAYSTYLES]
 
 
 def load_default_playstyle():
     config = load_toml_as_dict("cfg/bot_config.toml")
-    current_playstyle = config.get("current_playstyle", "default_up.xlambot")
+    current_playstyle = config.get("current_playstyle", "survivor.xlambot")
     return load_playstyle_script(current_playstyle)
 
 

@@ -1,4 +1,4 @@
-{"name": "Showdown Survivor", "description": "Follow teammates or try to get closer to the center when no enemies and avoids showdown gas", "brawlers": ["all"], "gamemodes": ["trio showdown"], "author": "Official", "date": "2026-07-04"}
+{"name": "Survivor", "description": "Держится с командой, избегает газа и играет на выживание.", "brawlers": ["all"], "gamemodes": ["trio showdown"], "author": "xlamBOT", "date": "2026-10-06"}
 def no_enemy_movement():
     player_pos = get_entity_pos(player_data)
     closest_teammate_coords, dist = find_closest_teammate(teammate_data, player_pos, walls)

@@ -2,7 +2,7 @@ import sys
 import time
 import cv2
 
-from state_finder import get_state, is_underdog
+from state_finder import get_state, is_underdog, menu_back_position
 from trophy_observer import TrophyObserver, MatchResult
 from utils import find_template_center, load_toml_as_dict, notify_user, save_brawler_data
 
@@ -56,8 +56,8 @@ class StageManager:
         self.play_again_on_win = load_toml_as_dict("./cfg/bot_config.toml")["play_again_on_win"] == "yes"
         self.window_controller = window_controller
         self.states = {
-            'shop': self.quit_shop,
-            'brawler_selection': self.quit_shop,
+            'shop': self.close_known_menu,
+            'brawler_selection': self.close_known_menu,
             'brawler_choice': self.choose_reward_brawler,
             'team_panel': self.close_team_panel,
             'popup': self.close_pop_up,
@@ -467,6 +467,10 @@ class StageManager:
     def start_game(self):
         if self._should_stop() or self._should_pause():
             return
+        frame = self.window_controller.screenshot()
+        if get_state(frame) != "lobby":
+            print("Lobby changed before start; refusing to tap menu controls.")
+            return
 
         print("state is lobby, starting game")
         locked = self.locked_brawler()
@@ -532,7 +536,7 @@ class StageManager:
                         return
                     # Уводим непокорного бойца в конец очереди, иначе повтор
                     # был бы тем же самым выбором.
-                    self.quit_shop()
+                    self.close_known_menu()
                     stuck = self.brawlers_pick_data.pop(0)
                     self.brawlers_pick_data.append(stuck)
                     if len(self.brawlers_pick_data) > 1:
@@ -637,6 +641,10 @@ class StageManager:
             return
         # A rotation above invalidated the previous brawler's OCR lock.
         if not self._sync_lobby_counters():
+            return
+        frame = self.window_controller.screenshot()
+        if get_state(frame) != "lobby":
+            print("Lobby changed before PLAY; refusing a stale proceed tap.")
             return
         self.window_controller.release_movement()
         self.window_controller.press("proceed")
@@ -752,9 +760,17 @@ class StageManager:
             self.window_controller.restart_brawl_stars()
         print("Game has ended", current_state)
 
-    def quit_shop(self):
-        self.window_controller.click(100 * self.window_controller.width_ratio, 60 * self.window_controller.height_ratio)
+    def close_known_menu(self):
+        frame = self.window_controller.screenshot()
+        position = menu_back_position(frame)
+        if position is None:
+            print("Back button was not confirmed on a closable menu; no tap sent.")
+            return
+        self.window_controller.release_all_inputs()
+        self.window_controller.click(*position, already_include_ratio=True)
         time.sleep(1)
+
+    quit_shop = close_known_menu
 
     def close_pop_up(self):
         screenshot = self.window_controller.screenshot()

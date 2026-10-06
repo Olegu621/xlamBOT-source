@@ -148,7 +148,9 @@ def apply_play_order(queue_data):
 def xlambot_main(discord_bot, queue_data, stop_event=None, runtime_control=None):
     class Main:
         def __init__(self):
-            current_playstyle = load_toml_as_dict("cfg/bot_config.toml").get("current_playstyle", "default_up.xlambot")
+            from built_in_playstyles import canonical_playstyle
+            current_playstyle = canonical_playstyle(
+                load_toml_as_dict("cfg/bot_config.toml").get("current_playstyle"))
             try:
                 self.max_fps = int(load_toml_as_dict("cfg/general_config.toml")['max_fps'])
             except ValueError:
