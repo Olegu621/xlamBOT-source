@@ -8,7 +8,7 @@
     <title>xlamBOT — панель управления</title>
     <link rel="icon" type="image/png" href="/api/assets/support/xlambot_logo.png">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/panel.css') }}?v={{ ui_version }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/interface.css') }}?v={{ ui_version }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/sprites.css') }}?v={{ ui_version }}"><script src="{{ url_for('static', filename='js/settings-fields.js') }}?v={{ ui_version }}"></script><script src="{{ url_for('static', filename='js/i18n.js') }}?v={{ ui_version }}" defer></script></head>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/interface.css') }}?v={{ ui_version }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/sprites.css') }}?v={{ ui_version }}"><script src="{{ url_for('static', filename='js/settings-fields.js') }}?v={{ ui_version }}"></script><script src="{{ url_for('static', filename='js/i18n.js') }}?v={{ ui_version }}" defer></script>{% include '_marquee.html' %}</head>
 <body class="panel-body app-page">
     {% set active_page='devices' %}{% include '_sprites.html' %}{% include '_navigation.html' %}
     <header class="panel-header">
