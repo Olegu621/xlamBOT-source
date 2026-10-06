@@ -16,6 +16,16 @@ def masked(settings):
 
 def validate(name, value, original, path=''):
     label = path or name
+    if label == 'brawler_calibration.point_keys':
+        # This is a growing set of calibrated point names, not coordinates.
+        # Legacy profiles can contain nine-card keys which save() migrates out.
+        from brawler_calibration import POINTS
+        allowed = {point[0] for point in POINTS}
+        if (not isinstance(value, list)
+                or any(not isinstance(item, str) or item not in allowed for item in value)
+                or len(set(value)) != len(value)):
+            raise ValueError('Неверный список точек калибровки.')
+        return
     if name == "thinking_mode" and (not isinstance(value, str) or value not in {"low", "standard", "medium", "high", "maximum"}):
         raise ValueError("Выберите уровень думалки из списка")
     if isinstance(original, bool):

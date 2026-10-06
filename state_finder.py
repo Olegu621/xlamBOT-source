@@ -137,7 +137,7 @@ def get_in_game_state(image):
         if is_in_connection_lost(image): return "connection_lost"
         from reward_choice import is_reward_choice
         if is_reward_choice(image): return "brawler_choice"
-        if is_template_in_region(image,states_path+'team_panel_ru.png',[930,0,840,130],threshold=.9):
+        if team_panel_close_position(image) is not None:
             return 'team_panel'
         if should_print_debug_info: print("Checking for match result...")
         game_result = is_in_end_of_a_match(image)
@@ -168,6 +168,13 @@ def get_in_game_state(image):
         return "unknown"
     finally:
         should_print_debug_info = False
+
+
+def team_panel_close_position(image):
+    from team_panel import team_panel_close_position as locate
+    russian_heading = is_template_in_region(
+        image, states_path+'team_panel_ru.png', [930,0,840,130], threshold=.9)
+    return locate(image, russian_heading=bool(russian_heading))
 
 
 def is_in_shop(image) -> bool:
