@@ -84,8 +84,6 @@ window.XlamSettingsFields = {
 };
 
 Object.assign(window.XlamSettingsFields, {
- trio_only:['Только Trio Showdown','Trio Showdown only','Запускать бой только после подтверждения режима Trio на экране. Выключите для других режимов.','Start only after confirming Trio on screen. Disable for other modes.'],
- gas_memory_ttl:['Память газа, с','Gas memory, s','Как долго помнить недавно замеченное облако при пропуске распознавания. 0,01–0,75 с; не меньше интервала детектора.','Retain recently detected clouds through brief misses. 0.01–0.75 s; at least the detector interval.'],
  scrcpy_max_fps:['Кадры видеопотока','Capture FPS','0 — использовать предел FPS бота (auto = 60). Снижает нагрузку захвата.','0 uses the bot FPS limit (auto = 60). Limits capture workload.'],
  scrcpy_max_width:['Ширина видеопотока, пикс','Capture width, px','0 — исходное разрешение. Меньше ширина — быстрее обработка, но менее точный OCR.','0 keeps the original resolution. Smaller frames process faster but reduce OCR detail.'],
  scrcpy_bitrate:['Битрейт видео, бит/с','Video bitrate, bits/s','По умолчанию 4 000 000. Выше — чётче картинка и больше нагрузка.','Default: 4,000,000. Higher values improve detail and increase load.'],

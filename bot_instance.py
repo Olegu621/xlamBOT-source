@@ -15,8 +15,6 @@ import traceback
 from contextlib import nullcontext as _nullcontext
 
 from adbutils import AdbError
-from life_tracking import LifeTracker
-
 from lobby_automation import LobbyAutomation
 from play import Play
 from stage_manager import StageManager
@@ -70,7 +68,6 @@ class BotInstance:
         self.latest_state_frame_time = 0.0
         self.current_frame_time = 0.0
         self.processed_fps = 0.0
-        self.Life_tracker = LifeTracker()
         self.life_stats = {}
         self._error = ""
 
@@ -125,7 +122,6 @@ class BotInstance:
         self.latest_state_frame_time = 0.0
         self.current_frame_time = 0.0
         self.processed_fps = 0.0
-        self.Life_tracker = LifeTracker()
         self.life_stats = {}
         self.max_cached_state_age = 1.0
         self.state_checker_stop_event = threading.Event()
@@ -628,17 +624,6 @@ class BotInstance:
                 self.Play.main(frame, brawler, self)
                 world = self.Play.world_state
                 world["thinking_level"] = self.thinking.mode
-                life_state = world.get("state") or ""
-                if life_state == "lobby" or life_state.startswith("end_"):
-                    if not getattr(self, "_life_round_closed", False):
-                        self.Life_tracker.finish(world.get("timestamp") or time.time())
-                    self._life_round_closed = True
-                elif life_state == "match" and getattr(self, "_life_round_closed", False):
-                    self.Life_tracker = LifeTracker()
-                    self._life_round_closed = False
-                self.Life_tracker.update(world.get("timestamp"), world.get("player_present", False), world.get("state"), world=world)
-                events = self.Life_tracker.events
-                self.life_stats = {"life_id": self.Life_tracker.life_id, "alive": self.Life_tracker.alive, "awaiting_respawn": self.Life_tracker.awaiting_respawn, "confirmed_deaths": sum(e["event"] == "DEATH_CONFIRMED" for e in events), "inferred_deaths": sum(e["event"] == "DEATH_INFERRED" for e in events), "respawns": sum(e["event"].startswith("RESPAWN") for e in events)}
             except StaleFrameError:
                 self.window_controller.release_all_inputs()
                 time.sleep(0.05)

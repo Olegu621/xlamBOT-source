@@ -2,7 +2,7 @@ import sys
 import time
 import cv2
 
-from state_finder import get_state, is_underdog, selected_showdown_mode
+from state_finder import get_state, is_underdog
 from trophy_observer import TrophyObserver, MatchResult
 from utils import find_template_center, load_toml_as_dict, notify_user, save_brawler_data
 
@@ -32,8 +32,6 @@ class StageManager:
         # Guards the per-game counter against the lobby being reported on every
         # tick. Reset once a game actually starts.
         self._game_counted = False
-        self.trio_session_confirmed = False
-        self._match_started = False
         self._confirmed_brawler = None
         # What the last rotation actually did, so the panel can show proof
         # of the switch instead of only the current brawler.
@@ -467,9 +465,6 @@ class StageManager:
         return entry.get("brawler")
 
     def start_game(self):
-        if not self.require_trio_lobby():
-            return
-        self.trio_session_confirmed = True
         if self._should_stop() or self._should_pause():
             return
 
@@ -788,27 +783,6 @@ class StageManager:
             action(data)
             return
         action()
-
-    def require_trio_lobby(self):
-        from utils import config_bool
-        if not config_bool(load_toml_as_dict("cfg/bot_config.toml").get("trio_only"), False):
-            return True
-        # Optional mode protection, checked from the actual lobby icon.
-        confirmed_mode = selected_showdown_mode(self.window_controller.screenshot())
-        if confirmed_mode != 'trio_showdown':
-            self.window_controller.release_all_inputs()
-            if confirmed_mode is None:
-                now=time.monotonic()
-                since=getattr(self,'_trio_unknown_since',None)
-                if since is None:
-                    self._trio_unknown_since=now
-                    return False
-                if now-since<15:
-                    return False
-            raise RuntimeError(f'Trio Showdown not confirmed (selected={confirmed_mode or "unknown"}). Select Trio in the game lobby before starting.')
-        self._trio_unknown_since=None
-        return True
-
 
     def close_team_panel(self):
         if self._should_stop() or self._should_pause():

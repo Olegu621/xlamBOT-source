@@ -902,10 +902,7 @@ def interpret_playstyle_code(playstyle_code, context):
 def load_playstyle_script(filename):
     try:
         script_path = resolve_playstyle_path(filename)
-        from trio_playstyles import PLAYSTYLES
-        text = PLAYSTYLES.get(filename)
-        if text is None:
-            text = read_text_auto(script_path)
+        text = read_text_auto(script_path)
         lines = text.splitlines(True)
         metadata_header = lines[0].strip() if lines else ""
         metadata = json.loads(metadata_header) if metadata_header else {}
@@ -921,12 +918,14 @@ def load_playstyle_script(filename):
 
 
 def get_playstyles_list():
-    from trio_playstyles import PLAYSTYLES
-    folder = resolve_project_path("playstyles")
-    names = set(PLAYSTYLES)
-    if folder.exists():
-        names.update(p.name for p in folder.glob("*.xlambot"))
-    return [{"filename": name, "metadata": load_playstyle_script(name)[0]} for name in sorted(names)]
+    playstyles_dir = resolve_project_path("playstyles")
+    playstyles = []
+    if playstyles_dir.exists():
+        for filename in os.listdir(playstyles_dir):
+            if filename.endswith(".xlambot"):
+                metadata, _ = load_playstyle_script(filename)
+                playstyles.append({"filename": filename, "metadata": metadata})
+    return playstyles
 
 
 def load_default_playstyle():
