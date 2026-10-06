@@ -27,7 +27,7 @@ files = {}
 for path in source.glob('*.py'):
     if path.name not in {'update_client.py', 'xlambot_launcher.py', 'setup.py'} and not path.name.startswith(('test_', 'tools_')):
         files[path.name] = path
-for directory, extensions in {'webui': {'.py'}, 'api': {'.py'}, 'static': {'.js', '.css'}, 'templates': {'.html'}}.items():
+for directory, extensions in {'webui': {'.py'}, 'api': {'.py'}, 'telegram_integration': {'.py'}, 'static': {'.js', '.css'}, 'templates': {'.html'}}.items():
     for path in (source / directory).rglob('*'):
         if path.is_file() and path.suffix in extensions and '__pycache__' not in path.parts:
             files[path.relative_to(source).as_posix()] = path

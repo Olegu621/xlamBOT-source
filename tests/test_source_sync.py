@@ -27,7 +27,7 @@ class SourceSyncTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root=Path(temporary); source=root/'source'; repo=root/'repo'
             source.mkdir(); repo.mkdir()
-            for name in ('bot_instance.py', 'cfg/login.toml', 'devices/user.json', 'training/frame.jpg'):
+            for name in ('bot_instance.py', 'telegram_integration/__init__.py', 'cfg/login.toml', 'devices/user.json', 'training/frame.jpg'):
                 p=source/name; p.parent.mkdir(parents=True, exist_ok=True); p.write_text('private' if '/' in name else 'print(1)')
             def fake_git(directory, *args):
                 if args[:2]==('remote','get-url'): return source_sync.REMOTE
@@ -37,6 +37,7 @@ class SourceSyncTests(unittest.TestCase):
             with patch.object(source_sync, 'git', side_effect=fake_git):
                 self.assertEqual(source_sync.synchronize(source, repo, 25), 'commit')
             self.assertTrue((repo/'bot_instance.py').exists())
+            self.assertTrue((repo/'telegram_integration/__init__.py').exists())
             self.assertFalse((repo/'cfg').exists())
             self.assertFalse((repo/'devices').exists())
             self.assertFalse((repo/'training').exists())

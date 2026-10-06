@@ -55,6 +55,9 @@ DATA = [
 # Файлы, которые PyInstaller не находит сам: их читают по строковому пути.
 # Список собран проверкой импорта в конце сборки.
 HIDDEN = [
+    "telegram_integration.lifecycle",
+    "telegram_integration.cli",
+    "telegram_integration.counter",
     "onnxruntime",
     "onnxruntime.capi._pybind_state",
     "onnxruntime.capi.onnxruntime_inference_collection",

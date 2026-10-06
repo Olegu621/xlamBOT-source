@@ -850,6 +850,9 @@ def create_app(xlambot_main, start_discord_bot=False):
         if shutdown is None:
             return jsonify({'ok':False,'message':'Server shutdown unavailable'}),409
         audit_service.stop_all()
+        stop_telegram = app.extensions.get('telegram_stop')
+        if stop_telegram:
+            stop_telegram()
         device_manager.stop_all()
         import threading
         threading.Thread(target=shutdown, daemon=True, name='xlambot-shutdown').start()
@@ -1054,4 +1057,6 @@ def create_app(xlambot_main, start_discord_bot=False):
             updater.lock.release()
 
     resource_updater.start()
+    from telegram_integration.lifecycle import start_optional
+    start_optional(app)
     return app

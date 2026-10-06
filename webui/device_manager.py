@@ -624,6 +624,10 @@ class DeviceRuntimeManager:
             return {**status, "has_instance": False}
 
         data: dict[str, Any] = {**status, "has_instance": True}
+        with instance.state_lock:
+            counter = getattr(instance, 'session_match_counter', None)
+            if counter is not None:
+                data.update(counter.snapshot())
         data["fps"] = getattr(instance, "processed_fps", None)
         thinking = getattr(instance, "thinking", None)
         data["thinking"] = thinking.snapshot() if thinking is not None else {}
@@ -659,6 +663,7 @@ class DeviceRuntimeManager:
             data["gas"] = None
         try:
             queue = instance.Stage_manager.brawlers_pick_data
+            data["queue_length"] = len(queue)
             if queue:
                 observer = instance.Stage_manager.Trophy_observer
                 # Report the brawler the game actually put us on. queue[0] is only

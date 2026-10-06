@@ -253,6 +253,11 @@ class BotInstance:
                 if observed.get('player_present') and time.time()-observed.get('timestamp',0) < .3:
                     state = 'match'
             self.state = state
+            from telegram_integration.counter import MatchCounter
+            counter = getattr(self, 'session_match_counter', None)
+            if counter is None:
+                counter = self.session_match_counter = MatchCounter()
+            counter.observe(state)
             self.latest_state_frame_time = frame_time if frame_time is not None else time.time()
         if state != 'match':
             self.window_controller.gameplay_frame_time = None

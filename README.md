@@ -1,5 +1,11 @@
 # xlamBOT — исходники
 
+## Telegram / Remote control
+
+Необязательные уведомления и управление через Telegram: выбор в консоли, создание бота через собственный менеджер или BotFather, привязка владельца, цветные кнопки, настройки уведомлений, скриншоты и лимиты остановки. [Настройка на русском и английском](docs/telegram.md).
+
+Optional Telegram notifications and remote control include console opt-in, managed/BotFather setup, owner pairing, colored buttons, notification filters, screenshots and stop limits. [Setup, operation and release requirements](docs/telegram.md).
+
 Закрытый репозиторий разработки. Публичная сборка и установщик: https://github.com/Olegu621/xlamBOT.
 
 Исходники ревизии 24 проверены пересборкой: SHA-256 каждого из 71 файла совпадает с подписанным пакетом. `revision-24.json` содержит контрольные суммы; тег `bot-revision-24` закрепляет исходники этой версии.

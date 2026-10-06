@@ -20,13 +20,13 @@ def synchronize(source, repo, revision):
     if source != repo:
         # Only program code/resources, never runtime profiles, cfg or recordings.
         paths = [p for p in source.glob('*.py') if not p.name.startswith(('test_', 'tools_'))]
-        for directory, extensions in {'api':{'.py'}, 'webui':{'.py'}, 'static':{'.js','.css'}, 'templates':{'.html'}}.items():
+        for directory, extensions in {'api':{'.py'}, 'webui':{'.py'}, 'telegram_integration':{'.py'}, 'static':{'.js','.css'}, 'templates':{'.html'}}.items():
             paths.extend(p for p in (source/directory).rglob('*') if p.is_file() and p.suffix in extensions and '__pycache__' not in p.parts)
         selected = {p.relative_to(source).as_posix():p for p in paths}
         tracked = git(repo, 'ls-files').splitlines()
         for name in tracked:
             p = Path(name)
-            managed = (len(p.parts)==1 and p.suffix=='.py' and not p.name.startswith(('test_', 'tools_'))) or (p.parts[0] in ('api','webui') and p.suffix=='.py') or (p.parts[0]=='static' and p.suffix in ('.js','.css')) or (p.parts[0]=='templates' and p.suffix=='.html')
+            managed = (len(p.parts)==1 and p.suffix=='.py' and not p.name.startswith(('test_', 'tools_'))) or (p.parts[0] in ('api','webui','telegram_integration') and p.suffix=='.py') or (p.parts[0]=='static' and p.suffix in ('.js','.css')) or (p.parts[0]=='templates' and p.suffix=='.html')
             if managed and name not in selected:
                 (repo/name).unlink(missing_ok=True)
         for name, path in selected.items():
