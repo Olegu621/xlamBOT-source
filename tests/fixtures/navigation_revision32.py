@@ -3,8 +3,7 @@
 This module has no device or input access, so saved observations can be replayed.
 Gas/wall vetoes are hard constraints; centre and combat preferences only break ties.
 """
-from dataclasses import dataclass
-from functools import lru_cache
+from dataclasses import asdict, dataclass
 import math
 
 import cv2
@@ -72,26 +71,7 @@ class GasRisk:
 class _GasIntegral:
     def __init__(self, mask):
         self.shape = mask.shape
-        # uint8 coverage fits in signed 32 bits up to a full 4K frame.
-        depth = cv2.CV_32S if mask.size <= np.iinfo(np.int32).max // 255 else cv2.CV_64F
-        self.sums = cv2.integral(mask, sdepth=depth)
-
-
-def prepare_gas_mask(mask):
-    if isinstance(mask, np.ndarray) and mask.dtype == np.uint8 and mask.ndim == 2:
-        return _GasIntegral(mask)
-    return mask
-
-
-@lru_cache(maxsize=128)
-def _corridor_samples(start, steps):
-    return tuple(np.linspace(start, 1.0, steps+1))
-
-
-@lru_cache(maxsize=4)
-def _directions(count):
-    return tuple((round(math.cos(2*math.pi*i/count), 12),
-                  round(math.sin(2*math.pi*i/count), 12)) for i in range(count))
+        self.sums = cv2.integral(mask, sdepth=cv2.CV_64F)
 
 
 def patch_share(mask, x, y, radius):
@@ -117,7 +97,7 @@ def corridor_share(mask, x, y, player_width, player_height, dx, dy, reach, start
     # Overlapping footprints cannot jump over a thin gas strip.
     steps = max(6, int(math.ceil(distance * (1-start) / max(radius*.5, 1))))
     return max(patch_share(mask, x + dx*distance*t, y + dy*distance*t, radius)
-               for t in _corridor_samples(start, steps))
+               for t in np.linspace(start, 1.0, steps+1))
 
 
 def evaluate_gas_risk(mask, center, radius, movement, reach=3.0, lookahead=4.0, sensitivity=.05):
@@ -145,7 +125,8 @@ class MovementArbiter:
                reach=3., lookahead=4., sensitivity=.05, escape=False,
                enemies=(), teammates=(), centre_bias=.06, tile=54., fallback_magnitude=1.,
                observed_y=None):
-        mask = prepare_gas_mask(mask)
+        if mask is not None and mask.dtype == np.uint8 and mask.ndim == 2:
+            mask = _GasIntegral(mask)
         desired = desired or (0., 0.)
         length = math.hypot(*desired)
         desired_unit = (desired[0]/length, desired[1]/length) if length else (0.,0.)
@@ -155,8 +136,7 @@ class MovementArbiter:
 
         def assess(move):
             gas = evaluate_gas_risk(mask, center, radius, move, reach, lookahead, sensitivity)
-            first_wall = bool(walls_block(move, tile))
-            blocked = first_wall
+            blocked = bool(walls_block(move, tile))
             # A first step into unobserved space is disallowed. The camera can
             # scroll, but only a subsequent fresh observation can prove it clear.
             norm = math.hypot(*move) or 1.
@@ -173,8 +153,7 @@ class MovementArbiter:
             pressure = sum(max(0., 1.-math.hypot(px-ex, py-ey)/(tile*6)) for ex, ey in enemies)
             support = max((max(0., 1.-math.hypot(px-tx, py-ty)/(tile*6)) for tx, ty in teammates), default=0.)
             steps = max(1, min(5, int(self.planning_steps)))
-            space = (int(not first_wall) + sum(not walls_block(move, tile*n)
-                                             for n in range(2, steps+1))) / steps
+            space = sum(not walls_block(move, tile*n) for n in range(1, steps+1)) / steps
             # During escape terminal coverage is the primary cost: shared gas
             # at t=0 must not make all exits look identical.
             terminal = patch_share(mask, *gas.endpoint, radius) if mask is not None else 0.
@@ -183,13 +162,14 @@ class MovementArbiter:
                 terminal=1.
             score = (terminal*10 + gas.near*2 + gas.far) if escape else gas.risk*10
             score += pressure*.25 - support*.05 - space*.05 - centre_bias*inward - alignment*.1
-            return {**vars(gas), 'movement':move, 'wall_collision':blocked,
+            return {**asdict(gas), 'movement':move, 'wall_collision':blocked,
                     'observation_boundary':observation_boundary,'terminal_observed':terminal_observed,
                     'enemy_risk':pressure, 'teammate_value':support, 'escape_space':space,
                     'alignment':alignment, 'terminal':terminal, 'score':score}
 
         count = max(8, min(32, int(self.direction_count)))
-        options = [assess(move) for move in _directions(count)]
+        angles = tuple(2*math.pi*i/count for i in range(count))
+        options = [assess((round(math.cos(a), 12), round(math.sin(a), 12))) for a in angles]
         requested = assess(desired_unit) if length else None
         walkable = [o for o in options if not o['wall_collision']]
         safe = [o for o in walkable if not o['blocked']]

@@ -247,14 +247,14 @@ class Detect:
             interpolation=cv2.INTER_LINEAR
         )
 
-        img_float = resized_img.astype(np.float32, copy=True)
-        np.multiply(img_float, 1.0 / 255.0, out=img_float)
-
         # A previous square crop must not remain below a later widescreen frame.
         self._padded_img_buffer.fill(128.0 / 255.0)
-        self._padded_img_buffer[0, 0, :new_h, :new_w] = img_float[:, :, 0]
-        self._padded_img_buffer[0, 1, :new_h, :new_w] = img_float[:, :, 1]
-        self._padded_img_buffer[0, 2, :new_h, :new_w] = img_float[:, :, 2]
+        # Normalize directly into the reusable planar tensor. uint8 + float32
+        # retains the original float32 rounding without a full RGB float copy.
+        if resized_img.dtype not in (np.dtype(np.uint8), np.dtype(np.float32)):
+            resized_img = resized_img.astype(np.float32, copy=False)
+        np.multiply(resized_img.transpose(2, 0, 1), np.float32(1.0 / 255.0),
+                    out=self._padded_img_buffer[0, :, :new_h, :new_w])
 
         return self._padded_img_buffer, new_w, new_h
 
