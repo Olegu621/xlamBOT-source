@@ -575,7 +575,8 @@ class WindowController:
         target_y = self.movement_joystick_y + y
         if not self.are_we_moving:
             self.touch_down(self.movement_joystick_x, self.movement_joystick_y, pointer_id=self.PID_JOYSTICK)
-            time.sleep(0.05)
+            # scrcpy preserves DOWN/MOVE order in one control stream. Waiting
+            # 50 ms here delays every movement start without adding ordering.
             self.touch_move(target_x, target_y, pointer_id=self.PID_JOYSTICK)
             self.are_we_moving = True
             self.last_joystick_pos = (target_x, target_y)
