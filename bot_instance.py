@@ -343,10 +343,13 @@ class BotInstance:
             self.wait_while_paused()
 
     def manage_time_tasks(self, frame):
-        if self.Time_management.state_check():
-            state = self.get_latest_state()
-            if state is not None:
-                self.handle_detected_state(state)
+        state = self.get_latest_state()
+        # New screen observations should not wait for the three-second timer.
+        # The timer still retries unchanged screens when a tap was swallowed.
+        state_due = self.Time_management.state_check()
+        if state is not None and (state_due or state != getattr(self, '_last_handled_state', None)):
+            self._last_handled_state = state
+            self.handle_detected_state(state)
         if self.Time_management.no_detections_check():
             frame_data = self.Play.time_since_detections
             t_now = time.time()

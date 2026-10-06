@@ -48,8 +48,12 @@ class GasMemory:
             self.observations.append((now, current))
         mask = current.copy()
         for stamp, old in self.observations:
+            if old is current:
+                continue  # Already included, with weight one, in current.
             weight = max(0.0, 1.0 - (now - stamp) / self.ttl)
-            np.maximum(mask, (old * weight).astype(np.uint8), out=mask)
+            # Preserve truncation exactly, without allocating a float64 frame.
+            table = (np.arange(256, dtype=np.float64) * weight).astype(np.uint8)
+            cv2.max(mask, cv2.LUT(old, table), dst=mask)
         return kept, mask
 
 
@@ -64,12 +68,22 @@ class GasRisk:
     endpoint: tuple
 
 
+class _GasIntegral:
+    def __init__(self, mask):
+        self.shape = mask.shape
+        self.sums = cv2.integral(mask, sdepth=cv2.CV_64F)
+
+
 def patch_share(mask, x, y, radius):
     height, width = mask.shape[:2]
     x1, x2 = int(max(0, x-radius)), int(min(width, x+radius))
     y1, y2 = int(max(0, y-radius)), int(min(height, y+radius))
     if x2 <= x1 or y2 <= y1:
         return 1.0  # unobserved space is not evidence of safety
+    if isinstance(mask, _GasIntegral):
+        sums = mask.sums
+        total = sums[y2,x2] - sums[y1,x2] - sums[y2,x1] + sums[y1,x1]
+        return float(total / ((y2-y1)*(x2-x1)) / 255.0)
     patch = mask[y1:y2, x1:x2]
     return float(np.mean(patch, dtype=np.float64) / 255.0)
 
@@ -111,6 +125,8 @@ class MovementArbiter:
                reach=3., lookahead=4., sensitivity=.05, escape=False,
                enemies=(), teammates=(), centre_bias=.06, tile=54., fallback_magnitude=1.,
                observed_y=None):
+        if mask is not None and mask.dtype == np.uint8 and mask.ndim == 2:
+            mask = _GasIntegral(mask)
         desired = desired or (0., 0.)
         length = math.hypot(*desired)
         desired_unit = (desired[0]/length, desired[1]/length) if length else (0.,0.)

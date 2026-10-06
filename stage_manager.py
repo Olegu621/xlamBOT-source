@@ -718,9 +718,16 @@ class StageManager:
                 print("Game has ended, proceeding")
                 self.window_controller.press("proceed")
 
-            time.sleep(3)
-            screenshot = self.window_controller.screenshot()
-            current_state = get_state(screenshot)
+            # Return as soon as a fresh screenshot proves the transition.
+            # Keep a bounded wait for animations and honour Stop/Pause promptly.
+            transition_deadline = time.monotonic() + 3
+            while time.monotonic() < transition_deadline:
+                if self._sleep_interruptible(.1):
+                    return
+                screenshot = self.window_controller.screenshot()
+                current_state = get_state(screenshot)
+                if not current_state.startswith('end'):
+                    break
 
         if self.play_again_on_win and parsed_result and parsed_result.result == MatchResult.VICTORY and not self._should_pause():
             print("Waiting for match to start...")
