@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import io
 from datetime import date, datetime
 import json
 import logging
@@ -699,7 +700,11 @@ class WebDataService:
 
         grouped: dict[str, dict[str, Any]] = {}
 
-        with csv_path.open("r", encoding="utf-8-sig", newline="") as handle:
+        try:
+            handle = csv_path.open("r", encoding="utf-8-sig", newline="")
+        except FileNotFoundError:
+            handle = io.StringIO("")
+        with handle:
             for row in csv.DictReader(handle):
                 brawler = str(row.get("brawler_name", "")).strip()
                 if not brawler:
