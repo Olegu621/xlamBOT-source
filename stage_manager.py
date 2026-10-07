@@ -212,7 +212,7 @@ class StageManager:
             self._adopt_picked_brawler(previous, 0)
             print(f"On {name}, and staying on it.")
         elif result in ("aborted", "stuck"):
-            self._lock_ok = True
+            self._lock_ok = False
         else:
             print(f"Could not pick {name} ({result!r}). The next lobby tick "
                   "will try again.")
@@ -481,6 +481,8 @@ class StageManager:
             # sort would otherwise hand back somebody else.
             self._lock_queue_to(locked)
             self._select_locked_brawler(locked)
+            if not self._lock_ok:
+                return
         values = {
             "trophies": self.Trophy_observer.current_trophies,
             "wins": self.Trophy_observer.current_wins
