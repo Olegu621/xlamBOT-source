@@ -30,13 +30,13 @@
     function modeText() {
         const en = window.XlamI18n?.language === 'en';
         return en ? [
-            ['Caution','Retreats early, avoids approaching opponents and attacks for self-defense.'],
+            ['Bush camping','Hides in bushes, moves every 3 seconds. Changes cover near gas or an approaching enemy; attacks nearby opponents.'],
             ['Survival','Regroups with active allies, holds range and retreats when outnumbered.'],
             ['Balanced','Selects manageable fights, supports allies and holds the brawler’s effective range.'],
             ['Aggressive','Pursues accessible targets, strafes in range and retreats from overwhelming groups.'],
             ['Onslaught','Pressures opponents more closely while preserving range for ranged brawlers.'],
         ] : [
-            ['Осторожность','Отступает заранее, избегает сближения и атакует для самообороны.'],
+            ['Сидеть в кустах','Скрывается в кустах, двигается раз в 3 секунды. Меняет укрытие при приближении газа или врага; атакует рядом.'],
             ['Выживание','Собирается с активными союзниками, держит дистанцию и отступает при перевесе врагов.'],
             ['Баланс','Выбирает посильные бои, поддерживает союзников и держит рабочую дистанцию бойца.'],
             ['Агрессия','Преследует доступные цели, двигается поперёк огня и отходит от подавляющего перевеса.'],
@@ -368,7 +368,7 @@
                                 <div class="work-mode-head"><span class="work-mode-caption">Режим работы</span><span class="work-mode-count" data-mode-count>2 / 5</span></div>
                                 <strong class="work-mode-name" data-mode-name>Выживание</strong>
                                 <div class="mode-track"><div class="mode-stops" aria-hidden="true">${[1,2,3,4,5].map(()=>'<span></span>').join('')}</div><input type="range" min="1" max="5" step="1" value="2" data-mode-slider="${escapeHtml(key)}" aria-label="Режим работы" disabled></div>
-                                <div class="mode-scale"><span>Осторожность</span><span>Натиск</span></div>
+                                <div class="mode-scale"><span>Сидеть в кустах</span><span>Натиск</span></div>
                                 <p class="work-mode-description" data-mode-description></p>
                                 <p class="work-mode-status" data-mode-status aria-live="polite"></p>
                             </section>

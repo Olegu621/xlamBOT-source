@@ -168,6 +168,10 @@ class Play:
             self.playstyle_code = playstyle_code
         self.battle_memory = BattleMemory()
         self.steering = Steering()
+        from bush_cover import BushCover
+        self.bush_cover = BushCover()
+        from incoming_damage import IncomingDamage
+        self.incoming_damage = IncomingDamage()
         self.ability_buttons = AbilityButtons()
         self.reset_battle_pending = False
         from combat_behavior import CombatBehavior
@@ -1094,15 +1098,20 @@ class Play:
         # Standing in a cloud is worth leaving whatever the playstyle wanted, so
         # the escape takes the joystick immediately without direction debounce.
         movement = self.clamp_movement(gas_vector if gas_vector is not None else movement_vector)
-        if gas_vector is None:
+        if gas_vector is None and math.hypot(*movement)<1e-6:
+            self.steering.previous = None
+            self.fix_movement_keys['toggled'] = False
+        elif gas_vector is None:
             movement = self.remembered_movement(movement, data, current_time)
             movement = self.steering.choose(movement, current_time,
                 lambda v: self.safe_memory_step(v, data['player'][0], data['wall']))
-            movement = self.unstuck_movement_if_needed(movement, current_time)
+            if not (self.work_mode == 1 and self.behavior_report.get('intent') == 'hide'):
+                movement = self.unstuck_movement_if_needed(movement, current_time)
             # Unstick and held directions must pass the same current gas/wall check.
             if not self.safe_memory_step(movement, data['player'][0], data['wall']):
                 movement = self.remembered_movement(movement, data, current_time)
         else:
+            movement = self.remembered_movement(movement, data, current_time, escaping=True)
             self.steering.previous = None
             self.fix_movement_keys['toggled'] = False
         self.last_movement = movement
@@ -1126,12 +1135,12 @@ class Play:
             x,y = self.get_entity_pos(actual)
             length = math.hypot(*v)
             share = self.gas_direction_share(self.gas_mask,x,y,max(actual[2]-actual[0],1),
-                max(actual[3]-actual[1],1),v[0]/length,v[1]/length,self.gas_lookahead)
+                max(actual[3]-actual[1],1),v[0]/length,v[1]/length,self.gas_reach)
             if share >= self.gas_sensitivity:
                 return False
         return True
 
-    def remembered_movement(self, movement, data, now):
+    def remembered_movement(self, movement, data, now, escaping=False):
         if not movement or math.hypot(*movement)<1e-6:
             return movement
         tile = self.TILE_SIZE*self.window_controller.scale_factor
@@ -1139,21 +1148,31 @@ class Play:
         player = self.get_entity_pos(data['player'][0])
         length = math.hypot(*movement)
         unit = (movement[0]/length,movement[1]/length)
-        if not self.battle_memory.dangers and self.safe_memory_step(movement,data['player'][0],data['wall']):
+        if not escaping and not self.battle_memory.dangers and self.safe_memory_step(movement,data['player'][0],data['wall']):
             return movement
         from local_navigation import detour
         from thinking_levels import PROFILES
         center,radius=self.get_player_hit_circle(data['player'][0])
-        route=detour(center,movement,radius,tile,data['wall'],PROFILES.get(getattr(self,'thinking_level','standard'),PROFILES['standard'])['directions'])
+        def route_risk(point):
+            if self.gas_mask is None:return 0.
+            h,w=self.gas_mask.shape[:2];x,y=map(int,point)
+            if not (0<=x<w and 0<=y<h):return 8.
+            patch=self.gas_mask[max(0,y-3):min(h,y+4),max(0,x-3):min(w,x+4)]
+            return 5*float((patch>0).mean())
+        route=detour(center,movement,radius,tile,data['wall'],PROFILES.get(getattr(self,'thinking_level','standard'),PROFILES['standard'])['directions'],risk=route_risk)
         options = [self.clamp_movement(route)] if route else []
         options += [movement]+[self.clamp_movement((math.cos(a),math.sin(a))) for a in GAS_ESCAPE_ANGLES]
         candidates = []
         for v in options:
-            if not self.safe_memory_step(v,data['player'][0],data['wall']):
+            if self.is_path_blocked(data['player'][0],v,data['wall']) if escaping else not self.safe_memory_step(v,data['player'][0],data['wall']):
                 continue
             size = math.hypot(*v)
             direction = (v[0]/size,v[1]/size)
             cost = 1-sum(a*b for a,b in zip(unit,direction))
+            if escaping and self.gas_mask is not None:
+                actual=self.get_actual_player_box(data['player'][0]) or data['player'][0]
+                x,y=self.get_entity_pos(actual)
+                cost += 4*self.gas_direction_share(self.gas_mask,x,y,max(actual[2]-actual[0],1),max(actual[3]-actual[1],1),direction[0],direction[1],self.gas_reach)
             if route and v == options[0]: cost -= 1.5
             from work_modes import danger_weight
             cost += danger_weight(self.work_mode)*self.battle_memory.score(player,direction,allies,now,tile)
@@ -1269,6 +1288,17 @@ class Play:
             self.context['teammate_data'],attack_range,safe_range,
             self.TILE_SIZE*self.window_controller.scale_factor,JOYSTICK_RADIUS,time.time(),
             lambda box:self.is_enemy_hittable(player,self.get_entity_pos(box),self.context['walls'],'attack'))
+        if self.work_mode == 1:
+            player = self.get_player_hit_circle(self.context['player_data'])[0] or player
+            tile = self.TILE_SIZE*self.window_controller.scale_factor
+            def safe_cover(point, margin):
+                if self.gas_mask is None:return True
+                h,w=self.gas_mask.shape[:2]
+                x,y=point
+                patch=self.gas_mask[max(0,int(y-margin)):min(h,int(y+margin)+1),max(0,int(x-margin)):min(w,int(x+margin)+1)]
+                return patch.size>0 and (patch>0).mean()<self.gas_sensitivity
+            plan=self.bush_cover.plan(player,self.context.get('bushes',[]),self.context['enemy_data'],tile,JOYSTICK_RADIUS,time.time(),attack_range,
+                lambda box:self.is_enemy_hittable(player,self.get_entity_pos(box),self.context['walls'],'attack'),safe_cover,attacked=self.incoming_damage.observe(self.frame,self.context['player_data'],time.time()),refuge=self.map_centre())
         self.behavior_report = plan['report']
         if not self.behavior_report['fire_allowed'] and self.persistent_data['time_since_holding_attack'] is not None:
             self.attack(touch_up=True,touch_down=False)
@@ -1290,6 +1320,10 @@ class Play:
             self._work_style = selected
         self.window_controller.release_all_inputs()
         self.behavior.reset()
+        from bush_cover import BushCover
+        self.bush_cover = BushCover()
+        from incoming_damage import IncomingDamage
+        self.incoming_damage = IncomingDamage()
         self.behavior_report = {}
         self.persistent_data['time_since_holding_attack'] = None
         self.work_mode = level
@@ -1384,6 +1418,10 @@ class Play:
             return
         if self.reset_battle_pending:
             self.behavior.reset()
+            from bush_cover import BushCover
+            self.bush_cover = BushCover()
+            from incoming_damage import IncomingDamage
+            self.incoming_damage = IncomingDamage()
             self.behavior_report = {}
             self.battle_memory.reset()
             self.steering = Steering()

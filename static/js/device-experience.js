@@ -54,7 +54,7 @@
  // Shared settings endpoint and semantics on the personal settings page.
  const levels=['low','standard','medium','high','maximum'];
  const names=()=>en()?['Low','Standard','Medium','High','Maximum']:['Низкий','Стандарт','Средний','Высокий','Максимальный'];
- const modes=()=>en()?['Caution','Survival','Balanced','Aggressive','Onslaught']:['Осторожность','Выживание','Баланс','Агрессия','Натиск'];
+ const modes=()=>en()?['Bush camping','Survival','Balanced','Aggressive','Onslaught']:['Сидеть в кустах','Выживание','Баланс','Агрессия','Натиск'];
  async function api(path,body){const response=await window.XlamSession.fetch(path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json','X-Xlam-UI-Token':document.querySelector('meta[name="xlam-ui-token"]').content},body:body?JSON.stringify(body):undefined});const result=await response.json();if(!response.ok||result.ok===false)throw Error(result.message||text('Не удалось сохранить','Could not save'));return result;}
  async function mountControl(host,key){
   if(host.dataset.mounted===key)return;host.dataset.mounted=key;
