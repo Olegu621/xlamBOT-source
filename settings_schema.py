@@ -16,6 +16,8 @@ def masked(settings):
 
 def validate(name, value, original, path=''):
     label = path or name
+    if name == 'work_mode' and (type(value) is not int or value not in range(1,6)):
+        raise ValueError('Выберите режим работы от 1 до 5')
     if label == 'brawler_calibration.point_keys':
         # This is a growing set of calibrated point names, not coordinates.
         # Legacy profiles can contain nine-card keys which save() migrates out.

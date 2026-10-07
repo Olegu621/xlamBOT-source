@@ -24,6 +24,118 @@
     let cardKeys = '';       // signature of the rendered device set
     const THINKING_LEVELS = ['low', 'standard', 'medium', 'high', 'maximum'];
     const thinkingByKey = {};
+    const workModeByKey = {};
+    const MODE_COLORS = ['#80bfce','#91c8a0','#b5a0ef','#efa968','#ed7189'];
+    function modeText() {
+        const en = window.XlamI18n?.language === 'en';
+        return en ? [
+            ['Caution','Retreats early, avoids approaching opponents and attacks for self-defense.'],
+            ['Survival','Stays with active allies and keeps a safe distance.'],
+            ['Balanced','Engages manageable fights and retreats when outnumbered.'],
+            ['Aggressive','Seeks opponents and fights according to the brawler’s range.'],
+            ['Onslaught','Maximum aggression: closes distance and takes more combat risks.'],
+        ] : [
+            ['Осторожность','Отступает заранее, избегает сближения и атакует для самообороны.'],
+            ['Выживание','Держится с активными союзниками и сохраняет безопасную дистанцию.'],
+            ['Баланс','Вступает в посильные бои, отступает при численном перевесе врагов.'],
+            ['Агрессия','Ищет противников и сражается с учётом дальности бойца.'],
+            ['Натиск','Максимальная агрессия: активно сближается и больше рискует в бою.'],
+        ];
+    }
+    function renderWorkMode(key, preview) {
+        const widget = grid.querySelector(`[data-mode-control="${cssEscape(key)}"]`);
+        if (!widget) return;
+        const state = workModeByKey[key] || {};
+        const value = preview || state.saved || 2;
+        const en = window.XlamI18n?.language === 'en';
+        const text = modeText()[value-1];
+        const slider = widget.querySelector('input');
+        slider.value = value;
+        slider.disabled = !state.saved || !!state.busy;
+        slider.setAttribute('aria-label', en ? 'Bot mode' : 'Режим работы');
+        slider.setAttribute('aria-valuetext', `${value} / 5 · ${text[0]}`);
+        widget.style.setProperty('--mode-fill', `${(value-1)*25}%`);
+        widget.style.setProperty('--mode-color', MODE_COLORS[value-1]);
+        widget.querySelector('[data-mode-name]').textContent = text[0];
+        widget.querySelector('[data-mode-count]').textContent = `${value} / 5`;
+        widget.querySelector('[data-mode-description]').textContent = text[1];
+        widget.querySelector('[data-mode-status]').textContent = state.busy
+            ? (en ? 'Saving…' : 'Сохраняю…')
+            : (en ? 'Applies during play · gas and walls stay blocked' : 'Применяется в игре · газ и стены остаются запретом');
+        const summary = grid.querySelector(`[data-mode-summary="${cssEscape(key)}"]`);
+        if (summary) summary.textContent = modeText()[(state.saved || 2)-1][0];
+    }
+    async function saveWorkMode(key, value) {
+        const state = workModeByKey[key];
+        if (!state || state.busy || !Number.isInteger(value) || value<1 || value>5) return;
+        if (value === state.saved) { renderWorkMode(key); return; }
+        state.busy = true;
+        renderWorkMode(key,value);
+        try {
+            const result = await api(`/api/devices/${encodeURIComponent(key)}/settings`, {
+                method:'POST',body:{section:'cfg/bot_config.toml',values:{work_mode:value}},
+            });
+            if (!result.ok || !result.data.ok) throw new Error(result.data.message ||
+                (window.XlamI18n?.language === 'en' ? 'Could not save bot mode' : 'Не удалось сохранить режим работы'));
+            state.saved = value;
+        } catch (error) { toast(error.message,'error'); }
+        finally { state.busy = false; renderWorkMode(key); }
+    }
+    function openTuning(wrapper, open) {
+        if (open) {
+            const rect = wrapper.getBoundingClientRect();
+            const height = wrapper.querySelector('.tuning-panel').offsetHeight;
+            wrapper.classList.toggle('opens-up', window.innerWidth > 640
+                && window.innerHeight - rect.bottom < height + 20 && rect.top > height + 20);
+        }
+        wrapper.classList.toggle('is-open',open);
+        wrapper.querySelector('[data-tuning-trigger]').setAttribute('aria-expanded',String(open));
+    }
+    grid.addEventListener('pointerover', event => {
+        const wrapper = event.target.closest('[data-tuning]');
+        if (wrapper && event.pointerType !== 'touch' && !wrapper.contains(event.relatedTarget)) openTuning(wrapper,true);
+    });
+    grid.addEventListener('pointerout', event => {
+        const wrapper = event.target.closest('[data-tuning]');
+        if (wrapper && !wrapper.contains(event.relatedTarget) && wrapper.dataset.pinned !== 'true'
+            && !wrapper.contains(document.activeElement)) openTuning(wrapper,false);
+    });
+    grid.addEventListener('focusin', event => {
+        const wrapper = event.target.closest('[data-tuning]');
+        if (wrapper) openTuning(wrapper,true);
+    });
+    grid.addEventListener('focusout', event => {
+        const wrapper = event.target.closest('[data-tuning]');
+        if (wrapper && !wrapper.contains(event.relatedTarget) && wrapper.dataset.pinned !== 'true') openTuning(wrapper,false);
+    });
+    grid.addEventListener('click', event => {
+        const trigger = event.target.closest('[data-tuning-trigger]');
+        if (!trigger) return;
+        const wrapper = trigger.closest('[data-tuning]');
+        const pin = wrapper.dataset.pinned !== 'true';
+        wrapper.dataset.pinned = String(pin);
+        if (!pin) trigger.blur();
+        openTuning(wrapper,pin);
+    });
+    document.addEventListener('click', event => {
+        grid.querySelectorAll('[data-tuning].is-open').forEach(wrapper => {
+            if (!wrapper.contains(event.target)) { wrapper.dataset.pinned='false'; openTuning(wrapper,false); }
+        });
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key !== 'Escape') return;
+        grid.querySelectorAll('[data-tuning].is-open').forEach(wrapper => {
+            wrapper.dataset.pinned='false';
+            if (wrapper.contains(document.activeElement)) document.activeElement.blur();
+            openTuning(wrapper,false);
+        });
+    });
+    grid.addEventListener('input', event => {
+        if (event.target.matches('[data-mode-slider]')) renderWorkMode(event.target.dataset.modeSlider,Number(event.target.value));
+    });
+    grid.addEventListener('change', event => {
+        if (event.target.matches('[data-mode-slider]')) saveWorkMode(event.target.dataset.modeSlider,Number(event.target.value));
+    });
     function thinkingLabels() {
         return window.XlamI18n?.language === 'en'
             ? ['Low', 'Standard', 'Medium', 'High', 'Maximum']
@@ -39,11 +151,11 @@
         const labels = thinkingLabels();
         slider.value = index;
         slider.disabled = !state.saved || !!state.busy;
-        slider.setAttribute('aria-label', en ? 'Thinking level' : 'Уровень думалки');
+        slider.setAttribute('aria-label', 'Think');
         slider.setAttribute('aria-valuetext', labels[index]);
         widget.style.setProperty('--thinking-fill', `${index / (THINKING_LEVELS.length - 1) * 100}%`);
         widget.querySelector('[data-thinking-label]').textContent = labels[index];
-        widget.querySelector('[data-thinking-caption]').textContent = en ? 'Thinking depth' : 'Глубина анализа';
+        widget.querySelector('[data-thinking-caption]').textContent = 'Think';
         const thought = state.thought || {};
         const recommendation = thought.active === state.saved && THINKING_LEVELS.includes(thought.recommended)
             ? labels[THINKING_LEVELS.indexOf(thought.recommended)] : (en ? 'measuring in battle…' : 'измеряю в бою…');
@@ -85,7 +197,7 @@
         const reset = event.target.closest('[data-thinking-reset]');
         if (reset) saveThinking(reset.dataset.thinkingReset, 'standard');
     });
-    window.addEventListener('xlam-language-changed', () => devices.forEach(d => renderThinking(d.key)));
+    window.addEventListener('xlam-language-changed', () => devices.forEach(d => {renderThinking(d.key); renderWorkMode(d.key);}));
 
     const STATE_LABELS = {
         idle: 'ожидает', running: 'работает', paused: 'пауза',
@@ -237,6 +349,31 @@
                     </div>
                 </div>
                 <div class="device-head-right">
+                    <div class="device-tuning" data-tuning="${escapeHtml(key)}">
+                        <button type="button" class="tuning-trigger" data-tuning-trigger="${escapeHtml(key)}" aria-expanded="false" aria-controls="tuning-${escapeHtml(key)}"><span aria-hidden="true">ϟ</span> Think <span class="tuning-divider">·</span> <span data-mode-summary="${escapeHtml(key)}">Выживание</span><span class="tuning-chevron" aria-hidden="true">⌄</span></button>
+                        <div class="tuning-panel" id="tuning-${escapeHtml(key)}" role="region" aria-label="Настройки устройства">
+                            <div class="tuning-panel-head"><span>Управление ботом</span><span class="tuning-device-name">${escapeHtml(device.display_name || device.model || device.serial)}</span></div>
+                            <section class="thinking-control" data-thinking-control="${escapeHtml(key)}">
+                <div class="thinking-head"><span class="thinking-bolt" aria-hidden="true">ϟ</span>
+                    <div><span class="thinking-level" data-thinking-label>Средний</span><span class="thinking-caption" data-thinking-caption>Think</span></div>
+                    <button type="button" class="thinking-reset" data-thinking-reset="${escapeHtml(key)}" title="Вернуть стандартную думалку для этого устройства" aria-label="Вернуть стандартную думалку для этого устройства" disabled>↺</button>
+                </div>
+                <div class="thinking-track"><div class="thinking-stops" aria-hidden="true">${THINKING_LEVELS.map(() => '<span data-thinking-stop></span>').join('')}</div>
+                    <input type="range" min="0" max="${THINKING_LEVELS.length - 1}" step="1" value="2" data-thinking-slider="${escapeHtml(key)}" aria-label="Think" disabled>
+                </div>
+                <p class="thinking-note" data-thinking-note>Рекомендация появится во время боя</p>
+            </section>
+                            <section class="work-mode-control" data-mode-control="${escapeHtml(key)}">
+                                <div class="work-mode-head"><span class="work-mode-caption">Режим работы</span><span class="work-mode-count" data-mode-count>2 / 5</span></div>
+                                <strong class="work-mode-name" data-mode-name>Выживание</strong>
+                                <div class="mode-track"><div class="mode-stops" aria-hidden="true">${[1,2,3,4,5].map(()=>'<span></span>').join('')}</div><input type="range" min="1" max="5" step="1" value="2" data-mode-slider="${escapeHtml(key)}" aria-label="Режим работы" disabled></div>
+                                <div class="mode-scale"><span>Осторожность</span><span>Натиск</span></div>
+                                <p class="work-mode-description" data-mode-description></p>
+                                <p class="work-mode-status" data-mode-status aria-live="polite"></p>
+                            </section>
+                            <p class="tuning-footnote">Сохраняется отдельно для этого устройства</p>
+                        </div>
+                    </div>
                     <div class="device-meta">
                         <span>Android ${escapeHtml(device.android_version || '?')} · ${escapeHtml(device.resolution || 'разрешение ?')}</span>
                         <span class="${device.brawl_stars_running ? 'is-good' : 'is-bad'}">${device.brawl_stars_running ? 'BS запущена' : 'BS не запущена'}</span>
@@ -267,16 +404,6 @@
             </div>
 
             <div class="live-diagnostics" data-diagnostics="${escapeHtml(key)}"></div>
-            <section class="thinking-control" data-thinking-control="${escapeHtml(key)}">
-                <div class="thinking-head"><span class="thinking-bolt" aria-hidden="true">ϟ</span>
-                    <div><span class="thinking-level" data-thinking-label>Средний</span><span class="thinking-caption" data-thinking-caption>Глубина анализа</span></div>
-                    <button type="button" class="thinking-reset" data-thinking-reset="${escapeHtml(key)}" title="Вернуть стандартную думалку для этого устройства" aria-label="Вернуть стандартную думалку для этого устройства" disabled>↺</button>
-                </div>
-                <div class="thinking-track"><div class="thinking-stops" aria-hidden="true">${THINKING_LEVELS.map(() => '<span data-thinking-stop></span>').join('')}</div>
-                    <input type="range" min="0" max="${THINKING_LEVELS.length - 1}" step="1" value="2" data-thinking-slider="${escapeHtml(key)}" aria-label="Уровень думалки" disabled>
-                </div>
-                <p class="thinking-note" data-thinking-note>Рекомендация появится во время боя</p>
-            </section>
             <div class="device-body">
                 ${device.mode_warning ? `<div class="warn-box">${escapeHtml(device.mode_warning)}</div>` : ''}
                 ${device.gas_warning ? `<div class="warn-box">${escapeHtml(device.gas_warning)}</div>` : ''}
@@ -401,6 +528,9 @@
         const thoughtState = thinkingByKey[key] || (thinkingByKey[key] = {});
         if (!thoughtState.busy) thoughtState.saved = THINKING_LEVELS.includes(saved) ? saved : 'medium';
         renderThinking(key);
+        const modeState = workModeByKey[key] || (workModeByKey[key] = {});
+        if (!modeState.busy) modeState.saved = Number(bot.work_mode) || (bot.current_playstyle === 'aggressive.xlambot' ? 4 : 2);
+        renderWorkMode(key);
         const input = grid.querySelector(`[data-switch-input="${cssEscape(key)}"]`);
         if (input && document.activeElement !== input && bot.brawler_switch_after_games != null) {
             input.value = bot.brawler_switch_after_games;
@@ -554,16 +684,10 @@
         // The brawler grid marks the brawler actually being played, so it has to
         // be redrawn whenever that changes - not only when the grid first loads.
         if (changed) renderBrawlerGrid(key);
-        const styleEl = grid.querySelector(`[data-playstyle="${cssEscape(key)}"]`);
-        if (styleEl) {
-            const style = telemetry.playstyle;
-            // The playstyle decides how the brawler moves and fights, so which
-            // one is loaded is worth seeing rather than having to open a file.
-            styleEl.textContent = style ? String(style).replace(/\.xlambot$/, '') : '';
-            styleEl.hidden = !style;
-            styleEl.title = 'Файл плейстайла, который бот выполняет прямо сейчас. '
-                + 'Именно он решает, как боец двигается и когда атакует.';
-        }
+        const modeState = workModeByKey[key] || (workModeByKey[key] = {});
+        if (!modeState.busy && Number.isInteger(telemetry.work_mode)) modeState.saved = telemetry.work_mode;
+        const modeSlider = grid.querySelector(`[data-mode-slider="${cssEscape(key)}"]`);
+        if (document.activeElement !== modeSlider) renderWorkMode(key);
         const stats = grid.querySelector(`[data-stats="${cssEscape(key)}"]`);
         const stateEl = grid.querySelector(`[data-state="${cssEscape(key)}"]`);
         if (stateEl) {

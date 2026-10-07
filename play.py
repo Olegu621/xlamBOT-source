@@ -170,6 +170,8 @@ class Play:
         self.steering = Steering()
         self.ability_buttons = AbilityButtons()
         self.reset_battle_pending = False
+        self.work_mode = 2
+        self._work_style = None
         self.context = None
         self.frame = None
 
@@ -187,11 +189,25 @@ class Play:
             return False
         return True
 
+    def defensive_target_present(self):
+        context = self.context or {}
+        player = context.get('player_data')
+        if not player:
+            return False
+        position = self.get_entity_pos(player)
+        _, attack_range, _ = self.get_brawler_range(self.current_brawler)
+        return any(self.get_distance(position,self.get_entity_pos(e)) <= attack_range*.65
+                   for e in context.get('enemy_data',[]))
+
     def attack(self, touch_up=True, touch_down=True):
+        if touch_down and self.work_mode == 1 and not self.defensive_target_present():
+            return False
         self.window_controller.press("attack", touch_up=touch_up, touch_down=touch_down)
 
     def use_ability(self, ability):
         # Called only inside a fresh, confirmed gameplay frame, never a menu.
+        if self.work_mode == 1 and not self.defensive_target_present():
+            return False
         point = self.ability_buttons.consume(ability, time.time())
         if point is None:
             return False
@@ -1155,7 +1171,8 @@ class Play:
             size = math.hypot(*v)
             direction = (v[0]/size,v[1]/size)
             cost = 1-sum(a*b for a,b in zip(unit,direction))
-            cost += self.battle_memory.score(player,direction,allies,now,tile)
+            from work_modes import danger_weight
+            cost += danger_weight(self.work_mode)*self.battle_memory.score(player,direction,allies,now,tile)
             candidates.append((cost,v))
         return min(candidates,key=lambda c:c[0])[1] if candidates else (0.,0.)
 
@@ -1263,7 +1280,26 @@ class Play:
 
     def get_movement(self):
         movement, updated_globals = interpret_playstyle_code(self.playstyle_code, self.context)
-        return movement
+        from work_modes import movement as choose_mode_movement
+        player = self.get_entity_pos(self.context['player_data'])
+        safe_range, attack_range, _ = self.get_brawler_range(self.current_brawler)
+        return choose_mode_movement(self.work_mode,movement,player,self.context['enemy_data'],
+            self.context['teammate_data'],attack_range,safe_range,
+            self.TILE_SIZE*self.window_controller.scale_factor,JOYSTICK_RADIUS)
+
+    def configure_work_mode(self, level):
+        from work_modes import style
+        if level == self.work_mode and self._work_style is not None:
+            return
+        selected = style(level)
+        if selected != self._work_style:
+            from utils import load_playstyle_script
+            info, source = load_playstyle_script(selected)
+            self.playstyle_code = compile(source,'<work-mode>','exec')
+            self._work_style = selected
+        self.window_controller.release_all_inputs()
+        self.persistent_data['time_since_holding_attack'] = None
+        self.work_mode = level
 
     def publish_debug_view(self, frame, data, state, movement=None):
         if not hasattr(self.window_controller, "debug_view"):
@@ -1400,6 +1436,7 @@ class Play:
         self.world_state = {'timestamp': frame_time, 'detected_time': time.time(),
                             'frame_size': list(frame.shape[:2]), 'player_present': True,
                             'state': 'match', 'brawler': brawler, 'mode_confirmed': True,
+                            'work_mode': self.work_mode,
                             'visible_teammates': len(data['teammate']),
                             'idle_teammates': self.battle_memory.idle_count,
                             'remembered_dangers': len(self.battle_memory.dangers),

@@ -10,6 +10,12 @@
   'Активно ищет бой и давит ближайших противников.':'Actively seeks fights and pressures nearby opponents.',
   'Держится с командой, избегает газа и играет на выживание.':'Stays with the team, avoids gas, and plays for survival.'
  });
+ Object.assign(catalog,{
+  'Управление ботом':'Bot controls', 'Настройки устройства':'Device settings',
+  'Режим работы':'Bot mode','Осторожность':'Caution','Выживание':'Survival','Баланс':'Balanced','Агрессия':'Aggressive','Натиск':'Onslaught',
+  'Сохраняется отдельно для этого устройства':'Saved separately for this device',
+  'Применяется в игре · газ и стены остаются запретом':'Applies during play · gas and walls stay blocked'
+ });
  for(const v of Object.values(window.XlamSettingsFields||{})){catalog[v[0]]=v[1];catalog[v[2]]=v[3];}
  let language=document.documentElement.lang==='en'?'en':'ru';
  const normalized=s=>s.replace(/\s+/g,' ').trim();
