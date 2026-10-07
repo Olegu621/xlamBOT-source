@@ -170,6 +170,9 @@ class Play:
         self.steering = Steering()
         self.ability_buttons = AbilityButtons()
         self.reset_battle_pending = False
+        from combat_behavior import CombatBehavior
+        self.behavior = CombatBehavior()
+        self.behavior_report = {}
         self.work_mode = 2
         self._work_style = None
         self.context = None
@@ -200,6 +203,8 @@ class Play:
                    for e in context.get('enemy_data',[]))
 
     def attack(self, touch_up=True, touch_down=True):
+        if touch_down and not self.behavior_report.get('fire_allowed', True):
+            return False
         if touch_down and self.work_mode == 1 and not self.defensive_target_present():
             return False
         self.window_controller.press("attack", touch_up=touch_up, touch_down=touch_down)
@@ -208,6 +213,12 @@ class Play:
         # Called only inside a fresh, confirmed gameplay frame, never a menu.
         if self.work_mode == 1 and not self.defensive_target_present():
             return False
+        target = self.behavior_report.get('target')
+        if target is not None:
+            _, attack_range, super_range = self.get_brawler_range(self.current_brawler)
+            reach = max(attack_range, super_range) if ability in ('super','hypercharge') else attack_range
+            if self.behavior_report.get('target_distance', 0) > reach:
+                return False
         point = self.ability_buttons.consume(ability, time.time())
         if point is None:
             return False
@@ -1252,13 +1263,20 @@ class Play:
         return walls, bushes
 
     def get_movement(self):
-        movement, updated_globals = interpret_playstyle_code(self.playstyle_code, self.context)
-        from work_modes import movement as choose_mode_movement
         player = self.get_entity_pos(self.context['player_data'])
         safe_range, attack_range, _ = self.get_brawler_range(self.current_brawler)
-        return choose_mode_movement(self.work_mode,movement,player,self.context['enemy_data'],
+        plan = self.behavior.plan(self.work_mode,player,self.context['enemy_data'],
             self.context['teammate_data'],attack_range,safe_range,
-            self.TILE_SIZE*self.window_controller.scale_factor,JOYSTICK_RADIUS)
+            self.TILE_SIZE*self.window_controller.scale_factor,JOYSTICK_RADIUS,time.time(),
+            lambda box:self.is_enemy_hittable(player,self.get_entity_pos(box),self.context['walls'],'attack'))
+        self.behavior_report = plan['report']
+        if not self.behavior_report['fire_allowed'] and self.persistent_data['time_since_holding_attack'] is not None:
+            self.attack(touch_up=True,touch_down=False)
+            self.persistent_data['time_since_holding_attack'] = None
+        execution = dict(self.context)
+        if plan['target'] is not None:execution['enemy_data'] = [plan['target']]
+        movement, updated_globals = interpret_playstyle_code(self.playstyle_code, execution)
+        return movement if plan['movement'] is None else plan['movement']
 
     def configure_work_mode(self, level):
         from work_modes import style
@@ -1271,6 +1289,8 @@ class Play:
             self.playstyle_code = compile(source,'<work-mode>','exec')
             self._work_style = selected
         self.window_controller.release_all_inputs()
+        self.behavior.reset()
+        self.behavior_report = {}
         self.persistent_data['time_since_holding_attack'] = None
         self.work_mode = level
 
@@ -1363,6 +1383,8 @@ class Play:
             self.world_state = {'timestamp':frame_time,'state':'respawning','player_present':False}
             return
         if self.reset_battle_pending:
+            self.behavior.reset()
+            self.behavior_report = {}
             self.battle_memory.reset()
             self.steering = Steering()
             self.ability_buttons = AbilityButtons()
@@ -1421,7 +1443,7 @@ class Play:
         self.world_state = {'timestamp': frame_time, 'detected_time': time.time(),
                             'frame_size': list(frame.shape[:2]), 'player_present': True,
                             'state': 'match', 'brawler': brawler, 'mode_confirmed': True,
-                            'work_mode': self.work_mode,
+                            'work_mode': self.work_mode, 'behavior': dict(self.behavior_report),
                             'visible_teammates': len(data['teammate']),
                             'idle_teammates': self.battle_memory.idle_count,
                             'remembered_dangers': len(self.battle_memory.dangers),

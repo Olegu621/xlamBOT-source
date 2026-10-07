@@ -17,27 +17,9 @@ def style(level):
 
 
 def movement(level, base, player, enemies, allies, attack_range, safe_range, tile, radius):
-    if not enemies:
-        return base
-    center=lambda b:((b[0]+b[2])/2,(b[1]+b[3])/2)
-    distance=lambda p:math.hypot(p[0]-player[0],p[1]-player[1])
-    target=min((center(b) for b in enemies),key=distance)
-    length=distance(target)
-    near=sum(distance(center(b))<tile*5 for b in enemies)
-    support=sum(distance(center(b))<tile*5 for b in allies)
-    sign=None
-    if level==1 and length<max(attack_range*1.25,tile*7):
-        sign=-1  # even a lone opponent is a reason to retreat
-    elif level==3:
-        if near>support+1 and length<tile*6:
-            sign=-1
-        elif near<=support+1 and length>max(tile,attack_range*.7):
-            sign=1
-    elif level==5 and length>max(tile*.8,attack_range*.18):
-        sign=1  # deliberately closes distance instead of preserving safe range
-    if sign is None or length<1e-6:
-        return base
-    return (sign*(target[0]-player[0])*radius/length,sign*(target[1]-player[1])*radius/length)
+    from combat_behavior import CombatBehavior
+    plan=CombatBehavior().plan(level,player,enemies,allies,attack_range,safe_range,tile,radius,0.)
+    return base if plan['movement'] is None else plan['movement']
 
 
 def danger_weight(level):

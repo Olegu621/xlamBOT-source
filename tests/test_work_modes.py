@@ -20,7 +20,7 @@ class WorkModeTests(unittest.TestCase):
         self.assertEqual(self.choose(2,enemies),(0.,100.))
         self.assertGreater(self.choose(3,enemies)[0],0)
         self.assertEqual(style(4),'aggressive.xlambot')
-        self.assertGreater(self.choose(5,[box(80)])[0],0)
+        self.assertLess(self.choose(5,[box(80)])[0],0) # ranged brawlers keep firing distance
 
     def test_balanced_mode_retreats_from_a_group_but_engages_with_support(self):
         enemies=[box(180),box(190)]
