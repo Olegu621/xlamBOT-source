@@ -815,6 +815,8 @@ class StageManager:
             self.window_controller.click(*popup_location)
 
     def do_state(self, state, data=None):
+        if state != "unknown":
+            self.reset_unknown_recovery()
         action = self.states.get(state)
         if action is None:
             return
@@ -865,17 +867,27 @@ class StageManager:
         self.window_controller.gameplay_frame_time = None
         self.window_controller.click(w*.5, h*.5, already_include_ratio=True)
 
+    def reset_unknown_recovery(self):
+        self._unknown_since = None
+        self._last_unknown_tap = -100
+
     def recover_unknown(self):
         if self._should_stop() or self._should_pause():
+            self.reset_unknown_recovery()
             return
         now = time.monotonic()
-        if now - getattr(self, '_last_unknown_tap', -100) < 1.5:
+        since = getattr(self, '_unknown_since', None)
+        if since is None:
+            self._unknown_since = now
+            return
+        if now - since < 4 or now - getattr(self, '_last_unknown_tap', -100) < 1.5:
             return
         frame = self.window_controller.screenshot()
         if get_state(frame) != 'unknown':
+            self.reset_unknown_recovery()
             return
         h, w = frame.shape[:2]
         self._last_unknown_tap = now
         self.window_controller.release_all_inputs()
         self.window_controller.gameplay_frame_time = None
-        self.window_controller.click(w*.98, h*.035, already_include_ratio=True)
+        self.window_controller.click(w*.94, h*.035, already_include_ratio=True)
