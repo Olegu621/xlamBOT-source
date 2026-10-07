@@ -66,6 +66,7 @@ class StageManager:
             'match': lambda: 0,
             'match_making': lambda: 0,
             'lobby': self.start_game,
+            'unknown': self.recover_unknown,
             'star_drop_regular': lambda: self.click_star_drop("regular"),
             'star_drop_angelic': lambda: self.click_star_drop("angelic"),
             'star_drop_demonic': lambda: self.click_star_drop("demonic"),
@@ -863,3 +864,18 @@ class StageManager:
         self.window_controller.release_all_inputs()
         self.window_controller.gameplay_frame_time = None
         self.window_controller.click(w*.5, h*.5, already_include_ratio=True)
+
+    def recover_unknown(self):
+        if self._should_stop() or self._should_pause():
+            return
+        now = time.monotonic()
+        if now - getattr(self, '_last_unknown_tap', -100) < .5:
+            return
+        frame = self.window_controller.screenshot()
+        if get_state(frame) != 'unknown':
+            return
+        h, w = frame.shape[:2]
+        self._last_unknown_tap = now
+        self.window_controller.release_all_inputs()
+        self.window_controller.gameplay_frame_time = None
+        self.window_controller.click(w*.98, h*.035, already_include_ratio=True)
