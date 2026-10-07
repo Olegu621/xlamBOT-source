@@ -14,6 +14,14 @@ class CoverTests(unittest.TestCase):
     def test_flees_to_other_bush_and_attacks_close_enemy(self):
         r=self.call(BushCover(),enemies=[[50,-10,70,10]],bushes=[[-40,-40,40,40],[-240,-40,-160,40]])
         self.assertLess(r['movement'][0],0);self.assertTrue(r['report']['fire_allowed']);self.assertEqual(r['report']['intent'],'seek_cover')
+    def test_own_sprite_occlusion_does_not_abandon_entered_bush(self):
+        p=BushCover();safe=lambda *a:True
+        first=p.plan((0,0),[[100,-40,180,40]],[],40,100,0,200,lambda b:True,safe)
+        self.assertGreater(first['movement'][0],0)
+        inside=p.plan((0,0),[],[],40,100,1,200,lambda b:True,safe,offset=(140,0))
+        self.assertEqual(inside['report']['intent'],'hide');self.assertEqual(inside['movement'],(0,0))
+        fleeing=p.plan((0,0),[[-240,-40,-160,40]],[],40,100,2,200,lambda b:True,safe,attacked=True,offset=(140,0))
+        self.assertEqual(fleeing['report']['reason'],'under_attack');self.assertLess(fleeing['movement'][0],0)
     def test_cover_exclusion_tracks_camera_motion(self):
         p=BushCover();safe=lambda *a:True
         p.plan((0,0),[[-40,-40,40,40],[160,-40,240,40]],[],40,100,0,200,lambda b:True,safe,attacked=True)
@@ -22,7 +30,9 @@ class CoverTests(unittest.TestCase):
     def test_gas_covered_bush_not_selected_and_exposed_one_excluded(self):
         p=BushCover();r=self.call(p,bushes=[[-40,-40,40,40],[160,-40,240,40]],safe=lambda point,margin:point[0]>100)
         self.assertGreater(r['movement'][0],0)
-        self.assertEqual(self.call(p,1,bushes=[[-40,-40,40,40]])['report']['reason'],'no_safe_bush')
+        remembered=self.call(p,1,bushes=[[-40,-40,40,40]])
+        self.assertEqual(remembered['report']['intent'],'seek_cover')
+        self.assertGreater(remembered['movement'][0],0)
     def test_approaching_enemy_changes_cover_without_claiming_detection_of_vision(self):
         p=BushCover();self.call(p,enemies=[[210,-10,230,10]])
         r=self.call(p,.1,enemies=[[190,-10,210,10]],bushes=[[-40,-40,40,40],[-240,-40,-160,40]])
