@@ -223,7 +223,8 @@ def is_in_showdown_match(image) -> bool:
             caption = crop[y:y+template.shape[0],x:x+template.shape[1]]
             if np.mean(np.all(caption>205,axis=2))>.06:
                 return True
-    return False
+    from screen_evidence import current_showdown_hud
+    return current_showdown_hud(image)
 
 
 def connection_lost_retry_position(image):
@@ -301,7 +302,9 @@ def is_in_offer_popup(image) -> bool:
 
 
 def is_in_lobby(image) -> bool:
-    return is_template_in_region(image, states_path + 'lobby_menu.png', region_data["lobby_menu"])
+    from screen_evidence import current_lobby
+    return (is_template_in_region(image, states_path + 'lobby_menu.png', region_data["lobby_menu"])
+            or current_lobby(image))
 
 
 def selected_showdown_mode(image):

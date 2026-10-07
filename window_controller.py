@@ -378,7 +378,8 @@ class WindowController:
             self.last_joystick_pos = (None, None)
 
             try:
-                _ = self.device.get_state()
+                if self.device.get_state() != 'device':
+                    raise ConnectionError('ADB transport is not online')
             except Exception:
                 if not self.force_rediscover():
                     print("Device gone and re-discovery failed.")
