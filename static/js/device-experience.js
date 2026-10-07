@@ -5,7 +5,7 @@
  const text=(ru,eng)=>en()?eng:ru;
  const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const options=[['perMatch','За матч','Per match'],['streak','Серия','Streak'],['uptime','В работе','Uptime'],['gas','Газ','Gas'],['queue','Очередь','Queue'],['training','Обучение','Training'],['calibration','Калибровка','Calibration'],['pause','Пауза','Pause'],['logs','Логи','Logs']];
- const labelKeys={'За матч':'perMatch','Per match':'perMatch','Серия':'streak','Streak':'streak','В работе':'uptime','Uptime':'uptime','Газ':'gas','Gas':'gas','Очередь':'queue','Queue':'queue','Ротация':'queue','Rotation':'queue'};
+ const labelKeys={'За матч':'perMatch','Per match':'perMatch','Серия':'streak','Streak':'streak','В работе':'uptime','Uptime':'uptime','Running':'uptime','Газ':'gas','Gas':'gas','Очередь':'queue','Queue':'queue','Ротация':'queue','Rotation':'queue'};
  const prefs=new Map();
  function preferences(key){if(!prefs.has(key)){let saved={};try{saved=JSON.parse(localStorage.getItem('xlam-panel-layout:'+key)||'{}');}catch(_){}prefs.set(key,saved);}return prefs.get(key);}
  function mark(el,key,visible){if(!el)return;el.dataset.panelItem=key;const value=String(!visible);if(el.dataset.customHidden!==value)el.dataset.customHidden=value;}
