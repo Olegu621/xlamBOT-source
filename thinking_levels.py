@@ -39,22 +39,22 @@ class ThinkingQuality:
         self.capacity_fps=1/(sum(cost for _,cost in self.samples)/len(self.samples))
         index=LEVELS.index(self.mode)
         desired=self.mode;reason='balanced'
-        if self.observed_fps<=15 and self.capacity_fps<=17:
+        if self.observed_fps<=15 and self.capacity_fps<=20:
             desired=LEVELS[max(0,index-1)];reason='low_fps' if index else 'minimum'
-        elif self.observed_fps>=30 and self.capacity_fps>=35:
+        elif self.observed_fps>=30 and self.capacity_fps>=40:
             desired=LEVELS[min(len(LEVELS)-1,index+1)];reason='headroom' if index<len(LEVELS)-1 else 'maximum'
         elif capture_fps is not None and 0<capture_fps<=15 and self.capacity_fps>20:
             reason='capture_limit'
         faster_analysis=LEVELS.index(desired)>index
         if desired!=self.candidate:
             self.candidate=desired;self.candidate_since=now
-        if desired==self.mode or now-self.candidate_since>=(20 if faster_analysis else 5):
+        if desired==self.mode or now-self.candidate_since>=(30 if faster_analysis else 8):
             self.recommended=desired;self.reason=reason
         return self.snapshot()
 
     def snapshot(self):
         return {'mode':self.mode,'active':self.mode,'recommended':self.recommended,
-                'profile':dict(PROFILES[self.mode]),'fps_ceiling':self.fps_ceiling,
+                'profile':dict(PROFILES[self.mode]),'target_fps':20,'comfortable_fps':30,'fps_ceiling':self.fps_ceiling,
                 'capacity_fps':round(self.capacity_fps,1) if self.capacity_fps is not None else None,
                 'observed_fps':round(self.observed_fps,1) if self.observed_fps is not None else None,
                 'status':'ready' if self.recommended is not None else 'measuring','reason':self.reason}

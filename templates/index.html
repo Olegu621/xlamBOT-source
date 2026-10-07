@@ -9,7 +9,7 @@
     <link rel="icon" type="image/png" href="/api/assets/support/xlambot_logo.png">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/panel.css') }}?v={{ ui_version }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/studio.css') }}?v={{ ui_version }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/interface.css') }}?v={{ ui_version }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/sprites.css') }}?v={{ ui_version }}"><script src="{{ url_for('static', filename='js/settings-fields.js') }}?v={{ ui_version }}"></script><script src="{{ url_for('static', filename='js/i18n.js') }}?v={{ ui_version }}" defer></script>{% include '_marquee.html' %}</head>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/interface.css') }}?v={{ ui_version }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/sprites.css') }}?v={{ ui_version }}"><script src="{{ url_for('static', filename='js/settings-fields.js') }}?v={{ ui_version }}"></script><script src="{{ url_for('static', filename='js/i18n.js') }}?v={{ ui_version }}" defer></script>{% include '_marquee.html' %}<link rel="stylesheet" href="{{ url_for('static', filename='css/device-experience.css') }}?v={{ ui_version }}"></head>
 <body class="studio-body app-page">
     {% set active_page='settings' %}{% include '_sprites.html' %}{% include '_navigation.html' %}
     <header class="studio-header"><div class="page-heading"><div><div class="page-kicker">ПЕРСОНАЛЬНАЯ НАСТРОЙКА</div><h1>Настрой под себя<span class="heading-dot">.</span></h1><p>Бойцы, поведение бота и история твоих матчей.</p></div><span class="studio-decoration sprite-spike" aria-hidden="true"></span></div>
@@ -26,7 +26,7 @@
             <a class="studio-tab" href="/panel">Режим работы</a>
             <button class="studio-tab" data-tab="settings" type="button">Настройки</button>
             <button class="studio-tab" data-tab="history" type="button">История</button>
-            <button class="studio-tab" data-tab="logs" type="button">Логи</button>
+            <details class="flyout studio-more"><summary class="studio-tab">Дополнительно</summary><div class="flyout-body"><button class="studio-tab" data-tab="logs" type="button">Логи</button><a class="studio-tab" href="/training">Обучение</a></div></details>
         </nav>
         <div class="studio-header-right">
             <span id="pollAge" class="poll-age">нет связи</span>
@@ -47,5 +47,5 @@
     <div id="toast" class="toast hidden"></div>
     <script src="{{ url_for('static', filename='js/ui-session.js') }}?v={{ ui_version }}"></script><script src="{{ url_for('static', filename='js/studio.js') }}?v={{ ui_version }}"></script>
 <script src="{{ url_for('static', filename='js/resource_updates.js') }}?v={{ ui_version }}"></script>
-</body>
+<script src="{{ url_for('static', filename='js/device-experience.js') }}?v={{ ui_version }}"></script></body>
 </html>

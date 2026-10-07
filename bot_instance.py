@@ -291,20 +291,17 @@ class BotInstance:
             # The connection-lost dialog is not a game state, so it must not be
             # stored as one: the bot would then believe it is somewhere it is
             # not. Tapping RETRY LOGIN is the whole handling.
-            from state_finder import is_in_connection_lost
+            from state_finder import connection_lost_retry_position
             frame = self.window_controller.screenshot()
-            if not is_in_connection_lost(frame):
+            retry = connection_lost_retry_position(frame)
+            if retry is None:
                 return
-            retry = load_toml_as_dict("cfg/lobby_config.toml").get(
-                "template_matching", {}).get("connection_lost_retry", [618, 655])
-            if len(retry) >= 4:
-                retry = [(retry[0] + retry[2]) / 2, (retry[1] + retry[3]) / 2]
             if time.time() - self._connection_lost_handled < 2:
                 return
             print(f"[{self.device_label}] Connection lost dialog, tapping RETRY LOGIN")
             self._connection_lost_handled = time.time()
             self.window_controller.release_all_inputs()
-            self.window_controller.click(retry[0], retry[1], already_include_ratio=False)
+            self.window_controller.click(retry[0], retry[1], already_include_ratio=True)
             return
         self.set_latest_state(state)
         print(f"[{self.device_label}] State: {state}")

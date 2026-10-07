@@ -8,7 +8,7 @@
     <title>xlamBOT — панель управления</title>
     <link rel="icon" type="image/png" href="/api/assets/support/xlambot_logo.png">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/panel.css') }}?v={{ ui_version }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/interface.css') }}?v={{ ui_version }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/sprites.css') }}?v={{ ui_version }}"><script src="{{ url_for('static', filename='js/settings-fields.js') }}?v={{ ui_version }}"></script><script src="{{ url_for('static', filename='js/i18n.js') }}?v={{ ui_version }}" defer></script>{% include '_marquee.html' %}</head>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/interface.css') }}?v={{ ui_version }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/sprites.css') }}?v={{ ui_version }}"><script src="{{ url_for('static', filename='js/settings-fields.js') }}?v={{ ui_version }}"></script><script src="{{ url_for('static', filename='js/i18n.js') }}?v={{ ui_version }}" defer></script>{% include '_marquee.html' %}<link rel="stylesheet" href="{{ url_for('static', filename='css/device-experience.css') }}?v={{ ui_version }}"></head>
 <body class="panel-body app-page">
     {% set active_page='devices' %}{% include '_sprites.html' %}{% include '_navigation.html' %}
     <header class="panel-header">
@@ -22,6 +22,7 @@
 <details class="resource-settings" id="resourceSettings"><summary>Обновления сайта <span id="resourceStatus"></span></summary><div class="resource-form"><label>Репозиторий GitHub<input class="input" id="resourceRepo" type="url"></label><label>Ветка<input class="input" id="resourceBranch" value="main"></label><label><input id="resourceEnabled" type="checkbox"> Обновлять автоматически</label><div class="card-actions"><button class="btn" id="saveResourceSource" type="button">Сохранить источник</button><button class="btn btn-ghost" id="checkResourceSource" type="button">Проверить</button><button class="btn btn-ghost" id="checkDiagnostics" type="button">Диагностика</button></div><p>Проверка раз в 2 минуты. Обновляются стили, скрипты и изображения сайта.</p><pre id="diagnosticResult" hidden></pre></div></details>
     </details>
 
+    <nav id="deviceRouteNav" class="device-route-nav" hidden></nav>
     <main id="deviceGrid" class="device-grid"></main>
 
     <div id="noDevices" class="empty-state hidden">
@@ -46,5 +47,5 @@
     <script src="{{ url_for('static', filename='js/ui-session.js') }}?v={{ ui_version }}"></script><script src="{{ url_for('static', filename='js/panel.js') }}?v={{ ui_version }}"></script>
     <script src="{{ url_for('static', filename='js/updates.js') }}?v={{ ui_version }}"></script>
 <script src="{{ url_for('static', filename='js/resource_updates.js') }}?v={{ ui_version }}"></script>
-</body>
+<script src="{{ url_for('static', filename='js/device-experience.js') }}?v={{ ui_version }}"></script></body>
 </html>
