@@ -17,7 +17,7 @@ def ready_button(frame, ability, configured):
         return None
     h, w = frame.shape[:2]
     x, y = configured[0]*w/1920, configured[1]*h/1080
-    radius = min(w/1920, h/1080)*100
+    radius = min(w/1920, h/1080)*210
     left, top = max(int(x-radius), int(w*.6)), max(int(y-radius), int(h*.62))
     right, bottom = min(w, int(x+radius)), min(h, int(y+radius))
     crop = frame[top:bottom, left:right]
@@ -28,7 +28,7 @@ def ready_button(frame, ability, configured):
     gray = cv2.cvtColor(crop, cv2.COLOR_RGB2GRAY)
     scale = min(w/1920, h/1080)
     circles = cv2.HoughCircles(cv2.GaussianBlur(gray,(5,5),0), cv2.HOUGH_GRADIENT,
-        1, max(15,45*scale), param1=100,param2=28,
+        1, max(15,45*scale), param1=100,param2=max(12,int(28*scale)),
         minRadius=max(8,int(30*scale)),maxRadius=max(12,int(78*scale)))
     if circles is None:
         return None
@@ -41,7 +41,14 @@ def ready_button(frame, ability, configured):
         if not inner.any() or not ring.any():
             continue
         # A saturated patch of map terrain is not a charged round control.
-        if np.mean(mask[inner]>0)<.27 or np.mean(hsv[:,:,2][ring]<105)<.3:
+        fill=float(np.mean(mask[inner]>0))
+        outer=((xx-cx)**2+(yy-cy)**2>(radius*1.2)**2)&((xx-cx)**2+(yy-cy)**2<(radius*1.5)**2)
+        white=np.all(crop>205,axis=2)
+        # Actual charged controls have a bright glyph and yellow/green/purple
+        # disc, often with a luminous border rather than a black ring.
+        contrast=outer.any() and float(np.mean(mask[outer]>0))<fill*.65
+        glyph=float(np.mean(white[inner]))>.02
+        if fill<.27 or not (np.mean(hsv[:,:,2][ring]<105)>=.3 or (contrast and glyph)):
             continue
         px,py = left+float(cx),top+float(cy)
         candidates.append((math.hypot(px-x,py-y),(px,py)))
@@ -52,6 +59,7 @@ def ready_button(frame, ability, configured):
 class AbilityButtons:
     def __init__(self):
         self.last_used = {}
+        self.last_action = None
         self.observed = {}
         self.confirmed = {}
         self.ready = {}
@@ -63,6 +71,10 @@ class AbilityButtons:
         self.last_observed = now
         for ability in BOUNDS:
             point = ready_button(frame, ability, points[ability])
+            action=self.last_action
+            if action and action['ability']==ability and now-action['at']<=1.5:
+                action['changed_frames']=action.get('changed_frames',0)+1 if point is None else 0
+                if action['changed_frames']>=2:action['button_changed']=True
             previous = self.observed.get(ability)
             # Two different fresh frames, and a short confirmation interval.
             stable = point is not None and previous is not None \
@@ -80,3 +92,6 @@ class AbilityButtons:
         self.ready[ability] = None
         self.last_used[ability] = now
         return point
+
+    def snapshot(self):
+        return {'ready': {name: value is not None for name,value in self.ready.items()}, 'last_action': self.last_action}

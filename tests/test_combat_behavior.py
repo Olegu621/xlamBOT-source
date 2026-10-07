@@ -63,7 +63,7 @@ class CombatIntegrationTests(unittest.TestCase):
         exec(compile(ast.Module(body=[function],type_ignores=[]),'play.py','exec'),ns)
         policy=CombatBehavior()
         enemies=[box(150),box(180,40)]
-        fake=SimpleNamespace(context={'player_data':box(0),'enemy_data':enemies,'teammate_data':[],'walls':[]},behavior=policy,work_mode=4,current_brawler='brock',TILE_SIZE=40,window_controller=SimpleNamespace(scale_factor=1),get_entity_pos=lambda b:((b[0]+b[2])/2,(b[1]+b[3])/2),get_brawler_range=lambda b:(150,300,400),is_enemy_hittable=lambda p,e,w,s:e[1]>0,persistent_data={'time_since_holding_attack':None},playstyle_code=None,attack=Mock())
+        fake=SimpleNamespace(context={'player_data':box(0),'enemy_data':enemies,'teammate_data':[],'walls':[]},behavior=policy,work_mode=4,current_brawler='brock',TILE_SIZE=40,window_controller=SimpleNamespace(scale_factor=1),get_entity_pos=lambda b:((b[0]+b[2])/2,(b[1]+b[3])/2),get_brawler_range=lambda b:(150,300,400),is_enemy_hittable=lambda p,e,w,s:e[1]>0,persistent_data={'time_since_holding_attack':None},playstyle_code=None,attack=Mock(),try_ready_super=Mock(return_value=False))
         ns['get_movement'](fake)
         self.assertEqual(received[0]['enemy_data'],[enemies[1]])
         self.assertEqual(fake.context['enemy_data'],enemies)

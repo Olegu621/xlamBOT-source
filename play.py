@@ -217,8 +217,14 @@ class Play:
         # Called only inside a fresh, confirmed gameplay frame, never a menu.
         if self.work_mode == 1 and not self.defensive_target_present():
             return False
+        if ability == 'super':
+            from super_policy import choose
+            player=self.get_entity_pos(self.context['player_data'])
+            _,attack_range,super_range=self.get_brawler_range(self.current_brawler)
+            if not choose(self.current_brawler,self.brawlers_info[self.current_brawler],self.work_mode,player,self.context['enemy_data'],attack_range,super_range,
+                lambda box:self.is_enemy_hittable(player,self.get_entity_pos(box),self.context['walls'],'super')):return False
         target = self.behavior_report.get('target')
-        if target is not None:
+        if target is not None and ability != 'super':
             _, attack_range, super_range = self.get_brawler_range(self.current_brawler)
             reach = max(attack_range, super_range) if ability in ('super','hypercharge') else attack_range
             if self.behavior_report.get('target_distance', 0) > reach:
@@ -226,7 +232,8 @@ class Play:
         point = self.ability_buttons.consume(ability, time.time())
         if point is None:
             return False
-        self.window_controller.click(*point)
+        self.window_controller.click(*point, delay=.06, already_include_ratio=True)
+        self.ability_buttons.last_action={'ability':ability,'at':time.time(),'point':list(point)}
         setattr(self, 'is_'+ability+'_ready', False)
         setattr(self, 'time_since_'+ability+'_checked', time.time())
         return True
@@ -1311,7 +1318,18 @@ class Play:
         execution = dict(self.context)
         if plan['target'] is not None:execution['enemy_data'] = [plan['target']]
         movement, updated_globals = interpret_playstyle_code(self.playstyle_code, execution)
+        self.try_ready_super()
         return movement if plan['movement'] is None else plan['movement']
+
+    def try_ready_super(self):
+        if not self.is_super_ready or self.persistent_data['time_since_holding_attack'] is not None:
+            return False
+        from super_policy import choose
+        player=self.get_entity_pos(self.context['player_data'])
+        safe,attack_range,super_range=self.get_brawler_range(self.current_brawler)
+        decision=choose(self.current_brawler,self.brawlers_info[self.current_brawler],self.work_mode,player,self.context['enemy_data'],attack_range,super_range,
+            lambda box:self.is_enemy_hittable(player,self.get_entity_pos(box),self.context['walls'],'super'))
+        return self.use_super() if decision else False
 
     def configure_work_mode(self, level):
         from work_modes import style
@@ -1497,7 +1515,7 @@ class Play:
                             'gas_detections': getattr(self.Detect_gas, 'last_detections', []),
                             'gas_model_confidence_threshold': self.gas_confidence,
                             'gas_observed_at': self.gas_observed_at,
-                            'movement': self.safety_telemetry}
+                            'movement': self.safety_telemetry, 'abilities': self.ability_buttons.snapshot()}
         self.publish_debug_view(frame, data, state, movement)
         if movement is not None:
             started = time.perf_counter()
