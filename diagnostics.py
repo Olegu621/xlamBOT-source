@@ -1,13 +1,12 @@
 """Read-only checks; never touch the device or restart its apps."""
 import json
-import shutil
 from pathlib import Path
 
 import cv2
 import numpy as np
 import onnxruntime as ort
 
-from utils import get_config_root, resolve_project_path, resolve_runtime_path
+from utils import get_config_root, resolve_project_path
 
 
 def health_check(serial=None, load_models=False):

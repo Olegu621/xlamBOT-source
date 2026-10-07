@@ -310,26 +310,6 @@ def is_in_lobby(image) -> bool:
             or current_lobby(image))
 
 
-def selected_showdown_mode(image):
-    """Confirm the selected lobby icon, independently of language/menu tiles."""
-    if not is_in_lobby(image):
-        return None
-    height, width = image.shape[:2]
-    crop = image[int(height*.82):, int(width*.36):int(width*.75)]
-    scores = {}
-    for mode in ('solo_showdown', 'duo_showdown', 'trio_showdown'):
-        template = load_template(str(resolve_project_path('images', 'gamemodes', mode+'_selected.png')), width, height)
-        if template is None or any(crop.shape[i] < template.shape[i] for i in (0, 1)):
-            continue
-        scores[mode] = cv2.minMaxLoc(cv2.matchTemplate(crop, template, cv2.TM_CCOEFF_NORMED))[1]
-    ordered = sorted(scores, key=scores.get, reverse=True)
-    if not ordered or scores[ordered[0]] < .85:
-        return None
-    if len(ordered)>1 and scores[ordered[0]]-scores[ordered[1]] < .03:
-        return None
-    return ordered[0]
-
-
 def is_in_end_of_a_match(image):
     return find_game_result(image)
 

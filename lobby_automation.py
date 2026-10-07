@@ -1,14 +1,9 @@
-import os
 import time
 from pathlib import Path
 
 import cv2
 from state_finder import get_state
-from utils import (
-    count_hsv_pixels,
-    load_toml_as_dict, config_bool, load_brawlers_info,
-    normalize_brawler_filename, resolve_project_path,
-)
+from utils import load_toml_as_dict, config_bool, load_brawlers_info, normalize_brawler_filename, resolve_project_path
 
 
 class LobbyAutomation:

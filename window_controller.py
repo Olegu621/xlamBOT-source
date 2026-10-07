@@ -1,7 +1,6 @@
 import atexit
 import math
 import random
-from concurrent.futures import ThreadPoolExecutor
 import threading
 import time
 
@@ -48,19 +47,6 @@ def capture_options(config, max_fps="auto"):
     encoder = str(config.get('scrcpy_encoder', '') or '').strip() or None
     return dict(max_fps=capture_fps_limit(fps or max_fps), max_width=width,
                 bitrate=bitrate, encoder_name=encoder)
-
-
-def restart_adb_server() -> None:
-    try:
-        adb.server_kill()
-    except Exception:
-        pass
-    time.sleep(0.5)
-    try:
-        adb.server_start()
-    except Exception:
-        pass
-    time.sleep(0.5)
 
 
 def online_devices():

@@ -149,10 +149,6 @@ def read(frame, region=DEFAULT_REGION) -> int | None:
     return None
 
 
-def _read_one(frame, region):
-    return _read_region_digits(frame, region, allow_zero=True)
-
-
 def read_account_total(frame, expected=None):
     """Read actual digits; an old baseline must never invent missing prefixes.
 
@@ -225,11 +221,6 @@ def read_card(frame, card_index=0):
     result["trophies"] = _read_region_digits(
         frame, _calibrated_card_region(FIRST_CARD_TROPHY_REGION, card_index, 'card_trophies'), allow_zero=True)
     return result
-
-
-def read_first_card(frame, card_index=0):
-    """Kept for callers that only ever want the first card."""
-    return read_card(frame, card_index)
 
 
 # The measured region first, then wider and tighter variants of it. One narrow
@@ -452,44 +443,4 @@ def _read_region_digits(frame, region, allow_zero=False, text_color='auto'):
         if count >= 2:
             return value
     return None
-
-def read_result_delta(frame):
-    """Signed trophy change on the new result screen; never a predicted delta."""
-    if not OCR_AVAILABLE or frame is None:
-        return None
-    # Bright skins can overlap the caption background. Require two agreeing
-    # crops, with a white-glyph pass if ordinary grayscale is unreadable.
-    for white_glyphs in (False,True):
-        values=[]
-        for region in ((128,172,95,63),(130,175,95,60)):
-            crop=_crop(frame,region)
-            if crop is None or not crop.size:
-                return None
-            gray=(cv2.inRange(crop,(210,210,210),(255,255,255)) if white_glyphs
-                  else cv2.cvtColor(crop,cv2.COLOR_RGB2GRAY))
-            gray=cv2.resize(gray,None,fx=3,fy=3,interpolation=cv2.INTER_CUBIC)
-            try:
-                text=pytesseract.image_to_string(gray,config='--psm 7 -c tessedit_char_whitelist=0123456789+-',timeout=3)
-            except Exception:
-                return None
-            found=re.fullmatch(r'([+-]\d{1,3})',text.strip().replace(' ',''))
-            if not found or abs(int(found.group(1)))>120:
-                break
-            values.append(int(found.group(1)))
-        if len(values)==2 and values[0]==values[1]:
-            return values[0]
-    return None
-
-
-def read_result_death_count(frame):
-    """Current Trio result: personal middle card's skull count, if readable."""
-    if not OCR_AVAILABLE or frame is None:
-        return None
-    values=[]
-    for region in ((1020,730,70,75),(1025,735,65,70)):
-        text=_read_region_text(frame,region,OCR_CONFIG)
-        if not re.fullmatch(r'\d{1,2}',text.strip()):
-            return None
-        values.append(int(text.strip()))
-    return values[0] if values[0]==values[1] else None
 
