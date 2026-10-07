@@ -60,6 +60,7 @@ class StageManager:
             'brawler_selection': self.close_known_menu,
             'brawler_choice': self.choose_reward_brawler,
             'reward_received': self.dismiss_received_reward,
+            'daily_reward': self.dismiss_daily_reward,
             'team_panel': self.close_team_panel,
             'popup': self.close_pop_up,
             'match': lambda: 0,
@@ -846,3 +847,19 @@ class StageManager:
         self._team_panel_last_click = now
         self.window_controller.click(*position, already_include_ratio=True, delay=.15)
 
+
+    def dismiss_daily_reward(self):
+        if self._should_stop() or self._should_pause():
+            return
+        from screen_evidence import daily_reward
+        now = time.monotonic()
+        if now - getattr(self, '_last_daily_reward_tap', -100) < .4:
+            return
+        frame = self.window_controller.screenshot()
+        if not daily_reward(frame):
+            return
+        self._last_daily_reward_tap = now
+        h, w = frame.shape[:2]
+        self.window_controller.release_all_inputs()
+        self.window_controller.gameplay_frame_time = None
+        self.window_controller.click(w*.5, h*.5, already_include_ratio=True)

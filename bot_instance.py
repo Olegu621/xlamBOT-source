@@ -617,7 +617,7 @@ class BotInstance:
                         # reward/dialog. Reclassify only recognized overlays;
                         # never send a generic proceed tap on a static screen.
                         overlay_state = get_state(frame)
-                        if overlay_state in ('reward_received', 'team_panel', 'idle_disconnect', 'connection_lost'):
+                        if overlay_state in ('reward_received', 'daily_reward', 'team_panel', 'idle_disconnect', 'connection_lost'):
                             self.handle_detected_state(overlay_state)
                     if t_now - self._last_static_notice >= 30:
                         self._last_static_notice = t_now
