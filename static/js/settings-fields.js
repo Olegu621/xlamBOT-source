@@ -1,6 +1,6 @@
 /* Plain-language labels. Kept together with English so settings stay complete. */
 window.XlamSettingsFields = {
- work_mode:['Режим работы','Bot mode','1 — Осторожность, 2 — Выживание, 3 — Баланс, 4 — Агрессия, 5 — Натиск. Настраивается на карточке устройства.','1 Caution, 2 Survival, 3 Balanced, 4 Aggressive, 5 Onslaught. Configure this on the device card.'],
+ work_mode:['Режим работы','Bot mode','1 — Сидеть в кустах, 2 — Выживание, 3 — Баланс, 4 — Агрессия, 5 — Натиск. Настраивается на карточке устройства.','1 Bush camping, 2 Survival, 3 Balanced, 4 Aggressive, 5 Onslaught. Configure this on the device card.'],
  brawler_switch_after_games:['Матчей до смены бойца','Matches before switching','0 — играть на одном бойце без смены.','0 keeps the same brawler.'],
  brawler_pick_mode:['Как выбирать бойца','Brawler selection','Игра сортирует список; бот выбирает первую карточку.','The game sorts the list; the bot picks the first card.'],
  brawler_rotation:['Порядок смены бойцов','Brawler rotation','Названия бойцов через запятую. Пусто — автоматический выбор.','Comma-separated brawler names. Leave empty for automatic selection.'],

@@ -1,7 +1,7 @@
 """Five behavior policies independent of the Think perception budget."""
 import math
 
-NAMES = {1:'Осторожность',2:'Выживание',3:'Баланс',4:'Агрессия',5:'Натиск'}
+NAMES = {1:'Сидеть в кустах',2:'Выживание',3:'Баланс',4:'Агрессия',5:'Натиск'}
 
 
 def resolve(config):

@@ -12,7 +12,7 @@
  });
  Object.assign(catalog,{
   'Управление ботом':'Bot controls', 'Настройки устройства':'Device settings',
-  'Режим работы':'Bot mode','Осторожность':'Caution','Выживание':'Survival','Баланс':'Balanced','Агрессия':'Aggressive','Натиск':'Onslaught',
+  'Режим работы':'Bot mode','Сидеть в кустах':'Bush camping','Выживание':'Survival','Баланс':'Balanced','Агрессия':'Aggressive','Натиск':'Onslaught',
   'Сохраняется отдельно для этого устройства':'Saved separately for this device',
   'Применяется в игре · газ и стены остаются запретом':'Applies during play · gas and walls stay blocked'
  });
