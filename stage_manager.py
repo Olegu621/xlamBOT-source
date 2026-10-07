@@ -472,6 +472,13 @@ class StageManager:
             print("Lobby changed before start; refusing to tap menu controls.")
             return
 
+        from screen_evidence import unsupported_lobby_mode
+        if unsupported_lobby_mode(frame):
+            from webui.preferences import read as read_preferences
+            message = ("Выбран Нокаут. Переключите игру на Столкновение (трио) и запустите бот снова."
+                       if read_preferences()['language'] == 'ru' else
+                       "Knockout is selected. Switch the game to Trio Showdown and start the bot again.")
+            raise RuntimeError(message)
         print("state is lobby, starting game")
         locked = self.locked_brawler()
         if locked:
@@ -648,8 +655,13 @@ class StageManager:
         if get_state(frame) != "lobby":
             print("Lobby changed before PLAY; refusing a stale proceed tap.")
             return
-        self.window_controller.release_movement()
-        self.window_controller.press("proceed")
+        from screen_evidence import play_button_position
+        button = play_button_position(frame)
+        if button is None:
+            print("PLAY button is not visible; waiting for a fresh lobby frame.")
+            return
+        self.window_controller.release_all_inputs()
+        self.window_controller.click(*button, already_include_ratio=True)
         print("Pressed to start a match")
         self._sleep_interruptible(0.3)
 
