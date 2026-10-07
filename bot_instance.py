@@ -250,7 +250,10 @@ class BotInstance:
                 observed = getattr(self.Play, 'world_state', {})
                 if observed.get('player_present') and time.time()-observed.get('timestamp',0) < .3:
                     state = 'match'
+            previous_state = self.state
             self.state = state
+            if previous_state == 'match' and state not in ('match','unknown'):
+                self.Play.reset_battle_pending = True
             self.latest_state_frame_time = frame_time if frame_time is not None else time.time()
         if state != 'match':
             self.window_controller.gameplay_frame_time = None
@@ -330,7 +333,8 @@ class BotInstance:
 
                 last_checked_frame_time = frame_time
                 try:
-                    self.set_latest_state(get_state(frame))
+                    if self.window_controller.frame_is_fresh(frame_time):
+                        self.set_latest_state(get_state(frame), frame_time=frame_time)
                 except Exception as error:
                     print(f"[{self.device_label}] State checker failed: {error}")
                 self.state_checker_stop_event.wait(0.1)
