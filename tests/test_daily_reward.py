@@ -29,3 +29,12 @@ class DailyRewardTests(unittest.TestCase):
     def test_pause_prevents_reward_click(self):
         manager=StageManager.__new__(StageManager);manager.runtime_control=SimpleNamespace(should_stop=lambda:False,should_pause=lambda:True)
         manager.dismiss_daily_reward()
+
+    def test_coins_need_caption_gold_stack_and_blue_reward_background(self):
+        f=np.full((270,480,3),(0,70,200),np.uint8)
+        t=e._scaled(e.COINS,81,25);f[33:58,200:281]=t
+        self.assertFalse(e.coin_reward(f))
+        f[80:200,170:310]=(255,180,0)
+        self.assertTrue(e.coin_reward(f));self.assertEqual(s.get_state(f),'daily_reward')
+        f[:]=50;f[33:58,200:281]=t;f[80:200,170:310]=(255,180,0)
+        self.assertFalse(e.coin_reward(f))
