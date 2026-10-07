@@ -397,41 +397,8 @@ class Play:
 
     @staticmethod
     def walls_block_swept_circle(p1, p2, radius, walls):
-        if not walls:
-            return False
-
-        p1_t = (int(p1[0]), int(p1[1]))
-        p2_t = (int(p2[0]), int(p2[1]))
-        min_x, max_x = min(p1_t[0], p2_t[0]), max(p1_t[0], p2_t[0])
-        min_y, max_y = min(p1_t[1], p2_t[1]), max(p1_t[1], p2_t[1])
-        radius = int(math.ceil(radius))
-
-        for wall in walls:
-            x1, y1, x2, y2 = wall[:4]
-            wall_rect = (x1, y1, x2, y2)
-            expanded_x1 = int(x1 - radius)
-            expanded_y1 = int(y1 - radius)
-            expanded_x2 = int(x2 + radius)
-            expanded_y2 = int(y2 + radius)
-
-            if max_x < expanded_x1 or min_x > expanded_x2 or max_y < expanded_y1 or min_y > expanded_y2:
-                continue
-
-            rect = (
-                expanded_x1,
-                expanded_y1,
-                max(1, expanded_x2 - expanded_x1),
-                max(1, expanded_y2 - expanded_y1),
-            )
-            if cv2.clipLine(rect, p1_t, p2_t)[0]:
-                radius_sq = radius * radius
-                start_distance_sq = Play.point_rect_distance_sq(p1, wall_rect)
-                end_distance_sq = Play.point_rect_distance_sq(p2, wall_rect)
-                if start_distance_sq <= radius_sq and end_distance_sq > start_distance_sq:
-                    continue
-                return True
-
-        return False
+        from local_navigation import blocked
+        return blocked(p1,p2,radius,walls)
 
     def is_enemy_hittable(self, player_pos, enemy_pos, walls, skill_type):
         if self.can_attack_through_walls(self.current_brawler, skill_type, self.brawlers_info):
@@ -1163,7 +1130,12 @@ class Play:
         unit = (movement[0]/length,movement[1]/length)
         if not self.battle_memory.dangers and self.safe_memory_step(movement,data['player'][0],data['wall']):
             return movement
-        options = [movement]+[self.clamp_movement((math.cos(a),math.sin(a))) for a in GAS_ESCAPE_ANGLES]
+        from local_navigation import detour
+        from thinking_levels import PROFILES
+        center,radius=self.get_player_hit_circle(data['player'][0])
+        route=detour(center,movement,radius,tile,data['wall'],PROFILES.get(getattr(self,'thinking_level','standard'),PROFILES['standard'])['directions'])
+        options = [self.clamp_movement(route)] if route else []
+        options += [movement]+[self.clamp_movement((math.cos(a),math.sin(a))) for a in GAS_ESCAPE_ANGLES]
         candidates = []
         for v in options:
             if not self.safe_memory_step(v,data['player'][0],data['wall']):
@@ -1171,6 +1143,7 @@ class Play:
             size = math.hypot(*v)
             direction = (v[0]/size,v[1]/size)
             cost = 1-sum(a*b for a,b in zip(unit,direction))
+            if route and v == options[0]: cost -= 1.5
             from work_modes import danger_weight
             cost += danger_weight(self.work_mode)*self.battle_memory.score(player,direction,allies,now,tile)
             candidates.append((cost,v))
@@ -1356,9 +1329,9 @@ class Play:
             self._thinking_base_intervals = (self.walls_treshold, self.gas_detect_interval)
         self.thinking_level = level
         self.walls_treshold = (self._thinking_base_intervals[0] if profile['walls_interval'] is None
-                               else min(self._thinking_base_intervals[0], profile['walls_interval']))
+                               else profile['walls_interval'])
         self.gas_detect_interval = (self._thinking_base_intervals[1] if profile['gas_interval'] is None
-                                    else min(self._thinking_base_intervals[1], profile['gas_interval']))
+                                    else profile['gas_interval'])
         self.time_since_walls_checked = 0.0
         self.gas_mask_time = 0.0
 
@@ -1378,6 +1351,17 @@ class Play:
             self.clear_gas_state()
             self.world_state = {'timestamp': frame_time, 'player_present': False, 'state': state}
             return
+        from battle_perception import respawning
+        from state_finder import is_respawning
+        if respawning(frame) or is_respawning(frame):
+            self.window_controller.release_all_inputs()
+            self.window_controller.gameplay_frame_time = None
+            self.clear_gas_state()
+            self.reset_battle_pending = True
+            self.context = None
+            self.persistent_data['time_since_holding_attack'] = None
+            self.world_state = {'timestamp':frame_time,'state':'respawning','player_present':False}
+            return
         if self.reset_battle_pending:
             self.battle_memory.reset()
             self.steering = Steering()
@@ -1391,7 +1375,7 @@ class Play:
         if fresh_memory_walls:
             tile_data = self.get_tile_data(frame, data.get("player"))
             walls, bushes = self.process_tile_data(tile_data)
-            self.time_since_walls_checked = current_time
+            self.time_since_walls_checked = time.time()
             self.last_walls_data = walls
             data['wall'] = walls
             self.last_bushes_data = bushes
@@ -1400,7 +1384,8 @@ class Play:
             data['wall'] = self.last_walls_data
             data['bush'] = self.last_bushes_data
 
-        data = self.validate_game_data(data)
+        from battle_perception import own_player
+        data = self.validate_game_data(own_player(data))
         self.track_no_detections(data)
         if data:
             self.time_since_player_last_found = time.time()

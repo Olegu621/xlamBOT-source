@@ -341,6 +341,13 @@ class LobbyAutomation:
                 print("Brawler selection aborted by user.")
                 return "aborted"
 
+            import trophy_reader
+            frame=self.window_controller.screenshot()
+            if get_state(frame) != 'brawler_selection':return 'stuck'
+            card=trophy_reader.read_card(frame,card_index=0)
+            if str(card.get('brawler') or '').lower().strip() != normalized_brawler:
+                print('Search result did not confirm the requested brawler; no selection tap sent.')
+                return 'failed'
             first_brawler_x, first_brawler_y = load_toml_as_dict("cfg/buttons_config.toml")["first_brawler_icon"]
             self.window_controller.click(first_brawler_x, first_brawler_y, already_include_ratio=False)
             if self._sleep_interruptible(1, runtime_control, stop_event):
@@ -352,7 +359,9 @@ class LobbyAutomation:
             if self._sleep_interruptible(1.5, runtime_control, stop_event):
                 print("Brawler selection aborted by user.")
                 return "aborted"
-            self.window_controller.screenshot()
+            frame=self.window_controller.screenshot()
+            if get_state(frame) != 'lobby':return 'stuck'
+            self._last_picked = {**card,'brawler':normalized_brawler}
             print("Selected brawler ", brawler_search_name)
             return "success"
 

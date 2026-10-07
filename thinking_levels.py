@@ -3,11 +3,11 @@ from collections import deque
 import math,time
 
 PROFILES={
- 'low':{'walls_interval':.20,'gas_interval':.20,'directions':8,'planning_steps':1},
+ 'low':{'walls_interval':.25,'gas_interval':.25,'directions':8,'planning_steps':1},
  'standard':{'walls_interval':None,'gas_interval':None,'directions':8,'planning_steps':3},
  'medium':{'walls_interval':.10,'gas_interval':.15,'directions':12,'planning_steps':2},
- 'high':{'walls_interval':.05,'gas_interval':.08,'directions':16,'planning_steps':3},
- 'maximum':{'walls_interval':0.,'gas_interval':0.,'directions':32,'planning_steps':5},
+ 'high':{'walls_interval':.10,'gas_interval':.12,'directions':16,'planning_steps':3},
+ 'maximum':{'walls_interval':.075,'gas_interval':.08,'directions':32,'planning_steps':5},
 }
 LEVELS=tuple(PROFILES)
 

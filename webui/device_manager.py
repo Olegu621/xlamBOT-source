@@ -652,8 +652,8 @@ class DeviceRuntimeManager:
             data["movement"] = play.safety_telemetry
             data["world"] = play.world_state
             data["latency"] = play.latency
-            data["motion_state"] = play.motion_state
-            data["gas_events"] = list(play.gas_events)
+            data["motion_state"] = getattr(play, "motion_state", {})
+            data["gas_events"] = list(getattr(play, "gas_events", []))
             data["providers"] = {name: detector.device for name, detector in [("entities", play.Detect_main_info), ("walls", play.Detect_tile_detector or play.Detect_centered_tile_detector), ("gas", play.Detect_gas)] if detector is not None}
         except Exception:
             data["gas"] = None
