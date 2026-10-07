@@ -203,10 +203,27 @@ def is_in_showdown_match(image) -> bool:
     import numpy as np
     height,width=image.shape[:2]
     crop=image[int(height*.01):int(height*.12), int(width*.01):int(width*.30)]
-    if not crop.size or np.mean(np.all(crop>205,axis=2))<.06:
+    if not crop.size:
         return False
-    return any(is_template_in_region(image, states_path + name, [20,10,556,120], threshold=threshold)
-               for name, threshold in (('teams_remaining_ru.png', .88), ('teams_remaining_en.png', .85)))
+    # Phone displays and wireless ADB serials do not use a different state
+    # machine. Ultrawide HUD fonts scale with height, not with screen width.
+    # Match both scales in the HUD region; brightness is tested on the matched
+    # caption, not diluted by the larger surrounding map area.
+    for name, threshold in (('teams_remaining_ru.png', .88), ('teams_remaining_en.png', .85)):
+        normal = load_template(states_path+name,width,height)
+        uniform = load_template(states_path+name,round(height*16/9),height)
+        templates = (normal,) if normal is uniform else (normal,uniform)
+        for template in templates:
+            if template is None or template.shape[0]>crop.shape[0] or template.shape[1]>crop.shape[1]:
+                continue
+            _,score,_,loc = cv2.minMaxLoc(cv2.matchTemplate(crop,template,cv2.TM_CCOEFF_NORMED))
+            if score < threshold:
+                continue
+            x,y = loc
+            caption = crop[y:y+template.shape[0],x:x+template.shape[1]]
+            if np.mean(np.all(caption>205,axis=2))>.06:
+                return True
+    return False
 
 
 def is_in_connection_lost(image) -> bool:

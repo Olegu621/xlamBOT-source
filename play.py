@@ -29,6 +29,9 @@ GAS_CORRIDOR_SAMPLES = 5
 # as much as one the player is about to walk into.
 GAS_FAR_FIELD_WEIGHT = 0.5
 
+from battle_memory import BattleMemory, Steering
+from ability_buttons import AbilityButtons
+
 class Play:
 
     def __init__(self, main_info_model, tile_detector_model, close_tile_detector_model, window_controller, playstyle_code):
@@ -163,6 +166,10 @@ class Play:
                 self.playstyle_code = compile(playstyle_code, "<playstyle>", "exec")
         else:
             self.playstyle_code = playstyle_code
+        self.battle_memory = BattleMemory()
+        self.steering = Steering()
+        self.ability_buttons = AbilityButtons()
+        self.reset_battle_pending = False
         self.context = None
         self.frame = None
 
@@ -183,23 +190,24 @@ class Play:
     def attack(self, touch_up=True, touch_down=True):
         self.window_controller.press("attack", touch_up=touch_up, touch_down=touch_down)
 
+    def use_ability(self, ability):
+        # Called only inside a fresh, confirmed gameplay frame, never a menu.
+        point = self.ability_buttons.consume(ability, time.time())
+        if point is None:
+            return False
+        self.window_controller.click(*point)
+        setattr(self, 'is_'+ability+'_ready', False)
+        setattr(self, 'time_since_'+ability+'_checked', time.time())
+        return True
+
     def use_hypercharge(self):
-        print("Using hypercharge")
-        self.window_controller.press("hypercharge")
-        self.time_since_hypercharge_checked = time.time()
-        self.is_hypercharge_ready = False
+        return self.use_ability('hypercharge')
 
     def use_gadget(self):
-        print("Using gadget")
-        self.window_controller.press("gadget")
-        self.time_since_gadget_checked = time.time()
-        self.is_gadget_ready = False
+        return self.use_ability('gadget')
 
     def use_super(self):
-        print("Using super")
-        self.window_controller.press("super")
-        self.time_since_super_checked = time.time()
-        self.is_super_ready = False
+        return self.use_ability('super')
 
     @staticmethod
     def get_random_movement():
@@ -277,7 +285,8 @@ class Play:
             self.fix_movement_keys["rotation_angle_step"] = 1
             self.time_since_different_movement = current_time
 
-        if current_time - self.time_since_different_movement > self.fix_movement_keys["delay_to_trigger"]:
+        if (current_time - self.time_since_different_movement > self.fix_movement_keys["delay_to_trigger"]
+                and self.battle_memory.stalled(current_time, self.fix_movement_keys["delay_to_trigger"])):
             self.fix_movement_keys["rotation_sign"] *= -1
             angle_step = self.fix_movement_keys["rotation_angle_step"]
             rotated_movement = self.rotate_movement(
@@ -1035,7 +1044,7 @@ class Play:
         self.context = {
                 'player_data': data['player'][0],
                 'enemy_data': data['enemy'],
-                'teammate_data': data['teammate'],
+                'teammate_data': self.battle_memory.active_allies(data['teammate'], current_time, self.TILE_SIZE*self.window_controller.scale_factor),
                 'brawler': brawler,
                 'walls': data['wall'],
                 'bushes': data['bush'],
@@ -1089,25 +1098,21 @@ class Play:
             self.last_movement = ''
             return None
         # Standing in a cloud is worth leaving whatever the playstyle wanted, so
-        # the escape takes the joystick. The unstick further down still gets the
-        # last word: being wedged into a wall is worse than both.
+        # the escape takes the joystick immediately without direction debounce.
         movement = self.clamp_movement(gas_vector if gas_vector is not None else movement_vector)
-        current_time = time.time()
         if gas_vector is None:
-            if movement != self.last_movement:
-                if current_time - self.last_movement_change_time >= self.minimum_movement_delay:
-                    self.last_movement = movement
-                    self.last_movement_change_time = current_time
-                else:
-                    movement = self.last_movement
-            else:
-                self.last_movement_change_time = current_time
-        movement = self.unstuck_movement_if_needed(movement, current_time)
-        if gas_vector is not None:
-            # The joystick is already on the escape line, so the movement delay
-            # must not be allowed to hand back the direction it just left.
-            self.last_movement = movement
-            self.last_movement_change_time = current_time
+            movement = self.remembered_movement(movement, data, current_time)
+            movement = self.steering.choose(movement, current_time,
+                lambda v: self.safe_memory_step(v, data['player'][0], data['wall']))
+            movement = self.unstuck_movement_if_needed(movement, current_time)
+            # Unstick and held directions must pass the same current gas/wall check.
+            if not self.safe_memory_step(movement, data['player'][0], data['wall']):
+                movement = self.remembered_movement(movement, data, current_time)
+        else:
+            self.steering.previous = None
+            self.fix_movement_keys['toggled'] = False
+        self.last_movement = movement
+        self.last_movement_change_time = self.steering.changed
         self.latency['decision_ms'] = (time.perf_counter()-decision_started)*1000
         self.safety_telemetry = {
             'desired': movement_vector,
@@ -1115,6 +1120,44 @@ class Play:
             'override_reason': 'CLASSIC_GAS_ESCAPE' if gas_vector is not None else 'CLASSIC_GAMEPLAY',
         }
         return movement
+
+    def safe_memory_step(self, vector, player_box, walls):
+        v = self.movement_to_vector(vector)
+        if v is None or math.hypot(*v)<1e-6:
+            return True
+        if self.is_path_blocked(player_box, v, walls):
+            return False
+        if self.gas_mask is not None:
+            actual = self.get_actual_player_box(player_box) or player_box
+            x,y = self.get_entity_pos(actual)
+            length = math.hypot(*v)
+            share = self.gas_direction_share(self.gas_mask,x,y,max(actual[2]-actual[0],1),
+                max(actual[3]-actual[1],1),v[0]/length,v[1]/length,self.gas_lookahead)
+            if share >= self.gas_sensitivity:
+                return False
+        return True
+
+    def remembered_movement(self, movement, data, now):
+        if not movement or math.hypot(*movement)<1e-6:
+            return movement
+        tile = self.TILE_SIZE*self.window_controller.scale_factor
+        allies = self.battle_memory.active_allies(data['teammate'], now, tile)
+        player = self.get_entity_pos(data['player'][0])
+        length = math.hypot(*movement)
+        unit = (movement[0]/length,movement[1]/length)
+        if not self.battle_memory.dangers and self.safe_memory_step(movement,data['player'][0],data['wall']):
+            return movement
+        options = [movement]+[self.clamp_movement((math.cos(a),math.sin(a))) for a in GAS_ESCAPE_ANGLES]
+        candidates = []
+        for v in options:
+            if not self.safe_memory_step(v,data['player'][0],data['wall']):
+                continue
+            size = math.hypot(*v)
+            direction = (v[0]/size,v[1]/size)
+            cost = 1-sum(a*b for a,b in zip(unit,direction))
+            cost += self.battle_memory.score(player,direction,allies,now,tile)
+            candidates.append((cost,v))
+        return min(candidates,key=lambda c:c[0])[1] if candidates else (0.,0.)
 
     def check_if_hypercharge_ready(self, frame):
         wr, hr = self.window_controller.width_ratio, self.window_controller.height_ratio
@@ -1299,10 +1342,17 @@ class Play:
             self.clear_gas_state()
             self.world_state = {'timestamp': frame_time, 'player_present': False, 'state': state}
             return
+        if self.reset_battle_pending:
+            self.battle_memory.reset()
+            self.steering = Steering()
+            self.ability_buttons = AbilityButtons()
+            self.fix_movement_keys['toggled'] = False
+            self.reset_battle_pending = False
         self.window_controller.gameplay_frame_time = frame_time
         self._thinking_battle_frame_time = frame_time
         data = self.get_main_data(frame)
-        if current_time - self.time_since_walls_checked > self.walls_treshold:
+        fresh_memory_walls = current_time - self.time_since_walls_checked > self.walls_treshold
+        if fresh_memory_walls:
             tile_data = self.get_tile_data(frame, data.get("player"))
             walls, bushes = self.process_tile_data(tile_data)
             self.time_since_walls_checked = current_time
@@ -1329,16 +1379,11 @@ class Play:
             self.world_state = {'timestamp': frame_time, 'player_present': False, 'state': state}
             self.publish_debug_view(frame, data, state)
             return
-        self.time_since_last_proceeding = time.time()
-        if current_time - self.time_since_hypercharge_checked > self.hypercharge_treshold:
-            self.is_hypercharge_ready = self.check_if_hypercharge_ready(frame)
-            self.time_since_hypercharge_checked = current_time
-        if current_time - self.time_since_gadget_checked > self.gadget_treshold:
-            self.is_gadget_ready = self.check_if_gadget_ready(frame)
-            self.time_since_gadget_checked = current_time
-        if current_time - self.time_since_super_checked > self.super_treshold:
-            self.is_super_ready = self.check_if_super_ready(frame)
-            self.time_since_super_checked = current_time
+        self.time_since_last_proceeding = current_time
+        self.battle_memory.update(data,current_time,self.TILE_SIZE*self.window_controller.scale_factor,fresh_memory_walls)
+        self.ability_buttons.observe(frame,self.window_controller.press_coords_dict,current_time)
+        for ability in ('super','gadget','hypercharge'):
+            setattr(self,'is_'+ability+'_ready',self.ability_buttons.ready.get(ability) is not None)
         self.frame = frame
         # Gas is read before the playstyle runs, so the escape it hands over is
         # already known when the playstyle asks what to do.
@@ -1356,6 +1401,9 @@ class Play:
                             'frame_size': list(frame.shape[:2]), 'player_present': True,
                             'state': 'match', 'brawler': brawler, 'mode_confirmed': True,
                             'visible_teammates': len(data['teammate']),
+                            'idle_teammates': self.battle_memory.idle_count,
+                            'remembered_dangers': len(self.battle_memory.dangers),
+                            'remembered_paths': len(self.battle_memory.paths),
                             'player': data['player'], 'enemy': data['enemy'],
                             'teammate': data['teammate'], 'wall': data['wall'], 'bush': data['bush'],
                             'gas_boxes': self.gas_boxes, 'gas_coverage': self.gas_coverage,
