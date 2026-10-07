@@ -30,16 +30,16 @@
         const en = window.XlamI18n?.language === 'en';
         return en ? [
             ['Caution','Retreats early, avoids approaching opponents and attacks for self-defense.'],
-            ['Survival','Stays with active allies and keeps a safe distance.'],
-            ['Balanced','Engages manageable fights and retreats when outnumbered.'],
-            ['Aggressive','Seeks opponents and fights according to the brawler’s range.'],
-            ['Onslaught','Maximum aggression: closes distance and takes more combat risks.'],
+            ['Survival','Regroups with active allies, holds range and retreats when outnumbered.'],
+            ['Balanced','Selects manageable fights, supports allies and holds the brawler’s effective range.'],
+            ['Aggressive','Pursues accessible targets, strafes in range and retreats from overwhelming groups.'],
+            ['Onslaught','Pressures opponents more closely while preserving range for ranged brawlers.'],
         ] : [
             ['Осторожность','Отступает заранее, избегает сближения и атакует для самообороны.'],
-            ['Выживание','Держится с активными союзниками и сохраняет безопасную дистанцию.'],
-            ['Баланс','Вступает в посильные бои, отступает при численном перевесе врагов.'],
-            ['Агрессия','Ищет противников и сражается с учётом дальности бойца.'],
-            ['Натиск','Максимальная агрессия: активно сближается и больше рискует в бою.'],
+            ['Выживание','Собирается с активными союзниками, держит дистанцию и отступает при перевесе врагов.'],
+            ['Баланс','Выбирает посильные бои, поддерживает союзников и держит рабочую дистанцию бойца.'],
+            ['Агрессия','Преследует доступные цели, двигается поперёк огня и отходит от подавляющего перевеса.'],
+            ['Натиск','Сильнее давит на противников, сохраняя дальнобойным бойцам дистанцию для стрельбы.'],
         ];
     }
     function renderWorkMode(key, preview) {
