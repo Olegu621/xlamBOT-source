@@ -89,19 +89,26 @@ def detour(player,desired,radius,tile,walls,directions=16,risk=None):
         nodes.append((player[0]+math.cos(angle)*reach,player[1]+math.sin(angle)*reach))
     costs={0:0.};first={};queue=[(0.,0)];visited=set();best=None
     while queue:
-        cost,i=heapq.heappop(queue)
+        priority,i=heapq.heappop(queue)
+        cost=costs[i]
         if i in visited:continue
+        if len(visited)>=16:break
         visited.add(i)
+        if i==1:
+            best=(cost,first[i]);break
         if i:
             score=cost+math.dist(nodes[i],goal)*1.3
             if best is None or score<best[0]:best=(score,first[i])
-        for j,point in enumerate(nodes):
+        neighbors=sorted((j for j in range(len(nodes)) if j!=i and j not in visited),key=lambda j:math.dist(nodes[i],nodes[j]))[:10]
+        if 1 not in visited and 1 not in neighbors:neighbors.append(1)
+        for j in neighbors:
+            point=nodes[j]
             if j==i or j in visited or blocked(nodes[i],point,radius,near):continue
             distance=math.dist(nodes[i],point);value=cost+distance
             if risk:
                 value += distance*sum(risk((nodes[i][0]+t*(point[0]-nodes[i][0]),nodes[i][1]+t*(point[1]-nodes[i][1]))) for t in (.25,.5,.75))/3
             if value<costs.get(j,float('inf')):
-                costs[j]=value;first[j]=j if i==0 else first[i];heapq.heappush(queue,(value,j))
+                costs[j]=value;first[j]=j if i==0 else first[i];heapq.heappush(queue,(value+math.dist(point,goal),j))
     if best is None:return None
     target=nodes[best[1]];dx,dy=target[0]-player[0],target[1]-player[1];length=math.hypot(dx,dy)
     return (dx/length,dy/length) if length else None

@@ -959,7 +959,7 @@ class Play:
 
     def is_path_blocked(self, player_box, move_direction, walls, distance=None):
         if distance is None:
-            distance = self.TILE_SIZE*self.window_controller.scale_factor
+            distance = self.TILE_SIZE*self.window_controller.scale_factor*.45
         movement = self.movement_to_vector(move_direction)
         if movement is None:
             return False
@@ -1159,7 +1159,12 @@ class Play:
             if not (0<=x<w and 0<=y<h):return 8.
             patch=self.gas_mask[max(0,y-3):min(h,y+4),max(0,x-3):min(w,x+4)]
             return 5*float((patch>0).mean())
-        route=detour(center,movement,radius,tile,data['wall'],PROFILES.get(getattr(self,'thinking_level','standard'),PROFILES['standard'])['directions'],risk=route_risk)
+        cached=getattr(self,'navigation_route',None)
+        if cached and now<cached[0] and sum(a*b for a,b in zip(unit,cached[1]))>.8 and not self.is_path_blocked(data['player'][0],cached[2],data['wall']):
+            route=cached[2]
+        else:
+            route=detour(center,movement,radius,tile,data['wall'],PROFILES.get(getattr(self,'thinking_level','standard'),PROFILES['standard'])['directions'],risk=route_risk)
+            self.navigation_route=(now+.15,unit,route) if route else None
         options = [self.clamp_movement(route)] if route else []
         options += [movement]+[self.clamp_movement((math.cos(a),math.sin(a))) for a in GAS_ESCAPE_ANGLES]
         candidates = []
@@ -1298,7 +1303,7 @@ class Play:
                 patch=self.gas_mask[max(0,int(y-margin)):min(h,int(y+margin)+1),max(0,int(x-margin)):min(w,int(x+margin)+1)]
                 return patch.size>0 and (patch>0).mean()<self.gas_sensitivity
             plan=self.bush_cover.plan(player,self.context.get('bushes',[]),self.context['enemy_data'],tile,JOYSTICK_RADIUS,time.time(),attack_range,
-                lambda box:self.is_enemy_hittable(player,self.get_entity_pos(box),self.context['walls'],'attack'),safe_cover,attacked=self.incoming_damage.observe(self.frame,self.context['player_data'],time.time()),refuge=self.map_centre())
+                lambda box:self.is_enemy_hittable(player,self.get_entity_pos(box),self.context['walls'],'attack'),safe_cover,attacked=self.incoming_damage.observe(self.frame,self.context['player_data'],time.time()),refuge=self.map_centre(),offset=self.battle_memory.offset)
         self.behavior_report = plan['report']
         if not self.behavior_report['fire_allowed'] and self.persistent_data['time_since_holding_attack'] is not None:
             self.attack(touch_up=True,touch_down=False)

@@ -14,6 +14,11 @@ class CoverTests(unittest.TestCase):
     def test_flees_to_other_bush_and_attacks_close_enemy(self):
         r=self.call(BushCover(),enemies=[[50,-10,70,10]],bushes=[[-40,-40,40,40],[-240,-40,-160,40]])
         self.assertLess(r['movement'][0],0);self.assertTrue(r['report']['fire_allowed']);self.assertEqual(r['report']['intent'],'seek_cover')
+    def test_cover_exclusion_tracks_camera_motion(self):
+        p=BushCover();safe=lambda *a:True
+        p.plan((0,0),[[-40,-40,40,40],[160,-40,240,40]],[],40,100,0,200,lambda b:True,safe,attacked=True)
+        r=p.plan((-100,0),[[-140,-40,-60,40],[60,-40,140,40]],[],40,100,1,200,lambda b:True,safe,offset=(100,0))
+        self.assertEqual(r['report']['intent'],'seek_cover');self.assertGreater(r['movement'][0],0)
     def test_gas_covered_bush_not_selected_and_exposed_one_excluded(self):
         p=BushCover();r=self.call(p,bushes=[[-40,-40,40,40],[160,-40,240,40]],safe=lambda point,margin:point[0]>100)
         self.assertGreater(r['movement'][0],0)
