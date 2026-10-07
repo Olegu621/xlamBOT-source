@@ -4,8 +4,9 @@ from combat_behavior import position, unit, unique
 
 class BushCover:
     def __init__(self):
-        self.last_pulse=None;self.pulse_until=0.;self.side=1;self.excluded=None;self.exclude_until=0.;self.last_enemy_distance=None
-    def plan(self,player,bushes,enemies,tile,radius,now,attack_range,visible,safe,attacked=False,refuge=None):
+        self.last_pulse=None;self.pulse_until=0.;self.side=1;self.excluded=None;self.exclude_until=0.;self.last_enemy_distance=None;self.goal=None
+    def plan(self,player,bushes,enemies,tile,radius,now,attack_range,visible,safe,attacked=False,refuge=None,offset=(0.,0.)):
+        world=lambda point:(point[0]+offset[0],point[1]+offset[1])
         enemies=unique(enemies)
         target=min(enemies,key=lambda b:math.dist(position(b),player)) if enemies else None
         distance=math.dist(position(target),player) if target else float('inf')
@@ -14,10 +15,10 @@ class BushCover:
         fire=target is not None and distance<=attack_range and visible(target)
         inside=[b for b in bushes if b[0]<=player[0]<=b[2] and b[1]<=player[1]<=b[3]]
         exposed=attacked or distance<tile*3 or (approaching and distance<tile*6)
-        excluded_here=now<self.exclude_until and self.excluded is not None and any(math.dist(position(b),self.excluded)<tile for b in inside)
+        excluded_here=now<self.exclude_until and self.excluded is not None and any(math.dist(world(position(b)),self.excluded)<tile for b in inside)
         threatened=exposed or not safe(player,tile*1.5) or excluded_here
         if (exposed or not safe(player,tile*1.5)) and inside:
-            self.excluded=position(inside[0]);self.exclude_until=now+5
+            self.excluded=world(position(inside[0]));self.exclude_until=now+5
         report={'mode':1,'intent':'hide','reason':'covered','fire_allowed':fire,'target':list(position(target)) if target else None,'preferred_distance':attack_range*1.12}
         if inside and not threatened:
             if self.last_pulse is None:self.last_pulse=now
@@ -35,11 +36,11 @@ class BushCover:
         for b in bushes:
             aim=position(b)
             if not safe(aim,tile):continue
-            if now<self.exclude_until and self.excluded and math.dist(aim,self.excluded)<tile:continue
+            if now<self.exclude_until and self.excluded and math.dist(world(aim),self.excluded)<tile:continue
             if target and math.dist(aim,position(target))<tile*2:continue
             candidates.append(aim)
         if candidates:
-            aim=min(candidates,key=lambda a:math.dist(a,player));v=unit((aim[0]-player[0],aim[1]-player[1]));report.update(intent='seek_cover',reason='under_attack' if attacked else 'exposed' if threatened else 'find_bush')
+            aim=min(candidates,key=lambda a:math.dist(a,player)-(tile*2 if self.goal is not None and math.dist(world(a),self.goal)<tile else 0));self.goal=world(aim);v=unit((aim[0]-player[0],aim[1]-player[1]));report.update(intent='seek_cover',reason='under_attack' if attacked else 'exposed' if threatened else 'find_bush')
         else:
             # Explore clear ground outside the threatened bush, without following allies.
             options=[]
