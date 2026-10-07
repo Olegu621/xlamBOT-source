@@ -9,9 +9,9 @@ class UnknownRecoveryTests(unittest.TestCase):
         manager=StageManager.__new__(StageManager);manager.runtime_control=None;self.clicks=[]
         manager.window_controller=SimpleNamespace(screenshot=lambda:np.zeros((720,1280,3),np.uint8),release_all_inputs=lambda:None,click=lambda *a,**k:self.clicks.append(a))
         return manager
-    def test_unknown_taps_upper_right_at_most_twice_per_second(self):
+    def test_unknown_taps_upper_right_every_one_and_half_seconds(self):
         manager=self.manager()
-        with patch('stage_manager.time.monotonic',side_effect=[1.,1.1,1.49,1.5]),patch('stage_manager.get_state',return_value='unknown'):
+        with patch('stage_manager.time.monotonic',side_effect=[1.,1.5,2.49,2.5]),patch('stage_manager.get_state',return_value='unknown'):
             for i in range(4):manager.recover_unknown()
         self.assertEqual(self.clicks,[(1254.4,25.200000000000003)]*2)
     def test_known_fresh_screen_cannot_be_clicked_from_stale_unknown_state(self):

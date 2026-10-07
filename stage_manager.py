@@ -869,7 +869,7 @@ class StageManager:
         if self._should_stop() or self._should_pause():
             return
         now = time.monotonic()
-        if now - getattr(self, '_last_unknown_tap', -100) < .5:
+        if now - getattr(self, '_last_unknown_tap', -100) < 1.5:
             return
         frame = self.window_controller.screenshot()
         if get_state(frame) != 'unknown':
