@@ -17,6 +17,7 @@
     const toastEl = document.getElementById('toast');
 
     let devices = [];
+    const selectedDevice = new URLSearchParams(location.search).get('device');
     const liveByKey = {};
     let lastLogs = {};       // key -> last line count we rendered
     let lastLogText = {};    // key -> last log array (to avoid re-render churn)
@@ -161,7 +162,7 @@
             ? labels[THINKING_LEVELS.indexOf(thought.recommended)] : (en ? 'measuring in battle…' : 'измеряю в бою…');
         widget.querySelector('[data-thinking-note]').textContent = state.busy
             ? (en ? 'Saving…' : 'Сохраняю…')
-            : `${en ? 'Recommended' : 'Рекомендую'}: ${recommendation}`;
+            : `${en ? 'Recommended' : 'Рекомендую'}: ${recommendation} · ${en ? 'target 20–30 FPS' : 'ориентир 20–30 FPS'}`;
         widget.querySelector('[data-thinking-reset]').disabled = !state.saved || !!state.busy || state.saved === 'standard';
         widget.querySelector('[data-thinking-reset]').title = en ? 'Restore original thinking for this device' : 'Вернуть стандартную думалку для этого устройства';
         widget.querySelector('[data-thinking-reset]').setAttribute('aria-label', en ? 'Restore original thinking for this device' : 'Вернуть стандартную думалку для этого устройства');
@@ -395,7 +396,7 @@
                     <div class="stat-box"><div class="stat-box-label">Боец</div><div class="stat-box-value">—</div></div>
                     <div class="stat-box"><div class="stat-box-label">Трофеи</div><div class="stat-box-value">—</div></div>
                     <div class="stat-box"><div class="stat-box-label">В час</div><div class="stat-box-value">—</div></div>
-                    <div class="stat-box"><div class="stat-box-label">Ротация</div><div class="stat-box-value">—</div></div>
+                    <div class="stat-box"><div class="stat-box-label">Очередь</div><div class="stat-box-value">—</div></div>
                     <div class="stat-box"><div class="stat-box-label">За матч</div><div class="stat-box-value">—</div></div>
                     <div class="stat-box"><div class="stat-box-label">Серия</div><div class="stat-box-value">—</div></div>
                     <div class="stat-box"><div class="stat-box-label">В работе</div><div class="stat-box-value">—</div></div>
@@ -410,7 +411,7 @@
                 ${runtime.last_error ? `<div class="error-box">${escapeHtml(runtime.last_error)}</div>` : ''}
 
                 <div class="controls">
-                    <a class="btn btn-ghost" href="/calibration/${encodeURIComponent(key)}">Калибровка бойцов</a>
+                    <a class="btn btn-ghost" href="/calibration/${encodeURIComponent(key)}">Калибровка</a>
                     <button class="btn btn-primary" data-action="start" data-key="${escapeHtml(key)}" ${startDisabled ? 'disabled' : ''}><svg class="ui-icon" aria-hidden="true"><use href="#icon-player-play"/></svg>Старт</button>
                     <button class="btn ${pauseClass}" data-action="${pauseAction}" data-key="${escapeHtml(key)}" ${isRunning ? '' : 'disabled'}>${pauseLabel}</button>
                     <button class="btn btn-danger" data-action="stop" data-key="${escapeHtml(key)}" ${running ? '' : 'disabled'}>Стоп</button>
@@ -494,10 +495,24 @@
 
         // Only rebuild when the device set actually changes. Re-rendering every
         // poll would detach inputs, close dropdowns and lose focus.
-        const signature = devices.map((d) => d.key).join('|');
+        const shown = selectedDevice ? devices.filter(d => d.key === selectedDevice) : devices;
+        const nav = document.getElementById('deviceRouteNav');
+        if (selectedDevice && nav) {
+            nav.hidden = false;
+            const index = devices.findIndex(d => d.key === selectedDevice);
+            const next = devices.length > 1 ? devices[(index + 1) % devices.length] : null;
+            const en = window.XlamI18n?.language === 'en';
+            const navSignature = devices.map(d => d.key + ':' + (d.display_name || '')).join('|');
+            if (nav.dataset.signature !== navSignature) {
+            nav.dataset.signature = navSignature;
+            nav.innerHTML = `<a class="btn btn-ghost" href="/?device=${encodeURIComponent(selectedDevice)}">${en ? '← Back to settings' : '← К настройке'}</a><span class="device-route-title">${escapeHtml(shown[0]?.display_name || selectedDevice)}</span>${next ? `<a class="btn btn-ghost" href="/panel?device=${encodeURIComponent(next.key)}">${en ? 'Next device →' : 'Следующее устройство →'}</a>` : ''}<a class="btn btn-ghost" href="/panel">${en ? 'All devices' : 'Все устройства'}</a>`;
+            }
+            if (!shown.length) noDevices.classList.remove('hidden');
+        }
+        const signature = shown.map((d) => d.key).join('|');
         if (signature !== cardKeys) {
             cardKeys = signature;
-            grid.innerHTML = devices.map(deviceCard).join('');
+            grid.innerHTML = shown.map(deviceCard).join('');
             devices.forEach((d) => {
                 renderBrawlerGrid(d.key);
                 if (lastLogText[d.key]) renderLogs(d.key, lastLogText[d.key]);
@@ -904,7 +919,7 @@
                 ${rateNote ? `<div class="stat-box-note">${escapeHtml(rateNote)}</div>` : ''}
             </div>
             <div class="stat-box" title="${escapeHtml(rotationTitle)}">
-                <div class="stat-box-label">Ротация</div>
+                <div class="stat-box-label">Очередь</div>
                 <div class="stat-box-value">${rotationText}</div>
                 ${rotationNote ? `<div class="stat-box-note">${escapeHtml(rotationNote)}</div>` : ''}
             </div>

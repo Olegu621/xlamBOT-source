@@ -435,10 +435,9 @@ class StageManager:
         """Read settled counters again after selecting a different card."""
         if self._lobby_synced:
             return True
-        if self._sleep_interruptible(4):
-            return False
-        for observation in range(5):
-            if observation and self._sleep_interruptible(0.35):
+        # Two fresh observations confirm OCR without holding PLAY for seconds.
+        for observation in range(2):
+            if observation and self._sleep_interruptible(0.12):
                 return False
             self.sync_trophies_from_screen()
         self._lobby_synced = True
@@ -652,7 +651,7 @@ class StageManager:
         self.window_controller.release_movement()
         self.window_controller.press("proceed")
         print("Pressed to start a match")
-        time.sleep(2)
+        self._sleep_interruptible(0.3)
 
     def choose_reward_brawler(self):
         from reward_choice import is_reward_choice

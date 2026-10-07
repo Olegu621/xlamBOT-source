@@ -226,19 +226,40 @@ def is_in_showdown_match(image) -> bool:
     return False
 
 
-def is_in_connection_lost(image) -> bool:
-    """The private server drops the connection and puts a dialog up.
+def connection_lost_retry_position(image):
+    """Confirm the title, grey dialog body and action inside that exact window."""
+    import numpy as np
+    if image is None or image.ndim != 3 or image.shape[2] != 3:
+        return None
+    height, width = image.shape[:2]
+    # This bound belongs to the modal, independent of per-device HUD calibration.
+    left, top = round(width*.22), round(height*.30)
+    crop = image[top:round(height*.64), left:round(width*.78)]
+    for name in ('connection_lost_dialog.png', 'idle_disconnect_ru.png', 'login_failure_ru.png'):
+        template = load_template(states_path+name, width, height)
+        if template is None or crop.size == 0 or any(crop.shape[i]<template.shape[i] for i in (0,1)):
+            continue
+        _, score, _, location = cv2.minMaxLoc(cv2.matchTemplate(crop,template,cv2.TM_CCOEFF_NORMED))
+        if score < .94:
+            continue
+        x, y = left+location[0], top+location[1]
+        # Reject captions accidentally found on the battle/results screen.
+        body = image[y:min(height,y+round(height*.25)),x:min(width,x+round(width*.42))]
+        grey = (np.ptp(body.astype(np.int16),axis=2)<10) & (body.mean(axis=2)>32) & (body.mean(axis=2)<95)
+        if body.size == 0 or grey.mean()<.62:
+            continue
+        button = image[round(height*.57):round(height*.66),round(width*.25):round(width*.40)]
+        rgb=button.astype(np.int16)
+        action=(rgb[:,:,1]>110)&(rgb[:,:,2]>110)&(rgb[:,:,0]<170)&(rgb[:,:,1]-rgb[:,:,0]>20)
+        if np.count_nonzero(action)<max(8,round(width*height*.00008)):
+            continue
+        # The legacy rectangle stores x1,y1,x2,y2, not x,y,width,height.
+        return round(width*618.5/1920),round(height*654.5/1080)
+    return None
 
-    Scored 0.99 on three emulators showing the dialog and 0.23-0.43 on ordinary
-    lobby and match screens, so the shared 0.75 threshold separates them with
-    room to spare.
-    """
-    region = region_data.get("connection_lost_dialog")
-    if not region:
-        return False
-    return (is_template_in_region(image, states_path + 'connection_lost_dialog.png', region)
-            or is_template_in_region(image, states_path + 'idle_disconnect_ru.png', region, threshold=.9)
-            or is_template_in_region(image, states_path + 'login_failure_ru.png', region, threshold=.9))
+
+def is_in_connection_lost(image) -> bool:
+    return connection_lost_retry_position(image) is not None
 
 
 def is_in_brawler_selection(image) -> bool:
