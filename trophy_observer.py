@@ -3,7 +3,7 @@ import os
 import secrets
 import time
 import requests
-from utils import load_toml_as_dict, save_dict_as_toml, api_base_url, hash_playstyle, XLAMBOT_VERSION, resolve_project_path, get_config_root, atomic_write_text
+from utils import load_toml_as_dict, api_base_url, hash_playstyle, XLAMBOT_VERSION, get_config_root, atomic_write_text
 from enum import Enum
 from dataclasses import dataclass
 from typing import Optional

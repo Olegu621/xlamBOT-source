@@ -10,12 +10,9 @@ one global configuration directory.
 from __future__ import annotations
 
 import argparse
-import sys
 import threading
-import time
 import webbrowser
 
-from utils import resolve_project_path
 
 
 def _parse_args(argv=None):

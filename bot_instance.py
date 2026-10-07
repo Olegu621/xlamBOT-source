@@ -8,7 +8,6 @@ the device's config scope so several devices can be automated simultaneously.
 from __future__ import annotations
 
 import os
-import sys
 import threading
 import time
 import traceback

@@ -9,7 +9,6 @@ import threading
 import time
 from contextlib import contextmanager
 from io import BytesIO
-import ctypes
 import json
 from pathlib import Path
 import requests
@@ -800,12 +799,6 @@ def get_brawler_icon_path(brawler_name: str) -> Path | None:
         if candidate.is_file():
             return candidate
     return None
-
-
-def get_dpi_scale():
-    user32 = ctypes.windll.user32
-    user32.SetProcessDPIAware()
-    return int(user32.GetDpiForSystem())
 
 
 SAFE_GLOBALS = {

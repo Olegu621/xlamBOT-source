@@ -6,7 +6,6 @@ import importlib.util
 import json
 import os
 from pathlib import Path, PurePosixPath
-import shutil
 import subprocess
 import sys
 import threading
@@ -135,12 +134,6 @@ def download(url, limit):
             if len(data) > limit:
                 raise ValueError('Download exceeds permitted size')
         return bytes(data)
-
-def release_url(asset):
-    url = asset['browser_download_url']
-    if not url.startswith(f'https://github.com/{REPOSITORY}/releases/download/'):
-        raise ValueError('Unexpected update origin')
-    return url
 
 class UpdateManager:
     def __init__(self, busy, restart):
