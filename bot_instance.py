@@ -562,6 +562,9 @@ class BotInstance:
                 else:
                     self.picked_first_brawler = True
 
+            if self.get_latest_state() == 'unknown':
+                self.Stage_manager.recover_unknown()
+
             t_now = time.time()
             frame_start = time.perf_counter()
             if frame_start - self._thinking_config_checked >= 1:

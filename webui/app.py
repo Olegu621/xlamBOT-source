@@ -945,6 +945,19 @@ def create_app(xlambot_main, start_discord_bot=False):
         runtime_manager.clear_logs()
         return jsonify({"ok": True, "items": []})
 
+    @app.get('/statistics')
+    def statistics_page():
+        return render_template('statistics.html', ui_api_token=app.config['UI_API_TOKEN'])
+
+    @app.get('/api/statistics')
+    def statistics_data():
+        from .statistics import payload
+        try:
+            return jsonify(payload(**{k: request.args.get(k, default) for k, default in
+                                      [('period','7'),('device',''),('account',''),('brawler','')]}))
+        except ValueError as error:
+            return jsonify(ok=False, message=str(error)), 400
+
     @app.get("/api/history")
     def history():
         start_date_raw = str(request.args.get("start_date", "")).strip()

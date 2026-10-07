@@ -53,7 +53,7 @@ class TrophyObserver:
     HISTORY_COLUMNS = [
         "date_time", "brawler_name", "result", "current_trophies", "trophy_delta",
         "new_winstreak", "playstyle_hash", "playstyle_name", "playstyle_gamemodes",
-        "playstyle_brawlers", "xlambot_version", "power_level",
+        "playstyle_brawlers", "xlambot_version", "power_level", "account_tag", "trophy_source",
     ]
     INTEGER_HISTORY_COLUMNS = {
         "current_trophies", "trophy_delta", "new_winstreak", "power_level",
@@ -299,7 +299,7 @@ class TrophyObserver:
 
                     missing_columns = [
                         column for column in self.HISTORY_COLUMNS
-                        if column not in reader.fieldnames
+                        if column not in reader.fieldnames and column not in {"account_tag", "trophy_source"}
                     ]
                     if missing_columns:
                         raise ValueError(
@@ -457,6 +457,8 @@ class TrophyObserver:
         info = playstyle_info if isinstance(playstyle_info, dict) else {}
         self.match_history.append({
             "date_time": datetime.now().isoformat(),
+            "account_tag": load_toml_as_dict("cfg/general_config.toml").get("player_tag", ""),
+            "trophy_source": "estimated",
             "brawler_name": current_brawler,
             "result": parsed_result.result.value,
             "current_trophies": old_trophies,

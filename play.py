@@ -720,7 +720,12 @@ class Play:
         if player_box and len(player_box) >= 4:
             self.gas_player_box = [float(value) for value in player_box[:4]]
 
-        if force or not self.gas_mask_is_usable(image) or now - self.gas_mask_time >= self.gas_detect_interval:
+        interval = self.gas_detect_interval
+        if self.gas_boxes:
+            # A cloud boundary moves with the camera. Reusing it for several
+            # decisions is unsafe even though the frame dimensions are unchanged.
+            interval = min(interval, .1)
+        if force or not self.gas_mask_is_usable(image) or now - self.gas_mask_time >= interval:
             self.detect_gas(image)
 
         if self.gas_player_box and self.gas_mask is not None:
@@ -948,7 +953,12 @@ class Play:
 
         if previous is not None and index != self.gas_escape_index and \
                 current_time - self.gas_escape_time < self.gas_escape_cooldown:
-            return previous
+            box = self.get_actual_player_box(player_box) or player_box
+            from gas_guard import corridor_peak
+            old_risk = corridor_peak(self.gas_mask, box, previous, self.gas_lookahead)
+            new_risk = corridor_peak(self.gas_mask, box, direction, self.gas_lookahead)
+            if not self.is_path_blocked(player_box, previous, walls or []) and old_risk <= new_risk + .05:
+                return previous
 
         if previous is None or index != self.gas_escape_index:
             self.gas_escape_index = index
@@ -1143,7 +1153,10 @@ class Play:
             length = math.hypot(*v)
             share = self.gas_direction_share(self.gas_mask,x,y,max(actual[2]-actual[0],1),
                 max(actual[3]-actual[1],1),v[0]/length,v[1]/length,self.gas_reach)
-            if share >= self.gas_sensitivity:
+            from gas_guard import corridor_peak
+            peak = corridor_peak(self.gas_mask, actual, v, self.gas_reach)
+            if share >= self.gas_sensitivity or peak >= .20:
+                self.prevented_gas_entries = getattr(self, 'prevented_gas_entries', 0) + 1
                 return False
         return True
 
@@ -1184,7 +1197,7 @@ class Play:
             if escaping and self.gas_mask is not None:
                 actual=self.get_actual_player_box(data['player'][0]) or data['player'][0]
                 x,y=self.get_entity_pos(actual)
-                cost += 4*self.gas_direction_share(self.gas_mask,x,y,max(actual[2]-actual[0],1),max(actual[3]-actual[1],1),direction[0],direction[1],self.gas_reach)
+                cost += 8*self.gas_direction_share(self.gas_mask,x,y,max(actual[2]-actual[0],1),max(actual[3]-actual[1],1),direction[0],direction[1],self.gas_reach)
             if route and v == options[0]: cost -= 1.5
             from work_modes import danger_weight
             cost += danger_weight(self.work_mode)*self.battle_memory.score(player,direction,allies,now,tile)
