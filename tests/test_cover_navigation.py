@@ -30,7 +30,9 @@ class CoverTests(unittest.TestCase):
     def test_gas_covered_bush_not_selected_and_exposed_one_excluded(self):
         p=BushCover();r=self.call(p,bushes=[[-40,-40,40,40],[160,-40,240,40]],safe=lambda point,margin:point[0]>100)
         self.assertGreater(r['movement'][0],0)
-        self.assertEqual(self.call(p,1,bushes=[[-40,-40,40,40]])['report']['reason'],'no_safe_bush')
+        remembered=self.call(p,1,bushes=[[-40,-40,40,40]])
+        self.assertEqual(remembered['report']['intent'],'seek_cover')
+        self.assertGreater(remembered['movement'][0],0)
     def test_approaching_enemy_changes_cover_without_claiming_detection_of_vision(self):
         p=BushCover();self.call(p,enemies=[[210,-10,230,10]])
         r=self.call(p,.1,enemies=[[190,-10,210,10]],bushes=[[-40,-40,40,40],[-240,-40,-160,40]])
