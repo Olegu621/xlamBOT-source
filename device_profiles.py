@@ -107,6 +107,9 @@ def read_settings(key: str) -> dict[str, Any]:
                 settings[path.stem] = utils.load_toml_as_dict(path)
             except Exception:  # noqa: BLE001
                 continue
+        if "bot_config" in settings:
+            from work_modes import resolve
+            settings["bot_config"] = {**settings["bot_config"], "work_mode": resolve(settings["bot_config"])}
         return settings
 
 
@@ -124,6 +127,9 @@ def update_settings(key: str, section: str, updates: dict[str, Any]) -> dict[str
     section = 'cfg/' + filename
     with use_profile(key):
         current = utils.load_toml_as_dict(section) if section else {}
+        if filename == 'bot_config.toml' and 'work_mode' not in current:
+            from work_modes import resolve
+            current['work_mode'] = resolve(current)
         merged = dict(current or {})
         for name, value in (updates or {}).items():
             from settings_schema import validate, SECRET_KEYS

@@ -570,6 +570,8 @@ class BotInstance:
             if frame_start - self._thinking_config_checked >= 1:
                 mode = load_toml_as_dict("cfg/general_config.toml").get("thinking_mode", "medium")
                 self.thinking.set_mode(mode, frame_start)
+                from work_modes import resolve
+                self.Play.configure_work_mode(resolve(load_toml_as_dict("cfg/bot_config.toml")))
                 self._thinking_config_checked = frame_start
 
             if self.run_for_minutes > 0 and not self.in_cooldown:

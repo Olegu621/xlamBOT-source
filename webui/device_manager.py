@@ -728,9 +728,10 @@ class DeviceRuntimeManager:
             with device_profiles.use_profile(key):
                 from utils import load_toml_as_dict
 
-                from built_in_playstyles import canonical_playstyle
-                data["playstyle"] = canonical_playstyle(
-                    load_toml_as_dict("cfg/bot_config.toml").get("current_playstyle"))
+                from work_modes import resolve, style
+                selected = resolve(load_toml_as_dict('cfg/bot_config.toml'))
+                data['work_mode'] = selected
+                data['playstyle'] = style(selected)
         except Exception:
             pass
         data["recent_matches"] = self._recent_match_stats(key)
