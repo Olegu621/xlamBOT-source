@@ -564,6 +564,8 @@ class BotInstance:
 
             if self.get_latest_state() == 'unknown':
                 self.Stage_manager.recover_unknown()
+            else:
+                self.Stage_manager.reset_unknown_recovery()
 
             t_now = time.time()
             frame_start = time.perf_counter()
