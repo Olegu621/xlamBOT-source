@@ -16,7 +16,7 @@ from urllib.parse import urlsplit
 import uuid
 
 # Set the developer's HTTPS receiver when it is deployed. Never put a bot token here.
-DEFAULT_ENDPOINT = ''
+DEFAULT_ENDPOINT = 'https://cramp-remold-subzero.ngrok-free.dev'
 LEVELS = {'info': 0, 'warning': 1, 'error': 2, 'critical': 3}
 CODES = {
     'startup_failed', 'runtime_crash', 'runtime_halted', 'thread_crash',

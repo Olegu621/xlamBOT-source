@@ -125,5 +125,8 @@ network connectivity and PC power/sleep/sign-in state. This is not an unlimited
 hosting or uptime guarantee. No paid subscription or usage billing is enabled by
 this setup. See https://ngrok.com/docs/pricing-limits/free-plan-limits .
 
-The prior temporary Cloudflare/Pinggy proof is not a permanent delivery address.
-Configure and test the account-bound ngrok domain before the PC bot release.
+The PC client uses the account-bound receiver at
+`https://cramp-remold-subzero.ngrok-free.dev`. Sending remains opt-in. The
+endpoint was verified through HTTPS registration, an authenticated synthetic
+report and a successful Telegram outbox acknowledgement; the setup page is not
+public. The prior temporary Cloudflare/Pinggy proof is not a delivery address.
