@@ -1066,6 +1066,16 @@ class Play:
         return target_x, target_y
 
     def loop(self, brawler, data, current_time, gas_movement=None):
+        from gas_guard import coverage_integral
+        mask = self.gas_mask
+        self._decision_gas_integral = (mask, coverage_integral(mask)) if mask is not None else None
+        try:
+            return self._loop_decision(brawler, data, current_time, gas_movement)
+        finally:
+            # No mask summary survives a decision, including an exception.
+            self._decision_gas_integral = None
+
+    def _loop_decision(self, brawler, data, current_time, gas_movement=None):
         decision_started = time.perf_counter()
         self.context = {
                 'player_data': data['player'][0],
@@ -1165,7 +1175,9 @@ class Play:
             share = self.gas_direction_share(self.gas_mask,x,y,max(actual[2]-actual[0],1),
                 max(actual[3]-actual[1],1),v[0]/length,v[1]/length,self.gas_reach)
             from gas_guard import corridor_peak
-            peak = corridor_peak(self.gas_mask, actual, v, self.gas_reach)
+            summary = getattr(self, '_decision_gas_integral', None)
+            integral = summary[1] if summary is not None and summary[0] is self.gas_mask else None
+            peak = corridor_peak(self.gas_mask, actual, v, self.gas_reach, integral=integral)
             if share >= self.gas_sensitivity or peak >= .20:
                 self.prevented_gas_entries = getattr(self, 'prevented_gas_entries', 0) + 1
                 return False
