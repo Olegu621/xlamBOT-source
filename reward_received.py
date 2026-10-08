@@ -6,6 +6,9 @@ _HEADER = cv2.imdecode(np.frombuffer(base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAA
 _HEADER = cv2.cvtColor(_HEADER, cv2.COLOR_BGR2RGB)
 
 def is_reward_received(frame):
+    from seasonal_rewards import xp_doubler_reward
+    if xp_doubler_reward(frame):
+        return True
     if frame is None or frame.ndim != 3 or frame.shape[2] != 3:
         return False
     image = cv2.resize(frame, (678, 386), interpolation=cv2.INTER_AREA)
