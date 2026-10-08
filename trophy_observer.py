@@ -64,6 +64,7 @@ class TrophyObserver:
         """Replace destination once Windows releases any external file lock."""
         retry_delay = 0.1
         waiting = False
+        deadline = time.monotonic() + 3
 
         while True:
             try:
@@ -72,6 +73,8 @@ class TrophyObserver:
                     print(f"File lock released; saved {destination.name}.")
                 return
             except PermissionError as error:
+                if time.monotonic() >= deadline:
+                    raise PermissionError('History file remains locked; release it and retry') from error
                 if not waiting:
                     print(
                         f"Waiting for {destination.name} to become writable "
@@ -101,6 +104,7 @@ class TrophyObserver:
         self.account_samples = []
         self.account_verified = False
         self.account_last_verified_at = None
+        self._account_tag = self._account_identity()
         # A total seen exactly once is not trusted yet; see record_account_total.
         self._pending_account = None
         self.trophy_lose_ranges = [(49, 0), (299, 1), (599, 2), (799, 3), (999, 4), (1099, 5), (1199, 6), (1299, 7),
@@ -166,6 +170,13 @@ class TrophyObserver:
 
     def record_account_total(self, value):
         """Require the same actual digits on two observations, including rebases."""
+        identity = self._account_identity()
+        if getattr(self, '_account_tag', identity) != identity:
+            self.account_samples = []
+            self.account_total = None
+            self.account_verified = False
+            self._pending_account = None
+        self._account_tag = identity
         if type(value) is not int or not ACCOUNT_TOTAL_MIN <= value <= ACCOUNT_TOTAL_MAX:
             self._pending_account = None
             return
@@ -200,7 +211,8 @@ class TrophyObserver:
             data = json.loads(account_state_path().read_text('utf-8'))
             # Old releases stored inferred/prefixed digits: don't import that
             # poisoned baseline into the new measurement.
-            if data.get('version') != 5 or time.time()-float(data['saved_at']) > 600:
+            if (data.get('version') != 6 or time.time()-float(data['saved_at']) > 600
+                    or data.get('account_tag') != self._account_identity()):
                 return None
             value = int(data['account_total'])
             if not ACCOUNT_TOTAL_MIN <= value <= ACCOUNT_TOTAL_MAX:
@@ -213,6 +225,7 @@ class TrophyObserver:
                     samples.append((stamp, total))
             self.account_samples = sorted(samples)
             self.account_total = value
+            self._account_tag = self._account_identity()
             return value
         except (OSError, ValueError, KeyError, TypeError, IndexError):
             return None
@@ -222,9 +235,13 @@ class TrophyObserver:
             return
         import json
         from utils import account_state_path
-        atomic_write_text(account_state_path(), json.dumps({'version': 5,
+        atomic_write_text(account_state_path(), json.dumps({'version': 6, 'account_tag': self._account_identity(),
             'account_total': self.account_total, 'saved_at': time.time(),
             'samples': self.account_samples}, indent=2))
+
+    @staticmethod
+    def _account_identity():
+        return str(load_toml_as_dict('cfg/general_config.toml').get('player_tag', '')).strip().upper()
 
     def account_rate_detail(self, window_s: int = TROPHY_RATE_WINDOW_S):
         """Trophies per hour for the whole account, over the recent window."""

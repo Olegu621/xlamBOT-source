@@ -148,6 +148,9 @@ def get_in_game_state(image):
         if is_reward_choice(image): return "brawler_choice"
         if team_panel_close_position(image) is not None:
             return 'team_panel'
+        from side_menu import side_menu_close_position
+        if side_menu_close_position(image) is not None:
+            return 'side_menu'
         if should_print_debug_info: print("Checking for match result...")
         game_result = is_in_end_of_a_match(image)
         if game_result: return f"end_{game_result}"

@@ -131,6 +131,10 @@ class ResourceUpdater:
     def asset(self, name):
         if not allowed_asset(name):
             return None
+        # Executable UI behavior/styles must match the signed backend snapshot.
+        # The independent resource channel remains for images/fonts only.
+        if PurePosixPath(name).suffix.lower() in {'.js', '.css'}:
+            return None
         with self.lock:
             active = self.active
         if active:

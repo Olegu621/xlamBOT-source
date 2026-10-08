@@ -42,6 +42,22 @@ class StatisticsTests(unittest.TestCase):
             with self.assertRaises(ValueError):build(root,period='100')
             self.write(root,'default',[self.row(delta='NaN')]);self.assertIsNone(build(root,now=self.NOW)['summary']['trophy_delta'])
 
+    def test_corrupt_device_does_not_break_healthy_statistics(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.write(root,'default',[self.row()])
+            path=Path(root)/'devices'/'broken'/'cfg'/'match_history.csv'
+            path.parent.mkdir(parents=True);path.write_bytes(b'\xff\xfe\xff')
+            payload=build(root,now=self.NOW)
+            self.assertEqual(payload['summary']['matches'],1)
+            self.assertEqual(payload['unreadable_devices'],['broken'])
+
+    def test_unmeasured_fighter_has_unknown_delta(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.write(root,'default',[self.row(delta='')])
+            payload=build(root,now=self.NOW)
+            self.assertIsNone(payload['fighters'][0]['delta'])
+            self.assertEqual(payload['fighters'][0]['measured_matches'],0)
+
     def test_old_csv_loads_without_being_renamed_or_losing_rows(self):
         from trophy_observer import TrophyObserver
         with tempfile.TemporaryDirectory() as root:

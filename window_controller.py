@@ -3,6 +3,7 @@ import math
 import random
 import threading
 import time
+from contextlib import contextmanager, nullcontext
 
 import capture_transport as scrcpy
 from adbutils import AdbDevice
@@ -262,6 +263,29 @@ class WindowController:
         self.gameplay_frame_time = stamp
         return True
 
+    @contextmanager
+    def decision_scope(self, observation, allow_menu_transitions=False):
+        """Only the device worker can send commands from this observation."""
+        previous = getattr(self, '_decision', None)
+        self._decision = (threading.get_ident(), observation, allow_menu_transitions)
+        try:
+            yield
+        finally:
+            self._decision = previous
+
+    def _check_decision(self):
+        if getattr(self, 'stop_requested', lambda: False)():
+            raise StaleFrameError('Input rejected: Stop requested')
+        observations = getattr(self, 'observations', None)
+        if observations is None:  # Standalone/debug controller compatibility.
+            return
+        owner = getattr(self, 'input_owner', None)
+        decision = getattr(self, '_decision', None)
+        if owner is not None and owner != threading.get_ident():
+            raise StaleFrameError('Input rejected: command from a non-owner thread')
+        if decision is not None and (decision[0] != threading.get_ident() or not observations.permits(decision[1])):
+            raise StaleFrameError('Input rejected: screen changed during the decision')
+
 
     def latest_frame_copy(self):
         """Non-blocking snapshot of the newest frame, for the web panel preview.
@@ -508,6 +532,13 @@ class WindowController:
             frame, frame_time = self.get_latest_frame()
 
         age = time.time() - frame_time
+        decision = getattr(self, '_decision', None)
+        observe = getattr(self, 'observe_action_frame', None)
+        if decision is not None and decision[0] == threading.get_ident() and decision[2] and observe is not None:
+            # Multi-screen menu flows may advance only after a fresh screenshot
+            # is independently classified; battle inference never refreshes its ticket.
+            observation = observe(frame, frame_time)
+            self._decision = (decision[0], observation, True)
         now = time.time()
         if frame_time > 0 and age > self.FRAME_STALE_TIMEOUT and now - getattr(self, '_last_stale_notice', 0) >= 30:
             self._last_stale_notice = now
@@ -678,12 +709,19 @@ class WindowController:
                 except Exception:
                     pass
             self.active_touches.clear()
+            self._touch_epoch = None
             self.are_we_moving = False
             self.last_joystick_pos = (None, None)
 
     def _send_touch(self, x, y, action, pointer):
-        with self.input_lock:
+        observations = getattr(self, 'observations', None)
+        with observations.lock if observations is not None else nullcontext(), self.input_lock:
             if action != scrcpy.ACTION_UP:
+                try:
+                    self._check_decision()
+                except StaleFrameError:
+                    self.release_all_inputs()
+                    raise
                 if not self.input_enabled or not self.is_stream_alive():
                     self.release_all_inputs()
                     raise ConnectionError("Input rejected: stopped controller or disconnected stream")
@@ -691,6 +729,8 @@ class WindowController:
                     self.release_all_inputs()
                     raise StaleFrameError("Input rejected: stale gameplay frame")
                 self.active_touches[pointer] = (x, y)
+                if observations is not None:
+                    self._touch_epoch = observations.snapshot().epoch
             try:
                 self.scrcpy_client.control.touch(int(x), int(y), action, pointer)
             except Exception as error:
@@ -698,8 +738,14 @@ class WindowController:
                 raise ConnectionError("Touch failed on " + str(self.serial)) from error
             if action == scrcpy.ACTION_UP:
                 self.active_touches.pop(pointer, None)
+                if not self.active_touches:
+                    self._touch_epoch = None
 
     def _input_watchdog(self):
         while not self._watchdog_stop.wait(0.1):
-            if not self.frame_is_fresh() or (self.gameplay_frame_time is not None and not self.frame_is_fresh(self.gameplay_frame_time)):
-                self.release_all_inputs()
+            observations = getattr(self, 'observations', None)
+            with observations.lock if observations is not None else nullcontext():
+                epoch = getattr(self, '_touch_epoch', None)
+                changed = observations is not None and epoch is not None and observations.snapshot().epoch != epoch
+                if changed or not self.frame_is_fresh() or (self.gameplay_frame_time is not None and not self.frame_is_fresh(self.gameplay_frame_time)):
+                    self.release_all_inputs()

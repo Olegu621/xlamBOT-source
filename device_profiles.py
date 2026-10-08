@@ -15,6 +15,8 @@ from __future__ import annotations
 import json
 import re
 import shutil
+import hashlib
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -23,15 +25,31 @@ import utils
 # Serial numbers contain characters that are awkward in a path ("127.0.0.1:5555",
 # "emulator-5554"). Keep the name readable but predictable.
 _UNSAFE = re.compile(r"[^A-Za-z0-9_.-]")
+_SETTINGS_LOCK = threading.RLock()
 
 
 def sanitize_key(serial: str) -> str:
     """Turn a device serial into a directory-safe profile key."""
-    return _UNSAFE.sub("-", str(serial or "").strip()).strip("-") or "default"
+    raw = str(serial or '').strip()
+    if raw in {'.', '..'} or raw.endswith(('.', ' ')):
+        raise ValueError('Invalid device profile key')
+    key = _UNSAFE.sub('-', raw).strip('-') or 'default'
+    if key.split('.')[0].upper() in {'CON','PRN','AUX','NUL', *(f'COM{i}' for i in range(1,10)), *(f'LPT{i}' for i in range(1,10))}:
+        raise ValueError('Reserved device profile key')
+    # Keep established TCP profile names; reject path syntax, never alias it.
+    if '/' in raw or '\\' in raw:
+        raise ValueError('Invalid device profile key')
+    if _UNSAFE.search(raw) and not re.fullmatch(r'\d{1,3}(?:\.\d{1,3}){3}:\d{1,5}', raw):
+        key += '-' + hashlib.sha256(raw.encode('utf-8')).hexdigest()[:10]
+    return key
 
 
 def profile_dir(key: str) -> Path:
-    return utils.resolve_project_path("devices", sanitize_key(key))
+    root = utils.resolve_project_path('devices').resolve()
+    result = (root / sanitize_key(key)).resolve()
+    if not result.is_relative_to(root) or result == root:
+        raise ValueError('Device profile escapes its root')
+    return result
 
 
 def config_root_for(key: str) -> Path:
@@ -115,6 +133,11 @@ def read_settings(key: str) -> dict[str, Any]:
 
 def update_settings(key: str, section: str, updates: dict[str, Any]) -> dict[str, Any]:
     """Merge values into one section of one toml file and write it back."""
+    with _SETTINGS_LOCK:
+        return _update_settings(key, section, updates)
+
+
+def _update_settings(key: str, section: str, updates: dict[str, Any]) -> dict[str, Any]:
     ensure_profile(key)
     match = re.fullmatch(r'(?:cfg[/\\])?([A-Za-z0-9_-]+?)(?:\.toml)?', str(section or '').strip(), re.I)
     if not match:

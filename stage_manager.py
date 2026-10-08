@@ -62,6 +62,7 @@ class StageManager:
             'reward_received': self.dismiss_received_reward,
             'daily_reward': self.dismiss_daily_reward,
             'team_panel': self.close_team_panel,
+            'side_menu': self.close_side_menu,
             'popup': self.close_pop_up,
             'match': lambda: 0,
             'match_making': lambda: 0,
@@ -698,33 +699,42 @@ class StageManager:
         self.window_controller.click(width // 2, round(height * .88), already_include_ratio=True)
 
     def click_star_drop(self, drop_type="regular"):
-        if hasattr(self, '_star_drop_thread') and self._star_drop_thread.is_alive():
+        if self._should_stop() or self._should_pause():
             return
+        frame = self.window_controller.screenshot()
+        if get_state(frame) != 'star_drop_' + drop_type:
+            return
+        # One short step on the owning worker; subsequent frames revalidate it.
+        self.window_controller.press('proceed', .25 if drop_type != 'regular' else .05)
 
-        def _handle_drop():
-            if drop_type in ["angelic", "demonic", "starr_nova"]:
-                self.window_controller.press("proceed", 8)
-            else:
-                for _ in range(8):
-                    self.window_controller.press("proceed", 0.05)
-                    time.sleep(0.1)
+    def observe_match(self):
+        """A new confirmed battle arms exactly one result recording."""
+        if not getattr(self, '_in_battle', False):
+            self._result_recorded = False
+            self._in_battle = True
 
-        import threading
-        self._star_drop_thread = threading.Thread(target=_handle_drop, daemon=True)
-        self._star_drop_thread.start()
+    def observe_state(self, state):
+        if state == 'match':
+            self.observe_match()
+        elif state != 'unknown':
+            self._in_battle = False
 
     def end_game(self):
         screenshot = self.window_controller.screenshot()
 
         current_state = get_state(screenshot)
+        if current_state.startswith('end'):
+            self._in_battle = False
         button_pressed = False
         end_screen_time = time.time()
         parsed_result = None
         while current_state.startswith("end") and time.time() - end_screen_time < 35:
 
-            if time.time() - self.time_since_last_stat_change > 25 and parsed_result is None :
+            if parsed_result is None:
                 raw_found_result = '_'.join(current_state.split("_")[1:])
                 parsed_result = self.Trophy_observer.parse_game_result(raw_found_result)
+
+            if not getattr(self, '_result_recorded', False):
 
                 current_brawler = self.current_brawler()
                 entry = next((e for e in self.brawlers_pick_data
@@ -734,6 +744,7 @@ class StageManager:
                 if underdog:
                     print("Underdog detected for this match.")
                 self.time_since_last_stat_change = time.time()
+                self._result_recorded = True
                 if entry is not None and current_brawler:
                     self.Trophy_observer.add_trophies(parsed_result, current_brawler, self.playstyle_info, underdog, power_level)
                     self.Trophy_observer.add_win(parsed_result)
@@ -815,6 +826,7 @@ class StageManager:
             self.window_controller.click(*popup_location)
 
     def do_state(self, state, data=None):
+        self.observe_state(state)
         if state != "unknown":
             self.reset_unknown_recovery()
         action = self.states.get(state)
@@ -871,6 +883,18 @@ class StageManager:
         self._unknown_since = None
         self._last_unknown_tap = -100
 
+    def close_side_menu(self):
+        if self._should_stop() or self._should_pause():
+            return
+        from side_menu import side_menu_close_position
+        position = side_menu_close_position(self.window_controller.screenshot())
+        now = time.monotonic()
+        if position is None or now - getattr(self, '_side_menu_last_tap', -100) < 1.5:
+            return
+        self._side_menu_last_tap = now
+        self.window_controller.release_all_inputs()
+        self.window_controller.click(*position, already_include_ratio=True)
+
     def recover_unknown(self):
         if self._should_stop() or self._should_pause():
             self.reset_unknown_recovery()
@@ -886,8 +910,11 @@ class StageManager:
         if get_state(frame) != 'unknown':
             self.reset_unknown_recovery()
             return
-        h, w = frame.shape[:2]
+        from side_menu import side_menu_close_position
+        position = side_menu_close_position(frame)
+        if position is None:
+            return
         self._last_unknown_tap = now
         self.window_controller.release_all_inputs()
         self.window_controller.gameplay_frame_time = None
-        self.window_controller.click(w*.94, h*.035, already_include_ratio=True)
+        self.window_controller.click(*position, already_include_ratio=True)

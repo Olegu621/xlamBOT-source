@@ -53,7 +53,8 @@ def _read_catalog(signature):
         metadata = session.get_modelmeta().custom_metadata_map
         names = normalize_names(metadata['names'])
         shape = session.get_outputs()[0].shape
-        if isinstance(shape[1], int) and shape[1] != 4 + len(names):
+        dimensions = shape[1:] if len(shape) == 3 else shape
+        if len(dimensions) != 2 or (all(isinstance(axis, int) for axis in dimensions) and 4 + len(names) not in dimensions):
             raise ValueError('Model output and class count disagree: ' + path.name)
         models.append({'file': path.name, 'classes': names,
                        'sha256': hashlib.sha256(path.read_bytes()).hexdigest()})

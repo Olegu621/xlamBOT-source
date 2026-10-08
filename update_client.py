@@ -16,6 +16,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 REPOSITORY = 'Olegu621/xlamBOT'
 BOOTSTRAP = 1
+BUNDLED_REVISION = 55
 PUBLIC_KEY = '9a7d7864c03c38ece7f571ca9808aa41a37b0f1d468e3b2c74e1dbe1b4b36b32'
 MAX_SIZE = 64 * 1024 * 1024
 ACTIVE_OVERLAY = None
@@ -31,7 +32,7 @@ def read_state():
     try:
         return json.loads((root() / 'state.json').read_text('utf-8'))
     except (OSError, ValueError):
-        return {'enabled': True, 'revision': 0}
+        return {'enabled': True, 'revision': BUNDLED_REVISION}
 
 def write_state(state):
     with _state_lock:
@@ -87,6 +88,16 @@ class OverlayFinder(importlib.abc.MetaPathFinder):
 def activate():
     global ACTIVE_OVERLAY
     state = read_state()
+    original_state = dict(state)
+    # Installing a rebuilt EXE must not reactivate scripts older than its bundle,
+    # including when automatic updates are intentionally disabled.
+    if state.get('pending', 0) <= BUNDLED_REVISION:
+        state.pop('pending', None)
+        state.pop('attempted', None)
+    if state.get('revision', 0) < BUNDLED_REVISION:
+        state['revision'] = BUNDLED_REVISION
+    if state != original_state:
+        write_state(state)
     if state.get('pending') and state.get('enabled', True):
         if state.get('attempted'):
             state.pop('pending', None)
@@ -95,25 +106,37 @@ def activate():
         else:
             state['attempted'] = True
         write_state(state)
-    revision = (state.get('pending') if state.get('enabled', True) else None) or state.get('revision', 0)
-    if not revision:
-        return None
-    folder = root() / 'releases' / str(revision)
-    try:
-        manifest = verify(json.loads((folder / 'manifest.json').read_text('utf-8')))
-        if manifest['revision'] != revision:
-            raise ValueError('Revision mismatch')
-        validate_content(folder / 'content', manifest)
+    pending = state.get('pending') if state.get('enabled', True) else None
+    candidates = list(dict.fromkeys([pending, state.get('revision', 0), state.get('previous', 0)]))
+    failures = []
+    for revision in candidates:
+        if not revision or revision <= BUNDLED_REVISION:
+            continue
+        folder = root() / 'releases' / str(revision)
+        try:
+            manifest = verify(json.loads((folder / 'manifest.json').read_text('utf-8')))
+            if manifest['revision'] != revision:
+                raise ValueError('Revision mismatch')
+            validate_content(folder / 'content', manifest)
+        except Exception as error:
+            failures.append(f'{revision}: {type(error).__name__}')
+            continue
         sys.meta_path.insert(0, OverlayFinder(folder / 'content'))
         ACTIVE_OVERLAY = folder / 'content'
-        return folder / 'content'
-    except Exception:
+        if failures:
+            state.pop('pending', None)
+            state.pop('attempted', None)
+            state['revision'] = revision
+            state['last_error'] = 'Damaged update; restored verified scripts (' + '; '.join(failures) + ')'
+            write_state(state)
+        return ACTIVE_OVERLAY
+    if failures:
         state.pop('pending', None)
         state.pop('attempted', None)
-        state['last_error'] = 'Damaged update; using bundled scripts'
-        state['revision'] = 0
+        state['revision'] = BUNDLED_REVISION
+        state['last_error'] = 'No verified update remains; using bundled scripts (' + '; '.join(failures) + ')'
         write_state(state)
-        return None
+    return None
 
 def mark_healthy():
     state = read_state()
