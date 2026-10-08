@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from utils import resolve_project_path, atomic_write_text
-from training_models import model_catalog, LABELS
+from training_models import model_catalog, LABELS, class_choices  # Public panel API compatibility
 
 # Классы для разметки - все, что наши модели вообще ищут на карте. Взят из
 # моделей, а не выдуман: gasDetector знает gas и bush, tileDetector - wall, bush
