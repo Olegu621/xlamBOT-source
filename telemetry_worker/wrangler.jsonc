@@ -3,7 +3,36 @@
   "main": "src/worker.mjs",
   "compatibility_date": "2026-10-08",
   "workers_dev": true,
-  "observability": {"enabled": false},
-  "triggers": {"crons": ["* * * * *"]},
-  "d1_databases": [{"binding": "DB", "database_name": "xlambot-errors", "database_id": "REPLACE_BEFORE_DEPLOY", "migrations_dir": "migrations"}]
+  "observability": {
+    "enabled": false
+  },
+  "triggers": {
+    "crons": [
+      "* * * * *"
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "xlambot-errors",
+      "database_id": "REPLACE_BEFORE_DEPLOY",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "REMOTE",
+        "class_name": "PanelRelay"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "remote-v1",
+      "new_sqlite_classes": [
+        "PanelRelay"
+      ]
+    }
+  ]
 }

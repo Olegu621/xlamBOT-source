@@ -29,6 +29,7 @@ from . import preferences
 import settings_schema
 import error_telemetry
 import community_statistics
+import telegram_control
 import io
 import json
 from training_capture import TrainingRecorder
@@ -311,6 +312,7 @@ def create_app(xlambot_main, start_discord_bot=False):
                 if asset.is_file():
                     newest = max(newest, asset.stat().st_mtime_ns)
         return {'ui_version': newest, 'ui_language': preferences.read()['language'],
+                'telegram_remote': bool(request.environ.get('xlambot.remote')),
                 'community_statistics_enabled': community.status()['enabled']}
 
     @app.get('/training')
@@ -1094,5 +1096,20 @@ def create_app(xlambot_main, start_discord_bot=False):
         if getattr(g, 'update_gate_locked', False):
             updater.lock.release()
 
+    remote_control = telegram_control.TelegramControl(app, update_client.root()/'telegram_control')
+    app.extensions['telegram_control'] = remote_control
+
+    @app.get('/api/telegram-control')
+    def telegram_control_status():
+        return jsonify(remote_control.status())
+
+    @app.post('/api/telegram-control')
+    def telegram_control_preferences():
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict) or set(payload) != {'action'}:
+            raise ValueError('Choose a valid Telegram action')
+        return jsonify(remote_control.configure(payload['action']))
+
+    remote_control.start()
     resource_updater.start()
     return app

@@ -12,11 +12,18 @@ export function cleanStatistics(body,now) {
     if(m.delta!==null && (!Number.isInteger(m.delta) || Math.abs(m.delta)>1000)) throw Error('invalid');
     return {id:m.id,played:m.played,result:m.result,delta:m.source==='unknown'?null:m.delta,source:m.source};
   });
-  return {devices,matches};
+  const revision=body.revision??0;
+  if(!Number.isInteger(revision)||revision<0||revision>10000000)throw Error('invalid');
+  return {devices,matches,revision};
 }
 export async function receiveStatistics(body,owner,env) {
-  const now=Date.now()/1000,{devices,matches}=cleanStatistics(body,now);
+  const now=Date.now()/1000,{devices,matches,revision:appRevision}=cleanStatistics(body,now);
   const sql=[env.DB.prepare('UPDATE stats_devices SET active=0,paused=0 WHERE installation=?').bind(owner)];
+  const revision=appRevision||Math.max(0,...devices.map(d=>d.revision));
+  if(revision) {
+    sql.push(env.DB.prepare("INSERT INTO panel_activity(installation,kind,revision,seen) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM panel_versions WHERE installation=?) THEN 'panel_updated' ELSE 'panel_seen' END,?,? WHERE NOT EXISTS(SELECT 1 FROM panel_versions WHERE installation=? AND revision=?)").bind(owner,owner,revision,now,owner,revision));
+    sql.push(env.DB.prepare('INSERT INTO panel_versions VALUES(?,?,?) ON CONFLICT(installation) DO UPDATE SET revision=excluded.revision,seen=excluded.seen').bind(owner,revision,now));
+  }
   for(const d of devices) sql.push(env.DB.prepare(`INSERT INTO stats_devices VALUES(?,?,?,?,?,?) ON CONFLICT(installation,device) DO UPDATE SET active=excluded.active,paused=excluded.paused,revision=excluded.revision,seen=excluded.seen`).bind(owner,d.id,d.active,d.paused,d.revision,now));
   for(const m of matches) sql.push(env.DB.prepare('INSERT OR IGNORE INTO stats_matches VALUES(?,?,?,?,?,?)').bind(owner,m.id,m.played,m.result,m.delta,m.source));
   await env.DB.batch(sql);
@@ -42,7 +49,7 @@ export async function telegramCommand(request,env,readBody,send=fetch) {
   if(!equal(request.headers.get('X-Telegram-Bot-Api-Secret-Token'),env.TELEGRAM_WEBHOOK_SECRET))return json({error:'unauthorized'},401);
   const update=await readBody(request),message=update.message;
   if(!Number.isSafeInteger(update.update_id) || !message || !Number.isSafeInteger(message.chat?.id))return json({ok:true});
-  const command=/^\/(online|stats|today|hour|alltime|start|help)(?:@([A-Za-z0-9_]+))?(?:\s|$)/.exec(message.text||'');
+  const command=/^\/(online|stats|today|hour|alltime|start|help|panel|admin)(?:@([A-Za-z0-9_]+))?(?:\s|$)/.exec(message.text||'');
   if(!command || (command[2] && command[2].toLowerCase()!==(env.TELEGRAM_BOT_USERNAME||'xlambottt_bot').toLowerCase()))return json({ok:true});
   const now=Date.now()/1000;
   const previous=await env.DB.prepare('SELECT done FROM telegram_updates WHERE id=?').bind(update.update_id).first();
@@ -59,6 +66,15 @@ export async function telegramCommand(request,env,readBody,send=fetch) {
   try {
     const text=formatOnline(await onlineCount(env.DB));
     const payload={chat_id:message.chat.id,text,link_preview_options:{is_disabled:true}};
+    if(['panel','admin'].includes(command[1])) {
+      const admin=command[1]==='admin';
+      if(message.chat.type!=='private')payload.text='Мини-панель доступна только в личных сообщениях @xlambottt_bot.';
+      else if(admin&&String(message.from?.id)!==env.ADMIN_TELEGRAM_USER_ID)payload.text='Админ-панель недоступна.';
+      else {
+        payload.text=admin?'Твоя админ-панель xlamBOT':'Управление своим ПК · xlamBOT';
+        payload.reply_markup={inline_keyboard:[[{text:admin?'Открыть админ-панель':'Открыть мини-панель',web_app:{url:new URL(admin?'/miniapp?view=admin':'/miniapp',request.url).href}}]]};
+      }
+    }
     if(Number.isSafeInteger(message.message_thread_id))payload.message_thread_id=message.message_thread_id;
     const response=await send('https://api.telegram.org/bot'+env.TELEGRAM_BOT_TOKEN+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),redirect:'manual',signal:AbortSignal.timeout(10000)});
     if(response.status!==200 || (await response.json()).ok!==true)throw Error('telegram_failed');

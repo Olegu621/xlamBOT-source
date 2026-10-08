@@ -1,4 +1,6 @@
 import {receiveStatistics,telegramCommand} from './statistics.mjs';
+import {remoteRoute} from './remote.mjs';
+export {PanelRelay} from './remote.mjs';
 const codes = new Set(['startup_failed','runtime_crash','runtime_halted','thread_crash','application_exception','ui_request_failed','gpu_fallback','gas_detector_failed','brawler_selection_failed','update_failed','manual_report','test_report']);
 const modules = new Set(['bot_instance','window_controller','capture_transport','play','detect','stage_manager','lobby_automation','utils','trophy_observer','trophy_reader','app','device_manager','runtime','services','training_capture','brawler_calibration','settings_schema','update_client','main','battle_memory','gas_guard','combat_behavior','ability_buttons']);
 const stages = new Set(['startup','runtime','ui','model','update','manual','unknown']);
@@ -59,6 +61,7 @@ async function rate(db,key,limit,seconds=3600) {
 
 async function receive(request,env,ctx) {
   const path=new URL(request.url).pathname;
+  if(path==='/miniapp'||path.startsWith('/mini/')||path.startsWith('/pc/')||path.startsWith('/v1/remote/'))return remoteRoute(request,env,readBody);
   if(path==='/health' && request.method==='GET') return json({ok:true,service:'xlambot-error-receiver'});
   if(path==='/telegram' && request.method==='POST') return telegramCommand(request,env,readBody);
   if(request.method!=='POST' || !['/v1/register','/v1/events','/v1/statistics'].includes(path)) return json({error:'not_found'},404);
@@ -144,7 +147,10 @@ export default {
       env.DB.prepare('DELETE FROM events WHERE fingerprint IN (SELECT fingerprint FROM events GROUP BY fingerprint HAVING MAX(seen)<?)').bind(cutoff),
       env.DB.prepare('DELETE FROM groups WHERE NOT EXISTS(SELECT 1 FROM events WHERE events.fingerprint=groups.fingerprint)'),
       env.DB.prepare("DELETE FROM rate WHERE (key LIKE 'register:%' AND bucket<?) OR ((key LIKE 'events:%' OR key LIKE 'statistics:%' OR key LIKE 'telegram:%') AND bucket<?)").bind(Math.floor(Date.now()/3600000)-48,Math.floor(Date.now()/60000)-2880),
-      env.DB.prepare('DELETE FROM telegram_updates WHERE lease<?').bind(Date.now()/1000-7*86400)
+      env.DB.prepare('DELETE FROM telegram_updates WHERE lease<?').bind(Date.now()/1000-7*86400),
+      env.DB.prepare('DELETE FROM mini_sessions WHERE expires<?').bind(Date.now()/1000),
+      env.DB.prepare('DELETE FROM mini_grants WHERE expires<?').bind(Date.now()/1000),
+      env.DB.prepare('DELETE FROM panel_activity WHERE seen<?').bind(cutoff)
     ]);
     ctx.waitUntil(deliver(env).catch(()=>{}));
   }

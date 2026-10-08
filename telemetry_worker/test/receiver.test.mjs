@@ -10,7 +10,7 @@ function dbAdapter(sqlite) {
   const statement=(sql,args=[])=>({bind(...values){return statement(sql,values);},async first(){return sqlite.prepare(sql).get(...args) || null;},async all(){return {results:sqlite.prepare(sql).all(...args)};},async run(){return {meta:{changes:Number(sqlite.prepare(sql).run(...args).changes)}};}});
   return {prepare:statement,async batch(items){sqlite.exec('BEGIN');try{const results=[];for(const item of items)results.push(await item.run());sqlite.exec('COMMIT');return results;}catch(error){sqlite.exec('ROLLBACK');throw error;}}};
 }
-beforeEach(()=>{sqlite=new DatabaseSync(':memory:');sqlite.exec(readFileSync(new URL('../migrations/0001.sql',import.meta.url),'utf8'));sqlite.exec(readFileSync(new URL('../migrations/0002_statistics.sql',import.meta.url),'utf8'));env={DB:dbAdapter(sqlite)};pending=[];});
+beforeEach(()=>{sqlite=new DatabaseSync(':memory:');sqlite.exec(readFileSync(new URL('../migrations/0001.sql',import.meta.url),'utf8'));sqlite.exec(readFileSync(new URL('../migrations/0002_statistics.sql',import.meta.url),'utf8'));sqlite.exec(readFileSync(new URL('../migrations/0003_remote_panel.sql',import.meta.url),'utf8'));env={DB:dbAdapter(sqlite)};pending=[];});
 afterEach(()=>sqlite.close());
 const ctx={waitUntil(p){pending.push(p);}};
 async function call(path,data,token,extra={}) {
@@ -152,4 +152,89 @@ test('concurrent error delivery lease prevents duplicate private notifications',
   const first=deliver(env,async()=>{entered();await gate;return Response.json({ok:true});});await ready;
   assert.equal(await deliver(env,()=>{throw Error('duplicate');}),false);
   release();assert.equal(await first,true);
+});
+
+
+import {createHmac} from 'node:crypto';
+import {telegramIdentity,permitted,PanelRelay} from '../src/remote.mjs';
+function initData(id,fields={}) {
+  const p=new URLSearchParams({auth_date:String(Math.floor(Date.now()/1000)),user:JSON.stringify({id,first_name:'Test'}),...fields});
+  const check=[...p.entries()].sort(([a],[b])=>a<b?-1:a>b?1:0).map(([k,v])=>k+'='+v).join('\n');
+  const secret=createHmac('sha256','WebAppData').update('FAKE_MINI_TOKEN').digest();
+  p.set('hash',createHmac('sha256',secret).update(check).digest('hex'));return p.toString();
+}
+async function mini(path,body,cookie='',origin='https://test.example') {
+  return worker.fetch(new Request('https://test.example'+path,{method:body===undefined?'GET':'POST',headers:{Origin:origin,Cookie:cookie,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)}),env,ctx);
+}
+async function login(id){env.TELEGRAM_BOT_TOKEN='FAKE_MINI_TOKEN';const r=await mini('/mini/auth',{initData:initData(id)});assert.equal(r.status,200);return r.headers.get('Set-Cookie').split(';')[0];}
+
+test('Mini App verifies HMAC including signature, rejects stale, forged and group identities',async()=>{
+  const data=initData(123,{signature:'ed25519-example'});assert.equal(await telegramIdentity(data,'FAKE_MINI_TOKEN'),'123');
+  for(const data of [initData(123,{auth_date:String(Math.floor(Date.now()/1000)-601)}),initData(123,{chat_type:'group'}),initData(123)+'&user={}',initData(123).replace('Test','Fake')])await assert.rejects(telegramIdentity(data,'FAKE_MINI_TOKEN'));
+  assert.equal((await mini('/mini/auth',{initData:initData(123)},'','https://attacker.example')).status,403);
+});
+
+test('single-use pairing isolates PCs and revocation immediately removes user access',async()=>{
+  const a=await register(),b=await register(),alice=await login(123),bob=await login(456);
+  const ka=await (await call('/v1/remote/key',{},a.token)).json();const kb=await (await call('/v1/remote/key',{},b.token)).json();
+  assert.equal((await mini('/mini/pair',{key:ka.key},alice)).status,200);
+  assert.equal((await mini('/mini/pair',{key:ka.key},bob)).status,409);
+  assert.equal((await mini('/mini/pair',{key:kb.key},bob)).status,200);
+  const ag=(await (await mini('/mini/status',undefined,alice)).json()).pcs[0].grant;
+  const bg=(await (await mini('/mini/status',undefined,bob)).json()).pcs[0].grant;
+  assert.equal((await mini('/pc/'+a.installation+'/api/devices?grant='+bg,undefined,bob)).status,401);
+  let forwarded=0;env.REMOTE={idFromName:v=>v,get:id=>({fetch:async r=>{forwarded++;assert.equal(id,a.installation);return Response.json({ok:true});}})};
+  assert.equal((await mini('/pc/'+a.installation+'/api/devices?grant='+ag,undefined,alice)).status,200);assert.equal(forwarded,1);
+  assert.equal((await mini('/pc/'+a.installation+'/api/devices/d/start?grant='+ag,{},alice,'https://attacker.example')).status,403);
+  assert.equal((await mini('/pc/'+a.installation+'/api/shutdown?grant='+ag,{},alice)).status,403);
+  assert.equal((await mini('/mini/admin/errors',undefined,'xlam_mini='+ag)).status,401);
+  const sandbox=await mini('/pc/'+a.installation+'/api/devices?grant='+ag,undefined,'','null');assert.equal(sandbox.status,200);assert.equal(sandbox.headers.get('Access-Control-Allow-Origin'),'null');
+  assert.equal((await call('/v1/remote/revoke',{},a.token)).status,200);
+  assert.equal((await mini('/pc/'+a.installation+'/api/devices?grant='+ag,undefined,alice)).status,403);
+});
+
+test('expired pairing key cannot bind and admin data requires the configured owner',async()=>{
+  const a=await register(),ka=await (await call('/v1/remote/key',{},a.token)).json(),ordinary=await login(456);env.ADMIN_TELEGRAM_USER_ID='123';
+  sqlite.prepare('UPDATE remote_links SET expires=0').run();assert.equal((await mini('/mini/pair',{key:ka.key},ordinary)).status,409);
+  assert.equal((await mini('/mini/admin/errors')).status,401);
+  assert.equal((await mini('/mini/admin/errors',undefined,ordinary)).status,403);
+  const admin=await login(123);assert.equal((await mini('/mini/admin/errors',undefined,admin)).status,200);
+  for(let i=0;i<105;i++)sqlite.prepare('INSERT INTO panel_activity(installation,kind,revision,seen) VALUES(?,?,?,?)').run(a.installation,'panel_updated',78,1000);
+  const first=await (await mini('/mini/admin/activity',undefined,admin)).json();assert.equal(first.rows.length,100);
+  const second=await (await mini('/mini/admin/activity?before='+first.next,undefined,admin)).json();assert.equal(second.rows.length,6);
+  assert.notEqual(first.next,second.next);
+});
+
+test('panel revisions record actual changes without duplicate heartbeat update events',async()=>{
+  const a=await register();for(let i=0;i<2;i++)await call('/v1/statistics',metrics(),a.token);
+  await call('/v1/statistics',metrics({devices:[{id:'d'.repeat(32),active:true,paused:false,revision:79}]}),a.token);
+  const rows=sqlite.prepare('SELECT kind,revision FROM panel_activity ORDER BY id').all();assert.equal(rows.length,2);assert.equal(rows[0].kind,'panel_seen');assert.equal(rows[1].kind,'panel_updated');assert.equal(rows[1].revision,79);
+});
+
+test('Mini App command buttons are private-only and admin button is owner-only',async()=>{
+  env.TELEGRAM_WEBHOOK_SECRET='test-secret';env.ADMIN_TELEGRAM_USER_ID='123';let id=200,payload;
+  for(const [command,type,user,button] of [['panel','group',123,false],['panel','private',456,true],['admin','private',456,false],['admin','private',123,true]]) {
+    const u={update_id:id++,message:{chat:{id:user,type},from:{id:user},text:'/'+command}};
+    await telegramCommand(hook(u),env,r=>r.json(),async(url,o)=>{payload=JSON.parse(o.body);return Response.json({ok:true});});
+    assert.equal(!!payload.reply_markup,button);
+  }
+});
+
+test('relay scopes sockets, bounds RPC and ignores an expired/stale socket response',async()=>{
+  let request,relay;const ws={send:v=>{request=JSON.parse(v);}},stale={};
+  relay=new PanelRelay({getWebSockets:()=>[ws]},env);
+  const response=relay.fetch(new Request('https://relay/proxy',{method:'POST',body:JSON.stringify({method:'GET',path:'/api/devices',body:null})}));
+  await new Promise(r=>setTimeout(r,0));assert.ok(request.deadline>Date.now()/1000);
+  relay.webSocketMessage(stale,JSON.stringify({id:request.id,chunk:btoa('wrong'),done:true,status:200}));assert.equal(relay.pending.size,1);
+  relay.webSocketMessage(ws,JSON.stringify({id:request.id,chunk:btoa('{"ok":true}') }));
+  relay.webSocketMessage(ws,JSON.stringify({id:request.id,done:true,status:200,type:'application/json'}));assert.deepEqual(await (await response).json(),{ok:true});
+  const bad=await relay.fetch(new Request('https://relay/proxy',{method:'POST',body:JSON.stringify({method:'POST',path:'/api/shutdown'})}));assert.equal(bad.status,403);
+  assert.equal(permitted('POST','/api/devices/d/settings',{section:'cfg/bot_config.toml',values:{avoid_gas:false}}),false);
+});
+
+
+test('a reporting PC records its panel revision even with no ADB devices',async()=>{
+  const a=await register();assert.equal((await call('/v1/statistics',{devices:[],matches:[],revision:79},a.token)).status,202);
+  assert.equal(sqlite.prepare('SELECT revision FROM panel_versions').get().revision,79);
+  assert.equal((await call('/v1/statistics',{devices:[],matches:[],revision:true},a.token)).status,400);
 });
