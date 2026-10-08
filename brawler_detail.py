@@ -37,7 +37,7 @@ def _locate(frame, encoded, bounds):
 def detail_home_position(frame):
     if frame is None or frame.ndim != 3 or frame.shape[2] != 3:
         return None
-    if not (_locate(frame, HEALTH, (.68, .44, 1, .62))
+    if not (_locate(frame, HEALTH, (.68, .40, 1, .78))
             and _locate(frame, HANGER, (.10, .70, .30, .86))):
         return None
     return _locate(frame, HOME, (.86, 0, 1, .13))
