@@ -21,9 +21,9 @@ class CommunityStatistics:
         self.session, self.endpoint = session, endpoint_url(endpoint)
         self.lock = threading.RLock()
         self.wake, self.stopped = threading.Event(), threading.Event()
-        self.enabled, self.clear_presence = False, False
+        self.enabled, self.clear_presence = True, False
         self.salt, self.credentials, self.cursors = uuid.uuid4().hex, {}, {}
-        self.last_sent, self.sent_matches, self.state, self.epoch = None, 0, 'disabled', 0
+        self.last_sent, self.sent_matches, self.state, self.epoch = None, 0, 'ready', 0
         self.thread = None
         try:
             saved = json.loads((self.root/'state.json').read_text('utf-8'))
@@ -39,6 +39,8 @@ class CommunityStatistics:
                 self.last_sent = saved.get('last_sent')
                 self.sent_matches = max(0, int(saved.get('sent_matches', 0)))
                 self.state = 'ready' if self.enabled else 'disabled'
+        except FileNotFoundError:
+            pass
         except (OSError, ValueError, TypeError, AttributeError):
             self.enabled = False
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+import sys
 
 from datetime import date
 import hmac
@@ -201,9 +202,10 @@ def create_app(xlambot_main, start_discord_bot=False):
     app.config["data_service"] = data_service
     app.config["discord_bot"] = discord_bot
     app.config["device_manager"] = device_manager
-    community = community_statistics.CommunityStatistics(DATA_ROOT/'community_statistics', DATA_ROOT,
+    community = community_statistics.CommunityStatistics(update_client.root()/'community_statistics', DATA_ROOT,
         device_manager.all_statuses, revision=error_telemetry.runtime_revision(update_client))
-    community.start()
+    if '--update-self-test' not in sys.argv:
+        community.start()
     app.extensions['community_statistics'] = community
 
     @app.get('/api/community-statistics')
@@ -308,7 +310,8 @@ def create_app(xlambot_main, start_discord_bot=False):
             for asset in folder.rglob('*'):
                 if asset.is_file():
                     newest = max(newest, asset.stat().st_mtime_ns)
-        return {'ui_version': newest, 'ui_language': preferences.read()['language']}
+        return {'ui_version': newest, 'ui_language': preferences.read()['language'],
+                'community_statistics_enabled': community.status()['enabled']}
 
     @app.get('/training')
     def training_library():
