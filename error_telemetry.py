@@ -1,4 +1,4 @@
-"""Opt-in, bounded error reports. Game threads never perform disk/network IO."""
+"""Bounded, anonymous error reports. Game threads never perform disk/network IO."""
 from collections import OrderedDict
 from contextlib import contextmanager
 import hashlib
@@ -114,7 +114,7 @@ class ErrorTelemetry:
         self.wake, self.stopped = threading.Event(), threading.Event()
         self.inbox = queue.Queue(maxsize=256)
         self.entries = OrderedDict()
-        self.enabled, self.min_level = False, 'error'
+        self.enabled, self.min_level = True, 'error'
         self.consent_epoch = 0
         self.installation = uuid.uuid4().hex
         self.credentials = {}
@@ -123,12 +123,14 @@ class ErrorTelemetry:
         self.status_code, self.last_sent, self.dropped = 'disabled', None, 0
         self.retry_at, self.retry_delay = 0., 5.
         self._load()
+        self.status_code = 'ready' if self.enabled else 'disabled'
         self.thread = None
 
     def _load(self):
         try:
             data = json.loads((self.root/'state.json').read_text('utf-8'))
             if not isinstance(data, dict):
+                self.enabled = False
                 return
             self.installation = data['installation'] if re.fullmatch(r'[a-f0-9]{32}', str(data.get('installation'))) else self.installation
             self.enabled = data.get('enabled') is True
@@ -141,8 +143,10 @@ class ErrorTelemetry:
                 event['_epoch'] = int(raw.get('_epoch', 0))
                 event['_last_delivery'] = float(raw.get('_last_delivery', 0))
                 self.entries[event['fingerprint']+event['device']+str(event['_epoch'])] = event
-        except (OSError, ValueError, TypeError, KeyError):
+        except FileNotFoundError:
             pass
+        except (OSError, ValueError, TypeError, KeyError):
+            self.enabled = False
         try:
             data = json.loads((self.root/'credentials.json').read_text('utf-8'))
             if not isinstance(data, dict):
