@@ -1,4 +1,4 @@
-#define AppVersion "0.8.19"
+#define AppVersion "0.8.20"
 #ifndef BootstrapHash
   #error Supply /DBootstrapHash=<SHA256 of verified PC bootstrap EXE>
 #endif

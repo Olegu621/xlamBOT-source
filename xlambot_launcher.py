@@ -26,7 +26,7 @@ import time
 import webbrowser
 
 APP_NAME = "xlamBOT"
-VERSION = "0.8.19"
+VERSION = "0.8.20"
 DEFAULT_PORT = 5195
 WIZARD_MARKER = "setup_done.json"
 
@@ -219,6 +219,17 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if '--restart-self-test' in sys.argv or '--restart-child-test' in sys.argv:
+        import json
+        import update_client
+        if not claim_single_instance():
+            sys.exit(3)
+        if '--restart-child-test' in sys.argv:
+            update_client.root().mkdir(parents=True, exist_ok=True)
+            (update_client.root() / 'restart-child-test.json').write_text(
+                json.dumps({'pid': os.getpid(), 'mutex_acquired': True}), encoding='utf-8')
+            sys.exit(0)
+        update_client.restart_application(['--restart-child-test'])
     if '--update-self-test' in sys.argv:
         import json
         import update_client
