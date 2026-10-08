@@ -189,6 +189,11 @@ test('single-use pairing isolates PCs and revocation immediately removes user ac
   assert.equal((await mini('/pc/'+a.installation+'/api/shutdown?grant='+ag,{},alice)).status,403);
   assert.equal((await mini('/mini/admin/errors',undefined,'xlam_mini='+ag)).status,401);
   const sandbox=await mini('/pc/'+a.installation+'/api/devices?grant='+ag,undefined,'','null');assert.equal(sandbox.status,200);assert.equal(sandbox.headers.get('Access-Control-Allow-Origin'),'null');
+  // A real fetched response has immutable headers, unlike new Response mocks.
+  env.REMOTE.get=id=>({fetch:async()=>fetch('data:text/javascript,window.remoteLoaded%3Dtrue%3B')});
+  const asset=await mini('/pc/'+a.installation+'/static/js/telegram-remote.js?grant='+ag,undefined,'','null');
+  assert.equal(asset.status,200);assert.equal(asset.headers.get('Access-Control-Allow-Origin'),'null');
+  assert.equal(await asset.text(),'window.remoteLoaded=true;');
   assert.equal((await call('/v1/remote/revoke',{},a.token)).status,200);
   assert.equal((await mini('/pc/'+a.installation+'/api/devices?grant='+ag,undefined,alice)).status,403);
 });

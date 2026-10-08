@@ -312,8 +312,7 @@ def create_app(xlambot_main, start_discord_bot=False):
                 if asset.is_file():
                     newest = max(newest, asset.stat().st_mtime_ns)
         return {'ui_version': newest, 'ui_language': preferences.read()['language'],
-                'telegram_remote': bool(request.environ.get('xlambot.remote')),
-                'community_statistics_enabled': community.status()['enabled']}
+                'telegram_remote': bool(request.environ.get('xlambot.remote'))}
 
     @app.get('/training')
     def training_library():
