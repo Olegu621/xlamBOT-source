@@ -58,3 +58,18 @@ class SeasonalRecoveryTests(unittest.TestCase):
    self.assertEqual(state_finder.get_in_game_state(announcement()),'seasonal_announcement')
  def test_reward_recognition_keeps_existing_daily_action(self):
   self.assertEqual(state_finder.get_in_game_state(reward()),'daily_reward')
+
+class XpRewardTests(unittest.TestCase):
+ def test_xp_title_card_and_blue_background_required_at_multiple_sizes(self):
+  from seasonal_rewards import XP_TITLE,XP_CARD,xp_doubler_reward
+  from reward_received import is_reward_received
+  f=np.full((720,1280,3),[20,90,230],np.uint8)
+  for key,x,y in [(XP_TITLE,435,129),(XP_CARD,552,326)]:
+   g=_glyph(key,720);f[y:y+g.shape[0],x:x+g.shape[1]]=g[:,:,None]
+  for w,h in [(960,540),(1280,720),(1920,1080)]:
+   self.assertTrue(is_reward_received(cv2.resize(f,(w,h))))
+  without_title=f.copy();without_title[120:200]=[20,90,230]
+  self.assertFalse(xp_doubler_reward(without_title))
+  without_card=f.copy();without_card[300:450]=[20,90,230]
+  self.assertFalse(xp_doubler_reward(without_card))
+  f[570:]=[90,130,40];self.assertFalse(xp_doubler_reward(f))
