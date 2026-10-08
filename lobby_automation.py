@@ -271,7 +271,8 @@ class LobbyAutomation:
         self.window_controller.click(first_card[0], first_card[1], already_include_ratio=False)
         if self._sleep_interruptible(1.2, runtime_control, stop_event):
             return "aborted"
-        self.window_controller.click(select_button[0], select_button[1], already_include_ratio=False)
+        if not self._confirm_brawler_selection(runtime_control, stop_event):
+            return "stuck"
         if self._sleep_interruptible(1.5, runtime_control, stop_event):
             return "aborted"
 
@@ -284,6 +285,23 @@ class LobbyAutomation:
             ", name not readable from the card")
         print(f"Picked the first card under the {sort_label} sort{who}.")
         return "success"
+
+    def _confirm_brawler_selection(self, runtime_control=None, stop_event=None):
+        from brawler_detail import detail_select_position
+        for attempt in range(3):
+            if self._should_interrupt(runtime_control, stop_event):
+                return False
+            # Refresh the decision ticket after the grid-to-detail transition.
+            # A click using the old grid observation is rightly rejected.
+            frame = self.window_controller.screenshot()
+            position = detail_select_position(frame)
+            if position is not None:
+                self.window_controller.click(*position, already_include_ratio=True)
+                return True
+            if self._sleep_interruptible(.25, runtime_control, stop_event):
+                return False
+        print("Brawler Select control was not confirmed; leaving recovery to the main loop.")
+        return False
 
     def select_lowest_trophy_brawler(self, get_latest_state, stop_event=None,
                                     runtime_control=None):
@@ -349,8 +367,8 @@ class LobbyAutomation:
                 print("Brawler selection aborted by user.")
                 return "aborted"
 
-            select_x, select_y = load_toml_as_dict("cfg/buttons_config.toml")["select_brawler"]
-            self.window_controller.click(select_x, select_y, already_include_ratio=False)
+            if not self._confirm_brawler_selection(runtime_control, stop_event):
+                return "stuck"
             if self._sleep_interruptible(1.5, runtime_control, stop_event):
                 print("Brawler selection aborted by user.")
                 return "aborted"

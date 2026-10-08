@@ -161,6 +161,8 @@ def get_in_game_state(image):
         if is_in_match_making(image): return "match_making"
         if should_print_debug_info: print("Checking for brawler selection...")
         if is_in_brawler_selection(image): return "brawler_selection"
+        from brawler_detail import detail_home_position
+        if detail_home_position(image) is not None: return "brawler_detail"
         if should_print_debug_info: print("Checking for shop")
         if is_in_shop(image): return "shop"
         if should_print_debug_info: print("Checking for offer popup...")

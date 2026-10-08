@@ -14,6 +14,7 @@
 - Recognition threads publish observations only. Ordinary touch input belongs to one device worker. Only watchdog/Stop may release touches from another thread.
 - Bind decisions to immutable observations. Validate screen epoch, frame age, stream health and cancellation before non-release input. Release touches after invalidation; do not send a delayed attack into a menu.
 - Treat missing, stale, transitional and unrecognized observations separately. Do not infer battle readiness from old player detections.
+- Brawler grid-to-detail transitions must refresh the decision observation before Select. Confirm detail controls independently; a generic Home icon alone cannot identify a brawler page.
 - Recheck visible controls before menu actions. Recovery must not use arbitrary taps to navigate unknown screens. Keep the four-second unknown grace and 1.5-second retry interval.
 - Reward handling must run on the owner, use bounded actions and obey Stop/Pause. Do not launch background click loops or uninterruptible multi-second holds.
 - A detector failure is an unavailable measurement, never evidence of safe terrain. With gas avoidance enabled, release movement until valid gas recognition resumes.

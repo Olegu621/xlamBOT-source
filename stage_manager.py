@@ -58,6 +58,7 @@ class StageManager:
         self.states = {
             'shop': self.close_known_menu,
             'brawler_selection': self.close_known_menu,
+            'brawler_detail': self.close_brawler_detail,
             'brawler_choice': self.choose_reward_brawler,
             'reward_received': self.dismiss_received_reward,
             'daily_reward': self.dismiss_daily_reward,
@@ -803,7 +804,20 @@ class StageManager:
             self.window_controller.restart_brawl_stars()
         print("Game has ended", current_state)
 
+    def close_brawler_detail(self):
+        if self._should_stop() or self._should_pause():
+            return
+        from brawler_detail import detail_home_position
+        position = detail_home_position(self.window_controller.screenshot())
+        if position is None:
+            return
+        self.window_controller.release_all_inputs()
+        self.window_controller.click(*position, already_include_ratio=True)
+        self._sleep_interruptible(.5)
+
     def close_known_menu(self):
+        if self._should_stop() or self._should_pause():
+            return
         frame = self.window_controller.screenshot()
         position = menu_back_position(frame)
         if position is None:
@@ -811,7 +825,7 @@ class StageManager:
             return
         self.window_controller.release_all_inputs()
         self.window_controller.click(*position, already_include_ratio=True)
-        time.sleep(1)
+        self._sleep_interruptible(1)
 
     quit_shop = close_known_menu
 
