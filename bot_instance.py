@@ -484,12 +484,16 @@ class BotInstance:
             try:
                 self._main_loop()
                 return
-            except StaleFrameError:
+            except StaleFrameError as error:
                 # Menus, initial selection and timed tasks also send input.
                 # A stale command there is recoverable just like a playstyle
                 # command: release it and let the next capture decide again.
                 self.window_controller.release_all_inputs()
                 self.window_controller.gameplay_frame_time = None
+                now = time.monotonic()
+                if now - getattr(self, '_last_menu_rejection_notice', float('-inf')) >= 5:
+                    self._last_menu_rejection_notice = now
+                    print(f'[{self.device_label}] Menu action deferred: {error}')
                 if self.sleep_interruptible(0.05, allow_pause=False) == "stop":
                     self.stop_gracefully()
                     return

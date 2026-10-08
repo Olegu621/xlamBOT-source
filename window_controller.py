@@ -539,6 +539,7 @@ class WindowController:
             # is independently classified; battle inference never refreshes its ticket.
             observation = observe(frame, frame_time)
             self._decision = (decision[0], observation, True)
+            self._menu_frame_evidence = (frame, frame_time, observation)
         now = time.time()
         if frame_time > 0 and age > self.FRAME_STALE_TIMEOUT and now - getattr(self, '_last_stale_notice', 0) >= 30:
             self._last_stale_notice = now
@@ -547,8 +548,8 @@ class WindowController:
         if (self.width, self.height) != (frame.shape[1], frame.shape[0]):
             self.width = frame.shape[1]
             self.height = frame.shape[0]
-            if (self.width, self.height) != (brawl_stars_width, brawl_stars_height):
-                print(f"WARNING: Unexpected resolution: {self.width}x{self.height}. Expected {brawl_stars_width}x{brawl_stars_height}. Please set your emulator resolution to 1920x1080 for best results.")
+            if (self.width, self.height) != (1280, 720):
+                print(f"Screen resolution: {self.width}x{self.height}. Recommended emulator resolution: 1280x720.")
             self.width_ratio = self.width / brawl_stars_width
             self.height_ratio = self.height / brawl_stars_height
             movement_joystick = self.press_coords_dict.get("movement_joystick", [180, 900])
@@ -557,6 +558,18 @@ class WindowController:
             self.scale_factor = min(self.width_ratio, self.height_ratio)
         self.last_screenshot_time = frame_time
         return frame
+
+    def screen_state(self, frame):
+        """Reuse only this menu screenshot's independently classified evidence."""
+        evidence = getattr(self, '_menu_frame_evidence', None)
+        decision = getattr(self, '_decision', None)
+        if evidence is not None and evidence[0] is frame and decision is not None and decision[2]:
+            if not self.frame_is_fresh(evidence[1]) or not self.observations.permits(evidence[2]):
+                raise StaleFrameError('Input rejected: menu evidence expired or screen changed')
+            self._check_decision()
+            return evidence[2].state
+        from state_finder import get_state
+        return get_state(frame)
 
     def reset_to_default_resolution(self):
         print("Resetting window controller dimensions to 1920x1080 and updating scale ratios...")

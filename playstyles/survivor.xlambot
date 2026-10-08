@@ -2,50 +2,12 @@
 def no_enemy_movement():
     player_pos = get_entity_pos(player_data)
     closest_teammate_coords, dist = find_closest_teammate(teammate_data, player_pos, walls)
-
     if not closest_teammate_coords:
-        # Calculate vector to the center of the screen
-        center_x = 1920*width_ratio / 2
-        center_y = 1080*height_ratio / 2
-
-        dx = center_x - player_pos[0]
-        dy = center_y - player_pos[1]
-        dist_to_center = math.hypot(dx, dy)
-
-        # If close to center, randomly offset the TARGET coordinate instead
-        if dist_to_center < TILE_SIZE * 2:
-            # TILE_SIZE is scaled and therefore a float, and randint refuses
-            # floats, so the jitter has to be rounded to whole pixels first.
-            jitter_x = random.randint(int(-TILE_SIZE), int(TILE_SIZE))
-            jitter_y = random.randint(int(-TILE_SIZE), int(TILE_SIZE))
-            center_x += jitter_x
-            center_y += jitter_y
-            dx = center_x - player_pos[0]
-            dy = center_y - player_pos[1]
-            dist_to_center = math.hypot(dx, dy)
-
-        if dist_to_center > 0:
-            direction_x, direction_y = dx, dy
-        else:
-            direction_x, direction_y = 0.0, 0.0
-
-        movement_options = [(direction_x, direction_y), (direction_x, 0), (0, direction_y)]
-
-        for move in movement_options:
-            if not is_path_blocked(player_data, move, walls):
-                return move
-        return movement_options[0]
-    if dist < TILE_SIZE:
-        alternative_moves = [
-            (0, -JOYSTICK_RADIUS), (-JOYSTICK_RADIUS, 0),
-            (0, JOYSTICK_RADIUS), (JOYSTICK_RADIUS, 0)
-        ]
-        return random.choice(alternative_moves)
-
-    dx = closest_teammate_coords[0] - player_pos[0]
-    dy = closest_teammate_coords[1] - player_pos[1]
-
-    direction_x, direction_y = dx, dy
+        return (0, -JOYSTICK_RADIUS)
+    if dist <= 60:
+        return 0, 0
+    direction_x = closest_teammate_coords[0] - player_pos[0]
+    direction_y = closest_teammate_coords[1] - player_pos[1]
     movement_options = [(direction_x, direction_y), (direction_x, 0), (0, direction_y)]
 
     for move in movement_options:
@@ -71,62 +33,9 @@ def avoid_poison_gas():
 
     return (x, y) if x != 0 or y != 0 else None
 
-def living_teammates():
-    """How many teammates are still up.
-
-    At high power a fight is only worth taking with your team next to you. When
-    the team is down, every duel is a 1v3, and in Showdown dying is what costs
-    trophies, so the bot stops looking for fights and just stays alive.
-    """
-    return len(teammate_data) if teammate_data else 0
-
-def keep_away_from_enemy(player_pos, enemy_coords):
-    """Step off the line to the enemy, preferring a direction that is open.
-
-    Backing straight up often means backing into a wall, which turns a retreat
-    into a corner fight, so the sideways options are tried first.
-    """
-    dx = player_pos[0] - enemy_coords[0]
-    dy = player_pos[1] - enemy_coords[1]
-    length = math.hypot(dx, dy)
-    if length <= 0:
-        dx, dy, length = 0.0, 1.0, 1.0
-    options = [
-        (dx, dy),
-        (-dy, dx),
-        (dy, -dx),
-        (0, -JOYSTICK_RADIUS if dy < 0 else JOYSTICK_RADIUS),
-        (-JOYSTICK_RADIUS if dx < 0 else JOYSTICK_RADIUS, 0),
-    ]
-    for move in options:
-        if not is_path_blocked(player_data, move, walls):
-            return move
-    return options[0]
-
-def find_brawler_info(name):
-    """Look the brawler up, tolerating a different spelling in the table.
-
-    Some entries are keyed differently from how they are written in the queue
-    (Jess is stored as "jessie"), and the playstyle sandbox has no builtins, so
-    raising here would not even produce a readable error.
-    """
-    table = brawlers_info
-    if name in table:
-        return table[name]
-    lowered = str(name).lower()
-    for key, info in table.items():
-        if str(key).lower() == lowered:
-            return info
-    for key, info in table.items():
-        base = str(key).lower()
-        if base.startswith(lowered) or lowered.startswith(base):
-            return info
-    return None
-
-brawler_info = find_brawler_info(brawler)
+brawler_info = brawlers_info.get(brawler)
 if not brawler_info:
-    brawler_info = {"hold_attack": 0.0, "super_type": "other", "attack_range": 0,
-                    "safe_range": 0, "super_range": 0}
+    raise ValueError(f"Brawler '{brawler}' not found in brawlers info.")
 must_brawler_hold_attack = must_brawler_hold_attack(brawler, brawlers_info)
 # if a brawler has been holding an attack for its max duration + the bot setting, then we release
 if must_brawler_hold_attack and persistent_data["time_since_holding_attack"] is not None and time.time() - persistent_data["time_since_holding_attack"] >= brawler_info['hold_attack'] + seconds_to_hold_attack_after_reaching_max:
@@ -149,38 +58,17 @@ else:
             movement = no_enemy_movement()
     else:
         #if debug: print("found enemy pos:", enemy_coords)
-        # Chasing is what puts the bot into gas and into 1v2s. Only close the gap
-        # when the team is together and the target is already close by.
-        chase_leash = TILE_SIZE * 6
-        team_up = living_teammates() >= 2
-        # A brawl match moves trophies by tens, so the honest reading of a rule
-        # like this needs about 1000 matches per arm to tell a 6-point change
-        # apart from noise - some 86 hours of play. Measured over 84 matches the
-        # gap was 64% vs 61% top-2 with p = 0.65, which is nothing. So the ring
-        # gate is not here: an unmeasurable rule is not worth carrying into every
-        # match. Contact stays allowed when the team is together and the target
-        # is close, as before.
-        may_close_in = team_up and enemy_distance <= chase_leash
-
         if not anti_poison_gas_movement:
-            if may_close_in and enemy_distance > safe_range:
-                direction_x = enemy_coords[0] - player_pos[0]
-                direction_y = enemy_coords[1] - player_pos[1]
+            direction_x = enemy_coords[0] - player_pos[0]
+            direction_y = enemy_coords[1] - player_pos[1]
+
+            # Determine initial movement direction
+            if enemy_distance > safe_range:  # Move towards the enemy
                 movement_options = [(direction_x, direction_y), (direction_x, 0), (0, direction_y)]
             else:
-                # Either the target is too far to be worth walking to, or the
-                # team is gone and a duel would be suicide. Open the distance and
-                # let the enemy come to us.
-                #
-                # Prefer the middle over stepping away from this particular
-                # enemy: gas damage grows with distance from the centre, so the
-                # centre is both the safe spot and the one a respawned teammate
-                # can defend.
-                movement_options = [
-                    no_enemy_movement(),
-                    keep_away_from_enemy(player_pos, enemy_coords),
-                ]
+                movement_options = [(-direction_x, -direction_y), (-direction_x, 0), (0, -direction_y)]
 
+            # Check for walls and adjust movement
             for move in movement_options:
                 if not is_path_blocked(player_data, move, walls):
                     movement = move
@@ -199,11 +87,7 @@ else:
             super_type = brawler_info['super_type']
             enemy_hittable = is_enemy_hittable(player_pos, enemy_coords, walls, "super")
 
-            # Held back unless the target is inside super range: dumping the
-            # super on the first brawler that shows up is how the bot ends up
-            # defenceless for the fight that actually decides the placement.
-            worth_spending = enemy_distance <= super_range or super_type in ["spawnable", "other"]
-            if (enemy_hittable and worth_spending and
+            if (enemy_hittable and
                     (enemy_distance <= super_range
                      or super_type in ["spawnable", "other"]
                      or (brawler in ["stu", "surge"] and super_type == "charge" and enemy_distance <= super_range + attack_range)

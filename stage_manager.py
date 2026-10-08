@@ -27,6 +27,10 @@ USE_TROPHY_TARGETS = False
 
 
 class StageManager:
+    def _frame_state(self, frame):
+        reader = getattr(type(self.window_controller), 'screen_state', None)
+        return reader(self.window_controller, frame) if reader else get_state(frame)
+
     def __init__(self, brawlers_data, lobby_automator, window_controller, playstyle_info, state_getting, runtime_control=None):
         self.games_on_current_brawler = 0
         # Guards the per-game counter against the lobby being reported on every
@@ -394,7 +398,7 @@ class StageManager:
             frame = self.window_controller.screenshot()
             # Cached state may lag behind a reconnect/reward dialog. Its dark
             # overlay obscures digits, so only a fresh lobby frame is readable.
-            if get_state(frame) != 'lobby':
+            if self._frame_state(frame) != 'lobby':
                 return None
             try:
                 total = trophy_reader.read_account_total(frame, expected=self.Trophy_observer.account_total)
@@ -475,7 +479,7 @@ class StageManager:
         if self._should_stop() or self._should_pause():
             return
         frame = self.window_controller.screenshot()
-        if get_state(frame) != "lobby":
+        if self._frame_state(frame) != "lobby":
             print("Lobby changed before start; refusing to tap menu controls.")
             return
 
@@ -659,7 +663,7 @@ class StageManager:
         if not self._sync_lobby_counters():
             return
         frame = self.window_controller.screenshot()
-        if get_state(frame) != "lobby":
+        if self._frame_state(frame) != "lobby":
             print("Lobby changed before PLAY; refusing a stale proceed tap.")
             return
         from screen_evidence import play_button_position
@@ -712,7 +716,7 @@ class StageManager:
                 if self._should_stop() or self._should_pause():
                     return
                 frame = self.window_controller.screenshot()
-                if get_state(frame) != 'star_drop_' + drop_type:
+                if self._frame_state(frame) != 'star_drop_' + drop_type:
                     return
                 if not self.window_controller.frame_is_fresh():
                     return
@@ -743,7 +747,7 @@ class StageManager:
     def end_game(self):
         screenshot = self.window_controller.screenshot()
 
-        current_state = get_state(screenshot)
+        current_state = self._frame_state(screenshot)
         if current_state.startswith('end'):
             self._in_battle = False
         button_pressed = False
@@ -792,7 +796,7 @@ class StageManager:
                 if self._sleep_interruptible(.1):
                     return
                 screenshot = self.window_controller.screenshot()
-                current_state = get_state(screenshot)
+                current_state = self._frame_state(screenshot)
                 if not current_state.startswith('end'):
                     break
 
@@ -805,7 +809,7 @@ class StageManager:
                     interrupted = True
                     break
                 screenshot = self.window_controller.screenshot()
-                current_state = get_state(screenshot)
+                current_state = self._frame_state(screenshot)
                 if current_state == "match":
                     print("Match started successfully!")
                     return
@@ -969,7 +973,7 @@ class StageManager:
         if now - since < 4 or now - getattr(self, '_last_unknown_tap', -100) < 1.5:
             return
         frame = self.window_controller.screenshot()
-        if get_state(frame) != 'unknown':
+        if self._frame_state(frame) != 'unknown':
             self.reset_unknown_recovery()
             return
         from side_menu import side_menu_close_position

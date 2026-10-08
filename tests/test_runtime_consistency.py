@@ -114,6 +114,22 @@ class RuntimeConsistencyTests(unittest.TestCase):
             controller._send_touch(20,20,scrcpy.ACTION_DOWN,2)
         controller.scrcpy_client.control.touch.assert_called_once()
 
+    def test_1280x720_coordinates_are_scaled_once_from_config(self):
+        controller=self.controller()
+        controller.width=None;controller.height=None
+        controller.PID_ATTACK=2
+        controller.press_coords_dict={'movement_joystick':[180,900],'attack':[1690,900]}
+        controller.get_latest_frame=lambda:(np.zeros((720,1280,3),np.uint8),time.time())
+        controller.screenshot()
+        self.assertEqual((controller.width,controller.height),(1280,720))
+        self.assertAlmostEqual(controller.scale_factor,2/3)
+        self.assertEqual(controller.original_movement_joystick,(120,600))
+        with controller.decision_scope(controller.observations.snapshot()):
+            controller.press('attack',delay=0)
+        down=controller.scrcpy_client.control.touch.call_args_list[0].args
+        self.assertAlmostEqual(down[0],1690*2/3)
+        self.assertAlmostEqual(down[1],600)
+
     def test_battle_screenshot_does_not_reauthorize_attack_after_menu_transition(self):
         controller=self.controller()
         controller.width=1280;controller.height=720
@@ -125,6 +141,28 @@ class RuntimeConsistencyTests(unittest.TestCase):
             with self.assertRaises(StaleFrameError):controller._send_touch(20,20,scrcpy.ACTION_DOWN,2)
         controller.observe_action_frame.assert_not_called()
 
+    def test_menu_state_reuses_exact_frame_without_second_classification(self):
+        controller=self.controller()
+        controller.width=1280;controller.height=720
+        frame=np.zeros((720,1280,3),np.uint8)
+        controller.get_latest_frame=lambda:(frame,time.time())
+        controller.observe_action_frame=lambda frame,stamp: controller.observations.snapshot()
+        with controller.decision_scope(controller.observations.snapshot(),allow_menu_transitions=True):
+            captured=controller.screenshot()
+            with patch('state_finder.get_state',side_effect=AssertionError('duplicate classification')):
+                self.assertEqual(controller.screen_state(captured),'match')
+            controller.observations.publish('lobby',time.time())
+            with self.assertRaises(StaleFrameError):controller.screen_state(captured)
+
+    def test_expired_menu_frame_cannot_borrow_fresh_background_observation(self):
+        controller=self.controller()
+        frame=np.zeros((720,1280,3),np.uint8)
+        ticket=controller.observations.snapshot()
+        controller._menu_frame_evidence=(frame,time.time()-2,ticket)
+        controller.frame_is_fresh=lambda stamp=None: stamp is None or time.time()-stamp<.75
+        controller.observations.publish('match',time.time())
+        with controller.decision_scope(ticket,allow_menu_transitions=True):
+            with self.assertRaises(StaleFrameError):controller.screen_state(frame)
     def test_watchdog_releases_held_input_after_screen_transition(self):
         controller=self.controller()
         with controller.decision_scope(controller.observations.snapshot()):
