@@ -17,6 +17,7 @@ web_resources/
 cfg/match_history*
 cfg/cfg.zip
 error_reports/
+community_statistics/
 telemetry-state/
 *.sqlite
 *.sqlite-shm

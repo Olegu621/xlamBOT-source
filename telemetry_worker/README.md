@@ -15,33 +15,21 @@ temporarily reject reports; the client keeps its bounded queue and retries.
    ignored `wrangler.local.jsonc` copied from `wrangler.jsonc`.
 3. `npx wrangler d1 migrations apply xlambot-errors --remote --config wrangler.local.jsonc`.
 4. Deploy with `npx wrangler deploy --config wrangler.local.jsonc`.
-5. Store `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` using Wrangler's secret
-   commands. Never put their values in Git, config vars, CLI arguments or logs.
-6. Verify `/health`, HTTPS registration, authenticated report acceptance and
-   actual Telegram delivery. Set the verified workers.dev URL in the client;
-   run the full Python/JS/frozen checks and merge the source PR before publishing.
-7. Only after public delivery is confirmed, disable the obsolete local
-   receiver/ngrok startup. Keep its encrypted settings and report database.
+5. Store `TELEGRAM_BOT_TOKEN` and a random `TELEGRAM_WEBHOOK_SECRET` using Wrangler secrets (stdin, never CLI arguments). Register `/telegram` with Telegram `setWebhook`, the same secret token, and message-only updates. Set the bot command menu to `/stats`, `/today`, `/hour`, `/alltime`, `/help`.
+6. Verify `/health`, authenticated reports/statistics, and webhook command replies. Merge source changes before publishing the signed PC update.
+7. Disable obsolete Windows/ngrok receiver startup, preserving encrypted settings and databases.
 
 ## Privacy and delivery
 
-Reporting is opt-in. Only allowlisted error metadata is stored; no raw logs,
-exception messages, source, screenshots or accounts. Credentials are randomly
-generated per installation and stored hashed. Source addresses are hashed for
-registration rate limits; rate records expire. Payloads are capped at 32 KiB.
-The public endpoint provides no admin/setup or report-reading API. Worker
-observability is disabled to avoid request/credential logs.
+Error reporting and community statistics have separate, disabled-by-default consent controls. Error reports stay private in D1: no exception messages, raw logs, source, screenshots or account data. Inspect them through authenticated Cloudflare administration; there is no public report-reading endpoint and no Telegram error delivery.
 
-D1 persists reports and Telegram outbox state. Atomic SQL triggers maintain
-group totals without scanning all reports every minute. A database lease
-serializes Telegram sending, including concurrent requests and cron runs.
-Repeated groups have a ten-minute cooldown, with global spacing and bounded
-failure backoff. Cron retries pending delivery each minute. Ambiguous delivery
-acknowledgements may produce duplicates (at-least-once delivery).
+Statistics uploads contain only installation-salted device IDs and match IDs, times, outcomes and trophy changes. They include historical matches after explicit consent. Formula estimates and unknown changes remain separate from observed changes. No brawler names, account tags or device serials are transmitted. Previous anonymous aggregate results remain after opt-out; new uploads stop and presence is cleared. Online expires after 150 seconds without a heartbeat (client interval 60 seconds).
 
-Daily cleanup removes groups with no reports received in 30 days. Installation
-credentials remain until the operator removes them; keep registrations bounded.
-Sending to Telegram requires Cloudflare to hold the two delivery secrets.
+Telegram accepts only authenticated webhook requests. Commands reply to the requesting chat and topic with global aggregates. `/stats` includes all-time totals and shorter period summaries; `/today` uses Moscow midnight, `/hour` a rolling hour. The database claims updates to prevent concurrent/repeated replies; ambiguous network acknowledgement can still cause a duplicate reply. Ordinary messages and error details are never posted or retained by this command handler.
+
+Statistics are self-reported by consenting clients, not a count of downloads or all installations. Old clients cannot report presence. Server-side match IDs prevent retry inflation; credentials bind uploads to their installation. Credentials are randomly generated and stored hashed. Request bodies are limited to 32 KiB, 32 devices and 50 matches per upload. Cloudflare quota exhaustion causes retries without interrupting gameplay. No paid plan is required or enabled.
+
+Daily cleanup removes error groups inactive for 30 days and Telegram update claims older than seven days. Anonymous match totals and device participation are retained for all-time statistics. Worker observability is disabled; Telegram secrets never enter the PC distribution.
 
 ## Verification
 

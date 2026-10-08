@@ -1,3 +1,4 @@
+import {receiveStatistics,telegramCommand} from './statistics.mjs';
 const codes = new Set(['startup_failed','runtime_crash','runtime_halted','thread_crash','application_exception','ui_request_failed','gpu_fallback','gas_detector_failed','brawler_selection_failed','update_failed','manual_report','test_report']);
 const modules = new Set(['bot_instance','window_controller','capture_transport','play','detect','stage_manager','lobby_automation','utils','trophy_observer','trophy_reader','app','device_manager','runtime','services','training_capture','brawler_calibration','settings_schema','update_client','main','battle_memory','gas_guard','combat_behavior','ability_buttons']);
 const stages = new Set(['startup','runtime','ui','model','update','manual','unknown']);
@@ -59,7 +60,8 @@ async function rate(db,key,limit,seconds=3600) {
 async function receive(request,env,ctx) {
   const path=new URL(request.url).pathname;
   if(path==='/health' && request.method==='GET') return json({ok:true,service:'xlambot-error-receiver'});
-  if(request.method!=='POST' || !['/v1/register','/v1/events'].includes(path)) return json({error:'not_found'},404);
+  if(path==='/telegram' && request.method==='POST') return telegramCommand(request,env,readBody);
+  if(request.method!=='POST' || !['/v1/register','/v1/events','/v1/statistics'].includes(path)) return json({error:'not_found'},404);
   if(path==='/v1/register') {
     await readBody(request);
     const ip=await digest(request.headers.get('CF-Connecting-IP') || 'unknown');
@@ -73,7 +75,8 @@ async function receive(request,env,ctx) {
   if(!/^Bearer [a-f0-9]{64}$/.test(auth)) return json({error:'unauthorized'},401);
   const owner=await env.DB.prepare('SELECT id FROM installations WHERE token=?').bind(await digest(auth.slice(7))).first();
   if(!owner) return json({error:'unauthorized'},401);
-  if(!await rate(env.DB,'events:'+owner.id,120,60)) return json({error:'rate_limited'},429);
+  if(!await rate(env.DB,(path==='/v1/statistics'?'statistics:':'events:')+owner.id,path==='/v1/statistics'?6:120,60)) return json({error:'rate_limited'},429);
+  if(path==='/v1/statistics') return receiveStatistics(await readBody(request),owner.id,env);
   const item=await cleanEvent(await readBody(request));
   if(item.installation!==owner.id) return json({error:'unauthorized'},401);
   if(item.level==='info' || (item.level==='warning' && item.count<3)) return json({error:'invalid_level'},400);
@@ -93,37 +96,7 @@ async function receive(request,env,ctx) {
     return json({error:old?'conflicting_report':'capacity'},old?409:429);
   }
   await env.DB.prepare('INSERT OR IGNORE INTO groups(fingerprint) VALUES(?)').bind(item.fingerprint).run();
-  ctx.waitUntil(deliver(env).catch(()=>{}));
   return json({accepted:item.id},202);
-}
-
-export async function deliver(env,send=fetch) {
-  if(!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) return false;
-  const now=Date.now()/1000,lease=random(16);
-  const acquired=await env.DB.prepare('UPDATE delivery_lock SET lease=?,until=? WHERE id=1 AND until<=? RETURNING id').bind(lease,now+120,now).first();
-  if(!acquired) return false;
-  try {
-    const row=await env.DB.prepare(`SELECT * FROM groups WHERE (total>notified)=1 AND retry_at<=?
-      AND (last_sent=0 OR last_sent<=?) ORDER BY priority DESC LIMIT 1`).bind(now,now-600).first();
-    if(!row) return false;
-    const example=await env.DB.prepare('SELECT * FROM events WHERE fingerprint=? LIMIT 1').bind(row.fingerprint).first();
-    row.users=(await env.DB.prepare('SELECT COUNT(DISTINCT installation) users FROM events WHERE fingerprint=?').bind(row.fingerprint).first()).users;
-    const text=`xlamBOT · ${example.level.toUpperCase()}\n${example.code} · ${example.stage}\nVersion ${example.version} / r${example.revision}\nReports: ${row.total} · installations: ${row.users}\n${example.exception}\n${example.trace}`.slice(0,4000);
-    try {
-      const response=await send('https://api.telegram.org/bot'+env.TELEGRAM_BOT_TOKEN+'/sendMessage',{
-        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:env.TELEGRAM_CHAT_ID,text,link_preview_options:{is_disabled:true}}),
-        redirect:'manual',signal:AbortSignal.timeout(10000)});
-      if(response.status!==200 || (await response.json()).ok!==true) throw Error('delivery_failed');
-    } catch {
-      const failures=Math.min(row.failures+1,10);
-      await env.DB.prepare('UPDATE groups SET failures=?,retry_at=? WHERE fingerprint=?').bind(failures,now+Math.min(3600,5*2**failures),row.fingerprint).run();
-      return false;
-    }
-    await env.DB.prepare('UPDATE groups SET notified=?,last_sent=?,failures=0,retry_at=0 WHERE fingerprint=?').bind(row.total,now,row.fingerprint).run();
-    return true;
-  } finally {
-    await env.DB.prepare('UPDATE delivery_lock SET until=? WHERE id=1 AND lease=?').bind(Date.now()/1000+2,lease).run();
-  }
 }
 
 export default {
@@ -140,8 +113,8 @@ export default {
     if(Math.floor(controller.scheduledTime/60000)%1440===0) await env.DB.batch([
       env.DB.prepare('DELETE FROM events WHERE fingerprint IN (SELECT fingerprint FROM events GROUP BY fingerprint HAVING MAX(seen)<?)').bind(cutoff),
       env.DB.prepare('DELETE FROM groups WHERE NOT EXISTS(SELECT 1 FROM events WHERE events.fingerprint=groups.fingerprint)'),
-      env.DB.prepare("DELETE FROM rate WHERE (key LIKE 'register:%' AND bucket<?) OR (key LIKE 'events:%' AND bucket<?)").bind(Math.floor(Date.now()/3600000)-48,Math.floor(Date.now()/60000)-2880)
+      env.DB.prepare("DELETE FROM rate WHERE (key LIKE 'register:%' AND bucket<?) OR ((key LIKE 'events:%' OR key LIKE 'statistics:%' OR key LIKE 'telegram:%') AND bucket<?)").bind(Math.floor(Date.now()/3600000)-48,Math.floor(Date.now()/60000)-2880),
+      env.DB.prepare('DELETE FROM telegram_updates WHERE lease<?').bind(Date.now()/1000-7*86400)
     ]);
-    ctx.waitUntil(deliver(env).catch(()=>{}));
   }
 };

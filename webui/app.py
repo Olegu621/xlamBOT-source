@@ -27,6 +27,7 @@ import brawler_calibration
 from . import preferences
 import settings_schema
 import error_telemetry
+import community_statistics
 import io
 import json
 from training_capture import TrainingRecorder
@@ -200,6 +201,24 @@ def create_app(xlambot_main, start_discord_bot=False):
     app.config["data_service"] = data_service
     app.config["discord_bot"] = discord_bot
     app.config["device_manager"] = device_manager
+    community = community_statistics.CommunityStatistics(DATA_ROOT/'community_statistics', DATA_ROOT,
+        device_manager.all_statuses, revision=error_telemetry.runtime_revision(update_client))
+    community.start()
+    app.extensions['community_statistics'] = community
+
+    @app.get('/api/community-statistics')
+    def community_statistics_status():
+        return jsonify(community.status())
+
+    @app.post('/api/community-statistics')
+    def community_statistics_configure():
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict) or set(payload) != {'enabled'}:
+            return jsonify(message='Choose a valid statistics preference.'), 400
+        try:
+            return jsonify(community.configure(payload['enabled']))
+        except ValueError as error:
+            return jsonify(message=str(error)), 400
     app.config["training_recorder"] = training_recorder
     def update_busy():
         states = device_manager.all_statuses() + [runtime_manager.get_status()]
