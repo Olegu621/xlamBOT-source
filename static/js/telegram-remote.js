@@ -39,7 +39,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         document.body.classList.add('telegram-panel');
         const style = document.createElement('style');
-        style.textContent = '.telegram-panel .panel-hero{padding:18px;min-height:0}.telegram-panel .panel-hero h1{font-size:28px}.telegram-panel .hero-art,.telegram-panel .page-kicker{display:none}.telegram-panel .panel-header{padding-top:14px}.telegram-panel .app-rail{position:sticky;top:0}.telegram-panel .app-rail .rail-bottom{display:none}@media(max-width:760px){.telegram-panel .app-nav{display:flex;gap:5px;overflow:auto}.telegram-panel .app-nav a{white-space:nowrap}.telegram-panel .device-grid{padding:12px}.telegram-panel .panel-overview{flex-wrap:wrap}}';
+        style.textContent = 'body.telegram-panel{margin:0!important;padding-top:0!important}.telegram-panel .panel-hero{padding:18px;min-height:0}.telegram-panel .panel-hero h1{font-size:28px}.telegram-panel .hero-art,.telegram-panel .page-kicker{display:none}.telegram-panel .panel-header{padding-top:14px}.telegram-panel .app-rail{position:sticky;inset:auto;top:0;width:100%;padding:8px 12px;flex-direction:row;border-right:0;border-bottom:1px solid var(--line-soft)}.telegram-panel .app-rail .rail-bottom,.telegram-panel .app-brand,.telegram-panel .rail-label{display:none}.telegram-panel .app-nav{display:flex;width:100%;gap:5px;overflow:auto}.telegram-panel .app-nav a{white-space:nowrap;flex:1;justify-content:center;padding:10px}.telegram-panel .app-nav a>span{display:inline}@media(max-width:760px){.telegram-panel .device-grid{padding:12px}.telegram-panel .panel-overview{flex-wrap:wrap}}';
         document.head.append(style);
     });
 })();
