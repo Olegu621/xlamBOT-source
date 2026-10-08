@@ -716,6 +716,7 @@ def _current_config_root():
 def run_bot_instance(discord_bot, queue_data, stop_event=None, runtime_control=None,
                      serial=None, device_key=None, device_label=None, instance_callback=None):
     """Create and run one bot instance, converting crashes into a clean halt."""
+    import error_telemetry
     instance = BotInstance.__new__(BotInstance)
     try:
         os.makedirs("debug_frames", exist_ok=True)
@@ -728,6 +729,7 @@ def run_bot_instance(discord_bot, queue_data, stop_event=None, runtime_control=N
             device_label=device_label,
         )
     except Exception as error:
+        error_telemetry.report('startup_failed', 'critical', error, device_key or serial, 'startup')
         # Initialization can fail after capture acquired the device. Release it
         # so a retry doesn't leave a permanent DEVICE_BUSY lock or video thread.
         controller = getattr(instance, 'window_controller', None)
@@ -748,6 +750,7 @@ def run_bot_instance(discord_bot, queue_data, stop_event=None, runtime_control=N
     try:
         instance.main()
     except BotHalt as halt:
+        error_telemetry.report('runtime_halted', 'error', halt, device_key or serial, 'runtime')
         instance.close()
         return {"ok": False, "message": str(halt)}
     except SystemExit as exit_error:
@@ -756,6 +759,7 @@ def run_bot_instance(discord_bot, queue_data, stop_event=None, runtime_control=N
         return {"ok": code in (0, None), "message": f"xlamBOT exited with code {code}."}
     except Exception as error:
         traceback.print_exc()
+        error_telemetry.report('runtime_crash', 'critical', error, device_key or serial, 'runtime')
         instance.close()
         return {"ok": False, "message": str(error)}
     finally:

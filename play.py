@@ -619,6 +619,9 @@ class Play:
         try:
             detections = self.Detect_gas.detect_objects(image, conf_tresh=self.gas_confidence)
         except Exception as error:
+            import error_telemetry
+            error_telemetry.report('gas_detector_failed', 'error', error,
+                                   device=getattr(getattr(self, 'window_controller', None), 'serial', None), stage='model')
             print(f"Gas detection failed: {error}")
             self.gas_detection_ok = False
             self._gas_retry_at = time.time() + 1

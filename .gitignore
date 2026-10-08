@@ -16,3 +16,12 @@ web_resources/
 .env*
 cfg/match_history*
 cfg/cfg.zip
+error_reports/
+telemetry-state/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+node_modules/
+.wrangler/
+wrangler.local.jsonc
+.dev.vars*
