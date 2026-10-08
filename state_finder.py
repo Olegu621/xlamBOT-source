@@ -137,6 +137,9 @@ def get_in_game_state(image):
         from club_suggestion import club_suggestion_close_position
         if club_suggestion_close_position(image) is not None:
             return "club_suggestion"
+        from seasonal_rewards import seasonal_announcement_dismiss_position
+        if seasonal_announcement_dismiss_position(image) is not None:
+            return "seasonal_announcement"
         from screen_evidence import daily_reward
         if daily_reward(image):
             return 'daily_reward'
