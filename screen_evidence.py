@@ -74,7 +74,8 @@ def unsupported_lobby_mode(frame):
 
 
 def daily_reward(frame):
-    return coin_reward(frame) or (_find(frame,DAILY_WINS,270,(0,0,.35,.16),threshold=.9) is not None and
+    from seasonal_rewards import modern_daily_reward
+    return modern_daily_reward(frame) or coin_reward(frame) or (_find(frame,DAILY_WINS,270,(0,0,.35,.16),threshold=.9) is not None and
             _find(frame,TAP_REWARD,270,(.36,0,.65,.16),threshold=.83) is not None)
 
 
