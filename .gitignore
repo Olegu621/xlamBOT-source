@@ -21,3 +21,7 @@ telemetry-state/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+node_modules/
+.wrangler/
+wrangler.local.jsonc
+.dev.vars*

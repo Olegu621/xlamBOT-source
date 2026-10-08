@@ -125,8 +125,12 @@ network connectivity and PC power/sleep/sign-in state. This is not an unlimited
 hosting or uptime guarantee. No paid subscription or usage billing is enabled by
 this setup. See https://ngrok.com/docs/pricing-limits/free-plan-limits .
 
-The PC client uses the account-bound receiver at
-`https://cramp-remold-subzero.ngrok-free.dev`. Sending remains opt-in. The
-endpoint was verified through HTTPS registration, an authenticated synthetic
-report and a successful Telegram outbox acknowledgement; the setup page is not
-public. The prior temporary Cloudflare/Pinggy proof is not a delivery address.
+The PC client uses the managed Cloudflare receiver at
+`https://xlambot-error-receiver.olegu621.workers.dev`. Sending remains opt-in.
+The endpoint was verified through HTTPS registration, an authenticated synthetic
+report and a successful Telegram outbox acknowledgement. The setup page is not
+public. No running PC or ngrok connector is needed for this deployment. D1 stores
+reports and the durable outbox; Telegram credentials are Worker secrets. See
+`telemetry_worker/README.md` for deployment, free quotas and retention. Windows
+hosting above remains an optional alternative; prior tunnel URLs are not the
+client delivery address.
