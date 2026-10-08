@@ -429,22 +429,27 @@ class TrophyObserver:
             )
 
     def add_trophies(self, parsed_result: ParsedGameResult, current_brawler, playstyle_info, underdog, power_level=None):
-        if self.current_trophies is None:
-            self.current_trophies = 0
         old_trophies = self.current_trophies
-        if old_trophies >= 2000:
+        known_trophies = isinstance(old_trophies, int) and old_trophies >= 0
+        if known_trophies and old_trophies >= 2000:
             underdog = False
         old_win_streak = self.win_streak
 
         if parsed_result.result == MatchResult.VICTORY:
             self.win_streak += 1
+        elif parsed_result.result == MatchResult.DEFEAT and not underdog:
+            self.win_streak = 0
+
+        trophy_delta = None
+        if not known_trophies:
+            # A result confirms an outcome, not the missing starting count.
+            pass
+        elif parsed_result.result == MatchResult.VICTORY:
             if parsed_result.place is not None:
                 trophy_delta = self.calc_showdown_delta(parsed_result.place)
             else:
                 trophy_delta = self.calc_win_increment(underdog)
         elif parsed_result.result == MatchResult.DEFEAT:
-            if not underdog:
-                self.win_streak = 0
             if parsed_result.place is not None:
                 trophy_delta = self.calc_showdown_delta(parsed_result.place)
             else:
@@ -458,12 +463,11 @@ class TrophyObserver:
         else:
             print("Catastrophic failure")
             trophy_delta = 0
-        if self.current_trophies >= 1000 and self.current_trophies + trophy_delta < 1000:
-            self.current_trophies = 1000
-        elif self.current_trophies >= 2000 and self.current_trophies + trophy_delta < 2000:
-            self.current_trophies = 2000
-        else:
-            self.current_trophies += trophy_delta
+        if trophy_delta is not None:
+            floor = 2000 if old_trophies >= 2000 else 1000 if old_trophies >= 1000 else 0
+            self.current_trophies = max(floor, old_trophies + trophy_delta)
+            # History and the displayed count must describe the same change.
+            trophy_delta = self.current_trophies - old_trophies
 
         print(f"Trophies: {old_trophies} -> {self.current_trophies}")
         print(f"Win Streak: {old_win_streak} -> {self.win_streak}")
@@ -475,7 +479,7 @@ class TrophyObserver:
         self.match_history.append({
             "date_time": datetime.now().isoformat(),
             "account_tag": load_toml_as_dict("cfg/general_config.toml").get("player_tag", ""),
-            "trophy_source": "estimated",
+            "trophy_source": "estimated" if trophy_delta is not None else "unknown",
             "brawler_name": current_brawler,
             "result": parsed_result.result.value,
             "current_trophies": old_trophies,

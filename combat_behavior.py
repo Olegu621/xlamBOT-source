@@ -44,9 +44,13 @@ class CombatBehavior:
             pos=position(box);distance=math.dist(pos,player)
             help_distance=min((math.dist(pos,a) for a in nearby_allies),default=attack_range*2)
             return distance+(0 if visible(box) else attack_range*.75)+min(help_distance,attack_range)*.15
-        candidate=min(enemies,key=score)
+        # An obstructed nearby opponent must not silence an available shot at
+        # another opponent already in range. Keep the same wall checks.
+        hittable = [b for b in enemies if visible(b) and math.dist(position(b), player) <= attack_range]
+        candidates = hittable or enemies
+        candidate=min(candidates,key=score)
         if self.target is not None and now-self.seen<.7:
-            previous=min(enemies,key=lambda b:math.dist(position(b),self.target))
+            previous=min(candidates,key=lambda b:math.dist(position(b),self.target))
             if math.dist(position(previous),self.target)<max(tile*2,attack_range*.18) and score(previous)<=score(candidate)+max(tile,attack_range*.12):candidate=previous
         point=position(candidate)
         if self.target is None or math.dist(point,self.target)>tile*2:self.side=1 if point[1]>=player[1] else -1

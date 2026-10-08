@@ -14,7 +14,8 @@
   'Управление ботом':'Bot controls', 'Настройки устройства':'Device settings',
   'Режим работы':'Bot mode','Сидеть в кустах':'Bush camping','Выживание':'Survival','Баланс':'Balanced','Агрессия':'Aggressive','Натиск':'Onslaught',
   'Сохраняется отдельно для этого устройства':'Saved separately for this device',
-  'Применяется в игре · газ и стены остаются запретом':'Applies during play · gas and walls stay blocked'
+  'Применяется в игре · газ и стены остаются запретом':'Applies during play · gas and walls stay blocked',
+  'Остановите бот на этом устройстве перед изменением очереди или бойца.':'Stop the bot on this device before changing its queue or brawler.'
  });
  Object.assign(catalog,{
   'Запись создана прежней панелью. Проверьте кадры заново для всех классов: прежние рамки могли не сохраниться.':'This recording was created by an older panel. Review all classes again; previous boxes may not have been saved.',

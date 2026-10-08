@@ -353,6 +353,9 @@ def is_in_prestige_milestone(image):
 
 
 def is_in_star_drop(image):
+    from loony_loot import is_loony_loot
+    if is_loony_loot(image):
+        return 'loony'
     for image_filename in images_with_star_drop:
         if is_template_in_region(image, star_drops_path + image_filename, region_data['star_drop']):
             if "angelic" in image_filename.lower(): return "angelic"
