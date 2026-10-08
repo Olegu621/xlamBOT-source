@@ -76,3 +76,36 @@ backups and Telegram history need their own retention policy.
 
 Server code is in `telemetry_service/`, deliberately excluded from the PC release
 builder. The client requires no bootstrap change or new installer.
+
+## Windows host
+
+Use a separate Python 3.13 environment and install
+`telemetry_service/requirements-windows.txt`. From a private runtime directory
+containing `error_telemetry.py` and `telemetry_service/`, run:
+
+```powershell
+pythonw -m telemetry_service.windows_start --home "C:/your-private-receiver-folder"
+```
+
+Place the official `cloudflared.exe` in that private folder. The launcher uses a
+per-user singleton mutex, starts Waitress on 127.0.0.1:8088, and opens a separate
+setup listener on 127.0.0.1:8110. Open `http://127.0.0.1:8110/`, enter the bot token,
+send `/start` to the bot, discover/select your private Telegram chat, save, and
+use the explicit test-message button. Setup validates Host and a random CSRF
+token, is not routed through the public connector, and never echoes stored tokens.
+
+The Telegram token uses current-user Windows DPAPI encryption. Keep the private
+folder outside Git; copying it to another Windows account does not copy the
+ability to decrypt it. The receiver reads updated credentials without restarting.
+The public listener trusts one proxy hop and must remain bound to loopback.
+
+For automatic startup, create a shortcut in the current user's Startup folder
+with the environment's `pythonw.exe`, the command above, and the runtime directory
+as working directory. This starts after Windows sign-in, not before sign-in.
+
+`host-status.json` records local/tunnel state and `connector-last-lines.txt` retains
+only the last thirty connector log lines. A failed initial tunnel connection is
+stopped after 45 seconds; the local receiver and configuration UI keep working.
+The launcher does not repeatedly restart a failing connector. A temporary
+trycloudflare address changes after restart and must not be shipped to users as
+a permanent update endpoint. Configure and test a stable connector before release.

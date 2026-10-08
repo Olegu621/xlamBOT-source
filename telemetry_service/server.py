@@ -14,7 +14,8 @@ import requests
 from error_telemetry import clean_event
 
 
-def create_app(database=None, token=None, chat_id=None, session=None, start_worker=True):
+def create_app(database=None, token=None, chat_id=None, session=None, start_worker=True,
+               credentials_provider=None):
     app = Flask(__name__)
     app.config['MAX_CONTENT_LENGTH'] = 32768
     database = str(database or os.environ.get('TELEMETRY_DATABASE', 'telemetry-state/reports.sqlite'))
@@ -106,7 +107,8 @@ def create_app(database=None, token=None, chat_id=None, session=None, start_work
         return jsonify(accepted=item['id']), 202
 
     def deliver_once():
-        if not token or not chat_id:
+        delivery_token, destination = credentials_provider() if credentials_provider else (token, chat_id)
+        if not delivery_token or not destination:
             return False
         now = time.time()
         with lock, connect() as db:
@@ -128,8 +130,8 @@ def create_app(database=None, token=None, chat_id=None, session=None, start_work
                    f"Reports: {row['total']} · installations: {row['users']}\n"
                    f"{example['exception']}\n{example['trace']}")[:4000]
         try:
-            response = session.post('https://api.telegram.org/bot'+token+'/sendMessage',
-                json={'chat_id':chat_id,'text':message,'link_preview_options':{'is_disabled':True}},
+            response = session.post('https://api.telegram.org/bot'+delivery_token+'/sendMessage',
+                json={'chat_id':destination,'text':message,'link_preview_options':{'is_disabled':True}},
                 timeout=(3,10),allow_redirects=False)
             response.raise_for_status()
             if response.status_code != 200 or response.json().get('ok') is not True:
