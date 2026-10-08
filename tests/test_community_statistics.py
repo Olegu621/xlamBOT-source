@@ -60,6 +60,7 @@ class CommunityStatisticsTests(unittest.TestCase):
     def test_unacknowledged_batches_are_retried_with_identical_ids(self):
         self.history([self.row()]);self.service.configure(True);self.service.sync()
         self.service.cursors={}
+        self.service.recent_ids=[]
         payload=self.sent[-1][1]['matches']
         self.session.post.return_value=Mock(status_code=503)
         self.session.post.side_effect=lambda *a,**kw:Mock(status_code=503)
@@ -70,9 +71,9 @@ class CommunityStatisticsTests(unittest.TestCase):
         rows=[self.row() for _ in range(51)]
         self.history(rows);batch,cursors=self.service.history_batch();self.assertEqual(len(batch),50)
         self.assertEqual(len({r['id'] for r in batch}),50)
-        self.service.cursors=cursors;self.assertEqual(len(self.service.history_batch()[0]),1)
+        self.service.cursors=cursors;self.service.recent_ids=[m['id'] for m in batch];self.assertEqual(len(self.service.history_batch()[0]),1)
         self.history(rows[:1]);self.service.cursors=self.service.history_batch()[1]
-        again,_=self.service.history_batch();self.assertEqual(again[0]['id'],batch[0]['id'])
+        again,_=self.service.history_batch();self.assertEqual(again,[])  # Already acknowledged recent IDs survive truncation.
         self.service.cursors={}
         self.history([self.row(trophy_delta='nan'),self.row(trophy_delta='5',trophy_source='legacy')])
         batch,_=self.service.history_batch();self.assertEqual(len(batch),1);self.assertIsNone(batch[0]['delta'])
@@ -89,5 +90,18 @@ class CommunityStatisticsTests(unittest.TestCase):
             return Mock(status_code=200,json=lambda:{'installation':'a'*32,'token':'b'*64})
         self.session.post.side_effect=post;self.service.configure(True);self.service.sync()
         self.assertEqual(self.session.post.call_count,1)
+    def test_new_device_results_bypass_older_legacy_backlog(self):
+        from datetime import datetime,timedelta
+        self.history([self.row(date_time=(datetime.now()-timedelta(days=3,seconds=i)).isoformat()) for i in range(200)])
+        path=self.root/'devices/emulator-SECOND/cfg/match_history.csv';path.parent.mkdir(parents=True)
+        row=self.row(date_time=datetime.now().isoformat(),trophy_delta='12')
+        with path.open('w',encoding='utf-8',newline='') as f:
+            writer=csv.DictWriter(f,fieldnames=list(row));writer.writeheader();writer.writerow(row)
+        self.service.configure(True);self.service.sync()
+        batch=self.sent[-1][1]['matches'];self.assertEqual(len(batch),50)
+        self.assertEqual(batch[0]['delta'],12)
+        self.assertGreaterEqual(self.service.cursors['devices/emulator-SECOND/cfg/match_history.csv'],1)
+        self.assertLess(self.service.cursors['cfg/match_history.csv'],200)
+        self.service.sync();self.assertNotIn(batch[0]['id'],{m['id'] for m in self.sent[-1][1]['matches']})
 
 if __name__=='__main__':unittest.main()
