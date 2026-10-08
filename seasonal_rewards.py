@@ -105,3 +105,26 @@ def gadget_reward(frame):
     for c in contours:
         if cv2.contourArea(c)>h*h*.025:cv2.drawContours(mask,[c],-1,255,-1)
     return _match(mask,_glyph(GADGET_OUTLINE,h))
+
+def credits_reward(frame):
+    """A credits receipt needs its title, central token glyph and blue backdrop."""
+    if frame is None or frame.ndim != 3 or frame.shape[2] != 3:
+        return False
+    h, w = frame.shape[:2]
+    background = frame[round(h*.85):round(h*.96), round(w*.08):round(w*.92)].astype(np.float32)
+    if not background.size:
+        return False
+    blue = (background[:,:,2] > background[:,:,0]*1.35) & (background[:,:,2] > background[:,:,1]*1.2)
+    if blue.mean() < .9:
+        return False
+    header = frame[round(h*.18):round(h*.35), round(w*.28):round(w*.72)]
+    if not _match(np.all(header > 205, axis=2).astype(np.uint8)*255, _glyph(CREDITS_TITLE, h)):
+        return False
+    icon = frame[round(h*.4):round(h*.72), round(w*.38):round(w*.65)]
+    cyan = (icon[:,:,0] < 100) & (icon[:,:,1] > 150) & (icon[:,:,2] > 180)
+    if not cyan.size or cyan.mean() < .12:
+        return False
+    return _match(cv2.cvtColor(icon, cv2.COLOR_RGB2GRAY), _glyph(CREDITS_ICON, h))
+
+CREDITS_TITLE = 'iVBORw0KGgoAAAANSUhEUgAAARgAAAA8CAAAAACYr/rEAAAFRklEQVR4Ae3BUbasKBQFwcz5D3p3CVoeLMD33etGyJ8p+TMlf6bkz5TMhZP834WL3ORXeJAiTMmvsCGnMCMzYUU+whsZhSdp5CnMyCmsyShsyCmsyENYE8IrKcKUfMgoLEgXdqQKG9KFDRmENSG8k6+wICCDsCJd2JIi7EgTtqQIa0J4J5ewJEgV1qQJL+Qr7EgT9uQW1oTwTk5hTZAibEgTXshX2JEmvJCvsCaEd9KFNQG5hQ3pwhu5hB1pwhu5hDUhvJMmbAjIV9iRLrySU9iRJrySU1gTwjs5hB0BuYQt6cIrOYUdacI76cKaEN7JIewIyCXsyCm8ky5sSBfeSRfWhPBODmFDPuQUtuQU3kkXNqQL/0CasCaEV3IIO/Ihp7Ajl/BOurAhXfgH0oUVgfBKDmFDDtKFLbmESsIv6cJAZsK/kCJU8hXeyCE8SBM+5CBd+CFNAPkKlRzCSLpQyVSoJMxIESqZCJWMwkguQRppwpPMhUqaMJAuVDIVKjmEJylCJROhklEYyC9pwoMshEqaMJAuVDIVKunCg9xCJROhklEYyC9pwkhWQiVdqKQLlUyFSk5hJLdQyUSoZBRG8kMOYSRLoZIuVNKFSqZCJacwkluoZCJUMgoP8iSHMJKlUEkXKulCJVOhkksYyC1UMhEqGYUfMpJDGMhaqKQLlXShkqlQySUM5BYqmQiVjMKEVHIIA1kLlTShklMYyEyo5BIGcguVTIRKHsKM3OQQBrIWKmlCJaewILdQySWM5CtUMhEqeQhzcpFDGMhaqOQQBnIKC3ILlVzCSL5CJROhkoewIp0cwkDWQiUfYSCXsCC3UMkljOQrVDIRKnkKK9LIIQxkLbyRS1iQW6jkEkbyFSqZCJU8hSU5yCEMZC28kK+wILdQySWM5CtUMhEq+RGW5EMOYSBrYU9uYUFuoZJLGMlXqGQiVPIrLAnIIQxkLWxJERbkFiq5hJF8hUomQiUTYUVADmEga2FHqrAgt1DJJQzkFiqZCJXMhBVBDmEga2FHqrAgt1DJJQzkFiqZCJXMhTlBDmEga2FHqrAgt1DJJQzkFiqZCJUshDmRQxjIWtiSIlQyFSq5hIHcQiUToZKlMCNyCCNZCltShEqmQiWXMJBbqGQiVLIRfokcwkiWwp7cQiVToZJTGMktVDIRKtkKTyKH8CAroRLCQG6hkqlQySmM5BYqmQiVPESq8CDShAdZCJUQRvIVKpkKlXRhJEWoZCJU8hCQIoxEmvAkc6ESCCO5hEqmQiVNeJAiVDIRKhmFg3yFkUgTfskpIJdQCYSRXEIlU6GSQ3iSIlQyESoZhUZO4UGkC3tyCpV8hJGcQiVToRIIv6QIlUyESgbhSz7Ck0gX9uQUKvkIIzmFDenCP5AurMggVDIIb0S68EK6UMkhjKQLG9KFfyBdWJIqVDIILwQ5hT3pQiWH8CBN2JEmvJMurEkVKhmEF4Jcwp40oZJDeJAm7EgT3kkX1qQKlQzCC0EuYU+aUEkTHuQQdqQJr+QU1qQKlQzCnoB8hS1pQiVNeJBD2JEmvJFL2JAiVDIIewJyC1tyCJV04UE+wo404YV8hQ0pQiWDsCUfUoQdOYRKujCSQ9iRJuzJLWxIESoZhB05SBU25BAqOYVKmrAjTdiSIqxJFSoZhQ05yCAsSRMqOYVCurAjTdiRKqxJFSp5CEvSyEOYky5Ucgpfcgkb0oU1GYU1qUIlT2FOTvIUJuQSKrmEk3yFDTmFOfkVlqQKlfwKE3KRiTCQKtzkFg5ShTW5hCdZCCsyCjeZCiMp5M+U/JmSP1P/AXxFr0xtfrJPAAAAAElFTkSuQmCC'
+CREDITS_ICON = 'iVBORw0KGgoAAAANSUhEUgAAAGQAAAAuCAAAAAD7SuOCAAAEFUlEQVRYCbXBX2iVZQDH8e/veefmnI+uzRrqjEyEqMguMlpo03beYlGkWSC8A+m+7koKDLrSdREE3aTuzosgIgiRCSkUaFFgTdP+aKabbk7kbHOunf0553163rNDoJ6zvY35+Qiof3Et0Ilnw4g7CO+vH4YcXrB01a7GFdxNFDnKURA7Pfi6CejEs2HEHUTi7KlhPAd29+PiLqLIUY7qR2OCtg0BnXg2jCir8PvpIXAOVNu2cwnpGdDn7ww4mnbW0olnw4jyps6fyUKMV7vmtSdqScuA+t4+HGN2rHMf4dkwooLJC2dvEJOoali/5dElpGNAvbu/LEDbRu3Ds2FEJbnBc5diZtSueHLrWlIxoCNHuqbguWeX7sGzYURF09fO9sZ5ZixvzzSShgEd6OmagtaW+vfwbBhR2fRQ76VBStpeXUMaBnSgp2sKWlvqPsCzYcQs3PjVi1dyyIHatjWThkAHerqmoLXF7MWzYcQsHPmhvt5+h5fZ1kwaAn3268EpaG2hE8+GEZUJB4Wrf57PA5ltzaQhUMP0mIOaGkbxbBhRmSTAjR/6B9i8/WHSEIjb2DCiEknM2D8Gbv32ZwJSUGFc3MaGEZXIULL/FlCz9ZWVAXPTzZ9VTckUng0jKjGipOumA5ZvCusDELObvvyF3qdkH54NI8pyEBhKvurLk6hf38gcYi4O5PQtJVvwbBhRlgNjxIxTP46T2qJCQd2UtOPZMKIsB0aGGTe+HiE1B+qmpB3PhhFlORDGUDR54o8caTlQNyXteDaMKMsBQiJRGPtuYLJAOg7UTUk7ng0jynIkREIFhn67cIt0BOqmpB3PhhGpjFwbGBwpOMAxuyqa1A3CAe14NoyYm4DJsdFcIXYQM7tqWXUjR6Idz4YRcxMz4tgxpyqhb6YLsQkml1W14tkwYm6ixDkk5qTDLlYQTPb378WzYURlwhP/mz50XnxubOIkng0jKjMCBI6EKHLMTqCN5AT1VB/Hs5kOKjISRY6EHAkxJ727sq7GkGNdBs9mOihLIIn5Ud/iKooa8Gymg7IERsyThp2jqBHPZjooSyDDPGnYOYoa8Wymg7IEkpgfDTtHUSNe3fO7RDkCCTEvypIQNOBp01tVlCM8g5gPZUnITawmseHNVRBQgZgXZUkov/cTEqtfboOAhaUsnuLvz+whUbNhZzMBC0tZiqaq1k7kAdVv3lEbsLCUJaH8wBtXJvDMAy9tqWNhKQsod+HYTz2jEySqml54qkksJGVBg4dO5haN9Y6CA8x9Tz+26v7FEgtFWeDj49Xg/r5RcI6Emh55yFYbFoqGcIWDR/MyZvjKqHP8Z5FhoWgIp5GjpweGJ/MD2YLjXtAQDgVu4Pr14f5jv0xyL+jyMmcgiGNkjn96Ypp74F/2aVl7EXpBXAAAAABJRU5ErkJggg=='
