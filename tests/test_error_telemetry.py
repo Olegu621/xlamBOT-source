@@ -3,8 +3,9 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
+from types import SimpleNamespace
 
-from error_telemetry import ErrorTelemetry, clean_event
+from error_telemetry import ErrorTelemetry, clean_event, runtime_revision
 from telemetry_service.server import create_app
 
 
@@ -23,6 +24,16 @@ class ReceiverSession:
 
 
 class ErrorReportsTest(unittest.TestCase):
+    def test_pending_and_fallback_reports_identify_executing_overlay(self):
+        bootstrap=SimpleNamespace(ACTIVE_OVERLAY=Path('releases/74/content'),BUNDLED_REVISION=60,
+                                  read_state=Mock(return_value={'revision':72,'pending':74}))
+        self.assertEqual(runtime_revision(bootstrap),74)
+        bootstrap.ACTIVE_OVERLAY=Path('releases/71/content')
+        self.assertEqual(runtime_revision(bootstrap),71)
+        bootstrap.ACTIVE_OVERLAY=None
+        self.assertEqual(runtime_revision(bootstrap),60)
+        bootstrap.read_state.assert_not_called()
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
