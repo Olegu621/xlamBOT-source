@@ -11,7 +11,7 @@ def _title(width, height):
     raw = cv2.imdecode(np.frombuffer(base64.b64decode(TITLE), np.uint8), 0)
     resized = cv2.resize(raw, (max(1, round(raw.shape[1]*width/1280)),
                               max(1, round(raw.shape[0]*height/720))))
-    return cv2.Canny(resized, 80, 160)
+    return (resized > 210).astype(np.uint8)
 
 def is_loony_loot(frame):
     if frame is None or frame.ndim != 3 or frame.shape[2] != 3:
@@ -21,6 +21,8 @@ def is_loony_loot(frame):
     glyph = _title(width, height)
     if not crop.size or any(crop.shape[i] < glyph.shape[i] for i in (0, 1)):
         return False
-    edges = cv2.Canny(cv2.cvtColor(crop, cv2.COLOR_RGB2GRAY), 80, 160)
-    score = cv2.minMaxLoc(cv2.matchTemplate(edges, glyph, cv2.TM_CCOEFF_NORMED))[1]
+    # Rarity changes animate and recolor the background behind the same title.
+    # Match the white letters, excluding colored rays and their moving edges.
+    letters = (crop.min(axis=2) > 210).astype(np.uint8)
+    score = cv2.minMaxLoc(cv2.matchTemplate(letters, glyph, cv2.TM_CCORR_NORMED))[1]
     return score >= .90
