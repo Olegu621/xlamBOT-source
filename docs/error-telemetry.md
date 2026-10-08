@@ -87,7 +87,7 @@ containing `error_telemetry.py` and `telemetry_service/`, run:
 pythonw -m telemetry_service.windows_start --home "C:/your-private-receiver-folder"
 ```
 
-Place the official `cloudflared.exe` in that private folder. The launcher uses a
+Place the signed official `ngrok.exe` in that private folder. The launcher uses a
 per-user singleton mutex, starts Waitress on 127.0.0.1:8088, and opens a separate
 setup listener on 127.0.0.1:8110. Open `http://127.0.0.1:8110/`, enter the bot token,
 send `/start` to the bot, discover/select your private Telegram chat, save, and
@@ -103,9 +103,27 @@ For automatic startup, create a shortcut in the current user's Startup folder
 with the environment's `pythonw.exe`, the command above, and the runtime directory
 as working directory. This starts after Windows sign-in, not before sign-in.
 
-`host-status.json` records local/tunnel state and `connector-last-lines.txt` retains
-only the last thirty connector log lines. A failed initial tunnel connection is
-stopped after 45 seconds; the local receiver and configuration UI keep working.
-The launcher does not repeatedly restart a failing connector. A temporary
-trycloudflare address changes after restart and must not be shipped to users as
-a permanent update endpoint. Configure and test a stable connector before release.
+Open the free ngrok account dashboard, copy its agent Authtoken into the local
+setup UI's separate ngrok field, and select Connect. This is not the Telegram
+token. Its credential is separately protected by DPAPI. The agent receives it
+through its environment, not a command-line argument or plaintext YAML file.
+HTTP body inspection, remote agent management and automatic updates are disabled;
+the local agent API is bound to 127.0.0.1:4041. A Windows job kills owned descendant
+processes if the launcher exits, preventing abandoned connector processes.
+
+`host-status.json` records receiver state; `ngrok-status.json` records only
+connector state/public URL. A failed initial connection times out after 45 seconds,
+with at most three launch attempts. The local receiver/configuration UI remain
+available; Retry is an explicit operator action. An agent-running state does not
+prove public health: verify the HTTPS endpoint and real report delivery before
+publishing it in the client.
+
+The ngrok free account provides an assigned dev domain that persists across
+restarts, without an hourly session timeout. Current free limits are 20,000 HTTP
+requests and 1 GB transfer per month; availability is subject to those limits,
+network connectivity and PC power/sleep/sign-in state. This is not an unlimited
+hosting or uptime guarantee. No paid subscription or usage billing is enabled by
+this setup. See https://ngrok.com/docs/pricing-limits/free-plan-limits .
+
+The prior temporary Cloudflare/Pinggy proof is not a permanent delivery address.
+Configure and test the account-bound ngrok domain before the PC bot release.

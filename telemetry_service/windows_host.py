@@ -15,8 +15,8 @@ from telemetry_service.server import create_app
 
 
 class SecretStore:
-    def __init__(self, home):
-        self.path = Path(home)/'telegram.private.json'
+    def __init__(self, home, filename='telegram.private.json'):
+        self.path = Path(home)/filename
         self.lock = threading.RLock()
     def load(self):
         import win32crypt
@@ -51,7 +51,10 @@ button{background:#9e7cf0;color:#171121;font-weight:700;cursor:pointer}p{line-he
 <button id="discover">Найти мой Telegram</button><small>Сначала открой своего бота в Telegram и отправь /start. При нескольких чатах выбери свой.</small>
 <label for="chat">Получатель уведомлений</label><select id="chat"><option value="">Сначала найди свой Telegram</option></select>
 <button id="save">Сохранить подключение</button><button id="test">Отправить проверочное сообщение</button>
-<p id="status" role="status">Проверяем подключение…</p><p>Для всех пользователей понадобится постоянный HTTPS-адрес. Временный туннель предназначен для проверки. ПК должен оставаться включённым.</p></main>
+<p id="status" role="status">Проверяем подключение…</p>
+<h2>Бесплатный постоянный адрес</h2><p>Войди в бесплатный аккаунт <a href="https://dashboard.ngrok.com/get-started/your-authtoken" target="_blank" rel="noreferrer">ngrok</a> и скопируй свой Authtoken. Это отдельный ключ, не токен Telegram.</p>
+<label for="ngrokToken">ngrok Authtoken</label><input id="ngrokToken" type="password" autocomplete="off" spellcheck="false"><button id="connectNgrok">Подключить постоянный адрес</button><button id="retryNgrok">Повторить подключение</button>
+<p id="ngrokStatus" role="status"></p><p>Адрес сохраняется после перезапуска. Лимиты бесплатного тарифа: 20 000 запросов и 1 ГБ в месяц. Сервер доступен, пока ПК включён, не спит и есть интернет.</p></main>
 <script>
 const csrf={{ csrf|tojson }};
 async function call(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-Setup-Token':csrf},body:JSON.stringify(body)});const data=await r.json();if(!r.ok)throw Error(data.message);return data;}
@@ -61,10 +64,14 @@ document.getElementById('discover').onclick=function(){action(this,async()=>{con
 document.getElementById('save').onclick=function(){action(this,async()=>{await call('/configure',{token:token.value,chat_id:chat.value});token.value='';status.textContent='Подключение сохранено. Можно отправить проверочное сообщение.';});};
 document.getElementById('test').onclick=function(){action(this,async()=>{await call('/test',{});status.textContent='Проверочное сообщение отправлено в твой Telegram.';});};
 call('/status',{}).then(d=>status.textContent=d.configured?'Telegram подключён. Приёмник работает.':'Приёмник работает. Осталось подключить Telegram.').catch(e=>status.textContent=e.message);
+async function ngrokStatus(){try{const d=await call('/ngrok/status',{});const labels={credentials_required:'Сначала сохрани ngrok Authtoken.',connecting:'Подключаем постоянный адрес…',agent_running:'Туннель запущен.',connection_failed:'Не удалось подключиться. Проверь Authtoken и доступ к сети.'};document.getElementById('ngrokStatus').textContent=(labels[d.state]||'Туннель недоступен.')+(d.public_url?' Адрес: '+d.public_url:'');}catch(e){document.getElementById('ngrokStatus').textContent=e.message;}}
+document.getElementById('connectNgrok').onclick=function(){action(this,async()=>{await call('/ngrok/configure',{token:document.getElementById('ngrokToken').value});document.getElementById('ngrokToken').value='';await ngrokStatus();});};
+document.getElementById('retryNgrok').onclick=function(){action(this,async()=>{await call('/ngrok/retry',{});await ngrokStatus();});};
+ngrokStatus();setInterval(ngrokStatus,5000);
 </script></html>'''
 
 
-def setup_app(store, session=None):
+def setup_app(store, session=None, connector=None):
     app = Flask('xlambot-local-setup')
     app.config['MAX_CONTENT_LENGTH'] = 4096
     csrf = secrets.token_urlsafe(32)
@@ -99,6 +106,22 @@ def setup_app(store, session=None):
     def status():
         token,chat=store.load()
         return jsonify(configured=bool(token and chat))
+    @app.post('/ngrok/status')
+    def ngrok_status():
+        return jsonify(connector.status() if connector else {'state':'credentials_required'})
+    @app.post('/ngrok/configure')
+    def ngrok_configure():
+        if connector is None:
+            raise ValueError('Подключение ngrok пока недоступно.')
+        payload=request.get_json(silent=True) or {}
+        if not isinstance(payload,dict):
+            raise ValueError('Неверные настройки')
+        return jsonify(connector.configure(payload.get('token','')))
+    @app.post('/ngrok/retry')
+    def ngrok_retry():
+        if connector is None:
+            raise ValueError('Подключение ngrok пока недоступно.')
+        return jsonify(connector.retry())
     @app.post('/discover')
     def discover():
         payload=request.get_json(silent=True) or {}
@@ -152,6 +175,9 @@ def main():
     from waitress import create_server
     from werkzeug.middleware.proxy_fix import ProxyFix
     store=SecretStore(args.home)
+    from telemetry_service.windows_ngrok import NgrokConnector
+    connector=NgrokConnector(args.home,SecretStore(args.home,'ngrok.private.json'))
+    connector.start()
     app=create_app(database=args.home/'reports.sqlite',credentials_provider=store.load)
     # Only this loopback listener is exposed through the Cloudflare connector.
     app.wsgi_app=ProxyFix(app.wsgi_app,x_for=1)
@@ -160,7 +186,7 @@ def main():
         return jsonify(ok=True,service='xlambot-error-receiver')
     logging.getLogger('urllib3').setLevel(logging.WARNING)
     receiver=create_server(app,host='127.0.0.1',port=8088,threads=4)
-    setup=create_server(setup_app(store),host='127.0.0.1',port=8110,threads=2)
+    setup=create_server(setup_app(store,connector=connector),host='127.0.0.1',port=8110,threads=2)
     threading.Thread(target=receiver.run,daemon=True,name='error-receiver').start()
     setup.run()
 
