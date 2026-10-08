@@ -291,6 +291,10 @@ def menu_back_position(image):
         return None
     if not (is_in_brawler_selection(image) or is_in_shop(image) or is_in_brawl_pass(image)):
         return None
+    from menu_controls import back_arrow_position
+    position = back_arrow_position(image)
+    if position is not None:
+        return position
     height, width = image.shape[:2]
     x, y, rw, rh = region_data['go_back_arrow']
     left, top = int(x * width / orig_screen_width), int(y * height / orig_screen_height)
