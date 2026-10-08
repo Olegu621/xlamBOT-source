@@ -1,5 +1,6 @@
 """Voluntary anonymous aggregates. No gameplay thread performs network IO."""
 import csv
+from collections import deque
 from datetime import datetime
 import hashlib
 import json
@@ -23,6 +24,7 @@ class CommunityStatistics:
         self.wake, self.stopped = threading.Event(), threading.Event()
         self.enabled, self.clear_presence = True, False
         self.salt, self.credentials, self.cursors = uuid.uuid4().hex, {}, {}
+        self.recent_ids = []
         self.last_sent, self.sent_matches, self.state, self.epoch = None, 0, 'ready', 0
         self.thread = None
         try:
@@ -36,6 +38,9 @@ class CommunityStatistics:
                         re.fullmatch('[a-f0-9]{32}', str(c.get('installation')))):
                     self.credentials = c
                 self.cursors = {k:v for k,v in saved.get('cursors', {}).items() if isinstance(k,str) and type(v) is int and v>=0}
+                ids = saved.get('recent_ids', [])
+                if isinstance(ids, list):
+                    self.recent_ids = [v for v in ids[-2048:] if isinstance(v,str) and re.fullmatch('[a-f0-9]{32}',v)]
                 self.last_sent = saved.get('last_sent')
                 self.sent_matches = max(0, int(saved.get('sent_matches', 0)))
                 self.state = 'ready' if self.enabled else 'disabled'
@@ -48,7 +53,7 @@ class CommunityStatistics:
         self.root.mkdir(parents=True, exist_ok=True)
         temporary = self.root/'state.tmp'
         temporary.write_text(json.dumps({key:getattr(self,key) for key in
-            ('enabled','salt','credentials','cursors','last_sent','sent_matches')}), 'utf-8')
+            ('enabled','salt','credentials','cursors','recent_ids','last_sent','sent_matches')}), 'utf-8')
         os.replace(temporary, self.root/'state.json')
 
     def configure(self, enabled):
@@ -76,24 +81,24 @@ class CommunityStatistics:
         return hashlib.sha256((self.salt+'\0'+value).encode()).hexdigest()[:32]
 
     def history_batch(self):
-        """Stream history, isolate corrupt files; acknowledge cursors only after upload."""
+        """Prioritize recent results and fairly backfill every device after acknowledgement."""
         paths = [self.data_root/'cfg/match_history.csv']
         paths += sorted((self.data_root/'devices').glob('*/cfg/match_history.csv'))[:128]
-        matches, cursors = [], dict(self.cursors)
+        cursors, recent, backlog = dict(self.cursors), [], []
         now = time.time()
         for path in paths:
             if not path.is_file() or not path.resolve().is_relative_to(self.data_root.resolve()): continue
             key = path.relative_to(self.data_root).as_posix()
             start, count, duplicates = cursors.get(key, 0), 0, {}
+            tail, older = deque(maxlen=20), deque()
             try:
                 with path.open('r', encoding='utf-8-sig', newline='') as file:
                     for index, row in enumerate(csv.DictReader(file)):
                         count = index+1
                         identity = json.dumps([key]+[row.get(k,'') for k in ('date_time','account_tag','brawler_name','result')], ensure_ascii=False)
-                        occurrence = duplicates.get(identity, 0)
-                        duplicates[identity] = occurrence+1
-                        if index<start: continue
-                        cursors[key] = count
+                        identity_key = hashlib.sha256(identity.encode()).digest()
+                        occurrence = duplicates.get(identity_key, 0)
+                        duplicates[identity_key] = occurrence+1
                         try:
                             played = datetime.fromisoformat(row['date_time']).timestamp()
                             if not 1262304000<=played<=now+300 or row.get('result') not in {'victory','defeat','draw'}: continue
@@ -102,12 +107,30 @@ class CommunityStatistics:
                             if delta is not None and (not math.isfinite(delta) or not delta.is_integer() or abs(delta)>1000): continue
                             source = row.get('trophy_source','unknown')
                             source = source if source in {'observed','estimated'} else 'unknown'
-                            matches.append({'id':self.anonymous(identity+'\0'+str(occurrence)), 'played':played,
-                                'result':row['result'], 'delta':int(delta) if delta is not None and source!='unknown' else None, 'source':source})
+                            match = {'id':self.anonymous(identity+'\0'+str(occurrence)), 'played':played,
+                                'result':row['result'], 'delta':int(delta) if delta is not None and source!='unknown' else None, 'source':source}
+                            tail.append(match)
+                            if index>=start and len(older)<50: older.append((count,match))
                         except (ValueError, TypeError, KeyError, OverflowError, OSError): continue
-                        if len(matches)==50: return matches, cursors
                 if count<start: cursors[key] = 0  # Stable IDs prevent duplicates after truncation/rebuild.
+                elif not older: cursors[key] = count
+                recent.extend(tail)
+                backlog.append((key,older))
             except (OSError, UnicodeError, csv.Error): continue
+        acknowledged = set(self.recent_ids)
+        matches, selected = [], set()
+        for match in sorted(recent, key=lambda m:m['played'], reverse=True):
+            if match['id'] not in acknowledged and match['id'] not in selected:
+                matches.append(match);selected.add(match['id'])
+            if len(matches)==20: break
+        while len(matches)<50 and any(rows for _,rows in backlog):
+            for key, rows in backlog:
+                if not rows: continue
+                position, match = rows.popleft()
+                cursors[key] = position
+                if match['id'] not in selected and match['id'] not in acknowledged:
+                    matches.append(match);selected.add(match['id'])
+                if len(matches)==50: break
         return matches, cursors
 
     def _post(self, route, body, token=None):
@@ -148,6 +171,7 @@ class CommunityStatistics:
         with self.lock:
             if enabled:
                 self.cursors = cursors
+                self.recent_ids = list(dict.fromkeys(self.recent_ids+[m['id'] for m in matches]))[-2048:]
                 self.sent_matches += len(matches)
                 self.last_sent = time.time()
             if epoch==self.epoch:
