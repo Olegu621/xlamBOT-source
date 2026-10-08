@@ -73,3 +73,40 @@ class XpRewardTests(unittest.TestCase):
   without_card=f.copy();without_card[300:450]=[20,90,230]
   self.assertFalse(xp_doubler_reward(without_card))
   f[570:]=[90,130,40];self.assertFalse(xp_doubler_reward(f))
+
+class PointsGadgetReceiptTests(unittest.TestCase):
+ def points(self):
+  from seasonal_rewards import POINTS_TITLE,POINTS_ICON
+  f=np.full((720,1280,3),[85,55,210],np.uint8)
+  for key,x,y in [(POINTS_TITLE,427,147),(POINTS_ICON,602,357)]:
+   g=_glyph(key,720);f[y:y+g.shape[0],x:x+g.shape[1]]=g[:,:,None]
+  return f
+ def gadget(self):
+  from seasonal_rewards import GADGET_TITLE,GADGET_OUTLINE
+  f=np.full((720,1280,3),[20,75,180],np.uint8)
+  g=_glyph(GADGET_TITLE,720);f[183:236,736:998]=g[:,:,None]
+  g=_glyph(GADGET_OUTLINE,720);roi=f[236:236+g.shape[0],137:137+g.shape[1]];roi[g>100]=[0,210,10]
+  f[313:486,497:1230]=[0,10,25]
+  for y in range(330,470,28):f[y:y+5,725:1200]=[30,240,240]
+  return f
+ def test_receipts_at_multiple_scales(self):
+  from reward_received import is_reward_received
+  for f in [self.points(),self.gadget()]:
+   for w,h in [(960,540),(1280,720),(1920,1080)]:self.assertTrue(is_reward_received(cv2.resize(f,(w,h))))
+ def test_points_require_title_icon_and_background(self):
+  from seasonal_rewards import points_reward
+  for bounds in [(140,210,420,860),(350,440,595,685),(610,720,0,1280)]:
+   f=self.points();a,b,c,d=bounds;f[a:b,c:d]=[85,55,85];self.assertFalse(points_reward(f))
+ def test_gadget_requires_heading_outline_and_description(self):
+  from seasonal_rewards import gadget_reward
+  for bounds in [(175,245,730,1005),(210,515,110,420),(313,486,497,1230)]:
+   f=self.gadget();a,b,c,d=bounds;f[a:b,c:d]=[20,75,180];self.assertFalse(gadget_reward(f))
+ def test_received_action_rechecks_stop_pause_and_retry(self):
+  m=StageManager.__new__(StageManager);m.window_controller=Mock();m.window_controller.screenshot.return_value=self.points()
+  m._should_stop=Mock(return_value=False);m._should_pause=Mock(return_value=False)
+  with patch('stage_manager.time.monotonic',side_effect=[1.,1.5,2.,4.]):
+   m.dismiss_received_reward();m.dismiss_received_reward();m.dismiss_received_reward();self.assertEqual(m.window_controller.click.call_count,2)
+   m.window_controller.screenshot.return_value=announcement();m.dismiss_received_reward()
+  m._should_stop.return_value=True;m.dismiss_received_reward()
+  m._should_stop.return_value=False;m._should_pause.return_value=True;m.dismiss_received_reward()
+  self.assertEqual(m.window_controller.click.call_count,2)
