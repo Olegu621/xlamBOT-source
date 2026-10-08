@@ -41,7 +41,7 @@ def main():
     args.output.mkdir(parents=True)
     files=build_archive(args.exe,args.source_repo,args.output/'bootstrap.zip')
     data=(args.output/'bootstrap.zip').read_bytes()
-    manifest={'repository':'Olegu621/xlamBOT','version':'0.8.19','runtime':'0.8.18','revision':args.revision,
+    manifest={'repository':'Olegu621/xlamBOT','version':'0.8.20','runtime':'0.8.18','revision':args.revision,
               'source_commit':commit,'file':'bootstrap.zip','bytes':len(data),'sha256':hashlib.sha256(data).hexdigest(),'files':files}
     key=serialization.load_pem_private_key(args.key.read_bytes(),password=None)
     envelope={'manifest':manifest,'signature':key.sign(canonical(manifest)).hex()}

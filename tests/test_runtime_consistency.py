@@ -286,7 +286,7 @@ class RuntimeConsistencyTests(unittest.TestCase):
             update_client.write_state({'enabled':False,'revision':54,'pending':53})
             self.assertIsNone(update_client.activate())
             state=update_client.read_state()
-            self.assertEqual(state['revision'],55)
+            self.assertEqual(state['revision'],update_client.BUNDLED_REVISION)
             self.assertNotIn('pending',state)
             self.assertFalse(state['enabled'])
 

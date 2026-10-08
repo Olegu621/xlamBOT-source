@@ -16,7 +16,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 REPOSITORY = 'Olegu621/xlamBOT'
 BOOTSTRAP = 1
-BUNDLED_REVISION = 55
+BUNDLED_REVISION = 58
 PUBLIC_KEY = '9a7d7864c03c38ece7f571ca9808aa41a37b0f1d468e3b2c74e1dbe1b4b36b32'
 MAX_SIZE = 64 * 1024 * 1024
 ACTIVE_OVERLAY = None
@@ -234,14 +234,50 @@ class UpdateManager:
                             self.status.update(state='error', message='Не удалось перезапустить бот')
             time.sleep(10)
 
-def restart_application():
+def _ps_quote(value):
+    return "'" + str(value).replace("'", "''") + "'"
+
+
+def start_restart_helper(exe, pid, arguments=()):
+    import uuid
+    folder = root()
+    folder.mkdir(parents=True, exist_ok=True)
+    ready = folder / ('restart-ready-' + uuid.uuid4().hex)
+    helper = folder / ('restart-' + str(pid) + '.ps1')
+    args = (" -ArgumentList " + _ps_quote(subprocess.list2cmdline(list(arguments)))) if arguments else ''
+    helper.write_text(
+        "$ErrorActionPreference = 'Stop'\ntry {\n"
+        + "  [IO.File]::WriteAllText(" + _ps_quote(ready) + ", 'ready')\n"
+        + f"  $p = Get-Process -Id {pid} -ErrorAction SilentlyContinue\n"
+        + "  if ($p -and -not $p.WaitForExit(60000)) { throw 'Previous process did not exit' }\n"
+        + "  Start-Sleep -Seconds 1\n"
+        + "  Start-Process -FilePath " + _ps_quote(exe) + args
+        + " -WorkingDirectory " + _ps_quote(Path(exe).parent) + " -WindowStyle Hidden\n"
+        + "} catch { [Console]::Error.WriteLine($_); exit 1 }\n",
+        encoding='utf-8-sig')
+    # A windowed EXE can have invalid inherited standard handles. Give the
+    # helper real handles and keep diagnostics rather than detaching blindly.
+    with (folder / 'restart.log').open('ab') as output:
+        process = subprocess.Popen(
+            ['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', str(helper)],
+            stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT,
+            creationflags=subprocess.CREATE_NO_WINDOW, close_fds=True)
+    deadline = time.monotonic() + 8
+    try:
+        while time.monotonic() < deadline:
+            if ready.exists():
+                return process
+            if process.poll() is not None:
+                raise RuntimeError('Restart helper failed; see restart.log')
+            time.sleep(.05)
+        process.terminate()
+        raise RuntimeError('Restart helper did not become ready; current bot preserved')
+    finally:
+        ready.unlink(missing_ok=True)
+
+
+def restart_application(arguments=()):
     if not getattr(sys, 'frozen', False) or os.name != 'nt':
         raise RuntimeError('Automatic restart requires the Windows installer')
-    # A detached helper waits for this process/mutex to end, then starts the same EXE.
-    exe = str(Path(sys.executable).resolve()).replace("'", "''")
-    helper = root() / 'restart.ps1'
-    helper.write_text(f"$p = Get-Process -Id {os.getpid()} -ErrorAction SilentlyContinue\nif ($p) {{ $p.WaitForExit() }}\nStart-Sleep -Seconds 1\nStart-Process -FilePath '{exe}' -WindowStyle Hidden\n", encoding='utf-8-sig')
-    subprocess.Popen(['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', str(helper)],
-        creationflags=subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS, close_fds=True)
-    time.sleep(2)
+    start_restart_helper(str(Path(sys.executable).resolve()), os.getpid(), arguments)
     os._exit(0)
