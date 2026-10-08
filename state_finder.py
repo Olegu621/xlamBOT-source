@@ -208,6 +208,9 @@ def is_in_showdown_match(image) -> bool:
     are excluded. Require bright HUD text too: a modal can retain a dimmed HUD.
     Mode authorization remains the separate Trio lobby confirmation.
     """
+    from showdown_hud import visible_showdown_caption
+    if visible_showdown_caption(image):
+        return True
     import numpy as np
     height,width=image.shape[:2]
     crop=image[int(height*.01):int(height*.12), int(width*.01):int(width*.30)]
