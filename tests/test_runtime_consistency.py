@@ -127,8 +127,8 @@ class RuntimeConsistencyTests(unittest.TestCase):
         with controller.decision_scope(controller.observations.snapshot()):
             controller.press('attack',delay=0)
         down=controller.scrcpy_client.control.touch.call_args_list[0].args
-        self.assertAlmostEqual(down[0],1690*2/3)
-        self.assertAlmostEqual(down[1],600)
+        self.assertEqual(down[0],int(1690*2/3))
+        self.assertEqual(down[1],600)
 
     def test_battle_screenshot_does_not_reauthorize_attack_after_menu_transition(self):
         controller=self.controller()
