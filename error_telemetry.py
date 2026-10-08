@@ -348,6 +348,20 @@ class ErrorLogHandler(logging.Handler):
             report('application_exception', 'error', record.exc_info[1], stage='runtime')
 
 
+def runtime_revision(update_client):
+    """Identify executing code, even before a pending update is marked healthy."""
+    overlay = getattr(update_client, 'ACTIVE_OVERLAY', None)
+    if overlay is not None:
+        try:
+            revision = int(Path(overlay).parent.name)
+            if 0 < revision <= 10000000:
+                return revision
+        except (TypeError, ValueError):
+            pass
+    revision = getattr(update_client, 'BUNDLED_REVISION', 0)
+    return revision if type(revision) is int and 0 <= revision <= 10000000 else 0
+
+
 def initialize():
     global _service
     with _initialize_lock:
@@ -360,7 +374,7 @@ def initialize():
         except ValueError:
             endpoint = ''
         _service = ErrorTelemetry(update_client.root()/'error_reports', endpoint,
-            utils.XLAMBOT_VERSION, int(update_client.read_state().get('revision') or 0))
+            utils.XLAMBOT_VERSION, runtime_revision(update_client))
         old_sys, old_thread = sys.excepthook, threading.excepthook
         def unhandled(kind, error, tb):
             if kind not in (SystemExit, KeyboardInterrupt):
