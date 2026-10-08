@@ -102,6 +102,7 @@ class RecoveryTests(unittest.TestCase):
 
     def test_generic_menu_close_never_taps_team_panel(self):
         manager=StageManager.__new__(StageManager)
+        manager.runtime_control=None
         clicks=[]
         manager.window_controller=SimpleNamespace(
             screenshot=lambda:overlay(), release_all_inputs=lambda:None,
