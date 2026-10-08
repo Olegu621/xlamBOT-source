@@ -65,7 +65,7 @@ export async function telegramCommand(request,env,readBody,send=fetch) {
   }
   try {
     let text;
-    if(['help','start'].includes(command[1]))text='xlamBOT · статистика ПК-ботов\n/stats — сводка\n/today — сегодня (МСК)\n/hour — последний час\n/alltime — всё время\n\nДобавьте бота в чат. Данные поступают от пользователей, включивших «Общую статистику» в настройках ПК-бота. Ошибки в Telegram не отправляются.';
+    if(['help','start'].includes(command[1]))text='xlamBOT · статистика ПК-ботов\n/stats — сводка\n/today — сегодня (МСК)\n/hour — последний час\n/alltime — всё время\n\nДобавьте бота в чат. Данные поступают от пользователей, использующих «Общую статистику» в настройках ПК-бота. Ошибки в Telegram не отправляются.';
     else {
       text=formatStatistics(await statistics(env.DB,command[1]),command[1]);
       if(command[1]==='stats')for(const period of ['today','hour']) {

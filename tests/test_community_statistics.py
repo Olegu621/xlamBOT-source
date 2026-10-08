@@ -23,6 +23,7 @@ class CommunityStatisticsTests(unittest.TestCase):
         self.session.post.side_effect = post
         self.provider = Mock(return_value=[{'key':'PRIVATE-ADB-SERIAL','state':'running','is_running':True}])
         self.service = CommunityStatistics(self.root/'stats', self.root, self.provider, revision=76, session=self.session)
+        self.service.configure(False)
     def tearDown(self):
         self.service.close()
         self.tmp.cleanup()
@@ -38,6 +39,14 @@ class CommunityStatisticsTests(unittest.TestCase):
     def test_disabled_never_reads_profiles_or_uses_network(self):
         self.service.sync()
         self.provider.assert_not_called();self.session.post.assert_not_called()
+    def test_default_enabled_preserves_explicit_opt_out_and_corrupt_state_is_safe(self):
+        fresh=CommunityStatistics(self.root/'fresh',self.root,self.provider,session=self.session)
+        self.assertTrue(fresh.enabled)
+        reloaded=CommunityStatistics(self.root/'stats',self.root,self.provider,session=self.session)
+        self.assertFalse(reloaded.enabled)
+        (self.root/'stats/state.json').write_text('invalid',encoding='utf-8')
+        broken=CommunityStatistics(self.root/'stats',self.root,self.provider,session=self.session)
+        self.assertFalse(broken.enabled)
     def test_payload_privacy_acknowledgement_and_persistence(self):
         self.history([self.row()]);self.service.configure(True);self.service.sync()
         payload=self.sent[-1][1];encoded=json.dumps(payload)

@@ -21,9 +21,9 @@ temporarily reject reports; the client keeps its bounded queue and retries.
 
 ## Privacy and delivery
 
-Error reporting and community statistics have separate, disabled-by-default consent controls. Error reports stay private in D1: no exception messages, raw logs, source, screenshots or account data. Inspect them through authenticated Cloudflare administration; there is no public report-reading endpoint and no Telegram error delivery.
+Error reporting is disabled by default. Community statistics are enabled by default, with a visible notice and a separate opt-out control; existing explicit opt-outs are preserved. Error reports stay private in D1: no exception messages, raw logs, source, screenshots or account data. Inspect them through authenticated Cloudflare administration; there is no public report-reading endpoint and no Telegram error delivery.
 
-Statistics uploads contain only installation-salted device IDs and match IDs, times, outcomes and trophy changes. They include historical matches after explicit consent. Formula estimates and unknown changes remain separate from observed changes. No brawler names, account tags or device serials are transmitted. Previous anonymous aggregate results remain after opt-out; new uploads stop and presence is cleared. Online expires after 150 seconds without a heartbeat (client interval 60 seconds).
+Statistics uploads contain only installation-salted device IDs and match IDs, times, outcomes and trophy changes. They include historical matches when statistics sharing is enabled. Formula estimates and unknown changes remain separate from observed changes. No brawler names, account tags or device serials are transmitted. Previous anonymous aggregate results remain after opt-out; new uploads stop and presence is cleared. Online expires after 150 seconds without a heartbeat (client interval 60 seconds).
 
 Telegram accepts only authenticated webhook requests. Commands reply to the requesting chat and topic with global aggregates. `/stats` includes all-time totals and shorter period summaries; `/today` uses Moscow midnight, `/hour` a rolling hour. The database claims updates to prevent concurrent/repeated replies; ambiguous network acknowledgement can still cause a duplicate reply. Ordinary messages and error details are never posted or retained by this command handler.
 
