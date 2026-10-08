@@ -30,6 +30,13 @@ class LootTests(unittest.TestCase):
         shifted = np.roll(frame, 300, axis=0)
         self.assertFalse(loot.is_loony_loot(shifted))
 
+    def test_rarity_background_change_keeps_title_recognizable(self):
+        for color in [(0, 170, 0), (0, 100, 255), (180, 0, 180)]:
+            frame = screen()
+            frame[frame.min(axis=2) <= 210] = color
+            self.assertTrue(loot.is_loony_loot(frame))
+        self.assertFalse(loot.is_loony_loot(np.full((720,1280,3),255,np.uint8)))
+
     def test_repeated_opening_steps_recheck_screen_and_obey_stop(self):
         manager = StageManager.__new__(StageManager)
         manager.runtime_control = None
