@@ -43,6 +43,9 @@ def modern_daily_reward(frame):
 
 def seasonal_announcement_dismiss_position(frame):
     if frame is None or frame.ndim!=3 or frame.shape[2]!=3:return None
+    offer_close = credit_offer_dismiss_position(frame)
+    if offer_close is not None:
+        return offer_close
     h,w=frame.shape[:2]
     button=frame[round(h*.82):round(h*.91),round(w*.41):round(w*.59)].astype(np.int16)
     if not button.size or ((button[:,:,2]>160)&(button[:,:,0]<80)&(button[:,:,1]>60)).mean()<.35:return None
@@ -126,5 +129,45 @@ def credits_reward(frame):
         return False
     return _match(cv2.cvtColor(icon, cv2.COLOR_RGB2GRAY), _glyph(CREDITS_ICON, h))
 
+def credit_offer_dismiss_position(frame):
+    """Close the credit-unlock modal only with independent modal/control evidence."""
+    if frame is None or frame.ndim != 3 or frame.shape[2] != 3:
+        return None
+    h, w = frame.shape[:2]
+    margin = frame[round(h*.25):round(h*.65), :round(w*.08)]
+    if not margin.size or margin.mean() > 85:
+        return None
+    body = frame[round(h*.17):round(h*.24), round(w*.20):round(w*.36)].astype(np.int16)
+    purple = (body[:,:,2] > 140) & (body[:,:,0] > 100) & (body[:,:,1] < 90)
+    if not purple.size or purple.mean() < .85:
+        return None
+    # A credits progress bar and green purchase button distinguish this offer
+    # from ordinary menus. The purchase button never receives an input.
+    progress = frame[round(h*.63):round(h*.69), round(w*.58):round(w*.81)].astype(np.int16)
+    cyan = (progress[:,:,0] < 100) & (progress[:,:,1] > 130) & (progress[:,:,2] > 160)
+    purchase = frame[round(h*.75):round(h*.82), round(w*.66):round(w*.83)].astype(np.int16)
+    green = (purchase[:,:,0] < 110) & (purchase[:,:,1] > 130) & (purchase[:,:,2] < 100)
+    if not cyan.size or cyan.mean() < .18 or not green.size or green.mean() < .45:
+        return None
+    token = frame[round(h*.60):round(h*.71), round(w*.53):round(w*.61)]
+    if not _match(cv2.cvtColor(token, cv2.COLOR_RGB2GRAY), _glyph(CREDIT_OFFER_TOKEN, h)):
+        return None
+    left, top = round(w*.82), round(h*.15)
+    close = frame[top:round(h*.25), left:round(w*.91)].astype(np.int16)
+    red = (close[:,:,0] > 170) & (close[:,:,1] < 100) & (close[:,:,2] < 100)
+    if not red.size or red.mean() < .2:
+        return None
+    white = np.all(close > 205, axis=2).astype(np.uint8)*255
+    glyph = _glyph(CREDIT_OFFER_CLOSE, h)
+    if any(white.shape[i] < glyph.shape[i] for i in (0, 1)):
+        return None
+    _, score, _, location = cv2.minMaxLoc(cv2.matchTemplate(white, glyph, cv2.TM_CCOEFF_NORMED))
+    if score < .92:
+        return None
+    return left + location[0] + glyph.shape[1]//2, top + location[1] + glyph.shape[0]//2
+
 CREDITS_TITLE = 'iVBORw0KGgoAAAANSUhEUgAAARgAAAA8CAAAAACYr/rEAAAFRklEQVR4Ae3BUbasKBQFwcz5D3p3CVoeLMD33etGyJ8p+TMlf6bkz5TMhZP834WL3ORXeJAiTMmvsCGnMCMzYUU+whsZhSdp5CnMyCmsyShsyCmsyENYE8IrKcKUfMgoLEgXdqQKG9KFDRmENSG8k6+wICCDsCJd2JIi7EgTtqQIa0J4J5ewJEgV1qQJL+Qr7EgT9uQW1oTwTk5hTZAibEgTXshX2JEmvJCvsCaEd9KFNQG5hQ3pwhu5hB1pwhu5hDUhvJMmbAjIV9iRLrySU9iRJrySU1gTwjs5hB0BuYQt6cIrOYUdacI76cKaEN7JIewIyCXsyCm8ky5sSBfeSRfWhPBODmFDPuQUtuQU3kkXNqQL/0CasCaEV3IIO/Ihp7Ajl/BOurAhXfgH0oUVgfBKDmFDDtKFLbmESsIv6cJAZsK/kCJU8hXeyCE8SBM+5CBd+CFNAPkKlRzCSLpQyVSoJMxIESqZCJWMwkguQRppwpPMhUqaMJAuVDIVKjmEJylCJROhklEYyC9pwoMshEqaMJAuVDIVKunCg9xCJROhklEYyC9pwkhWQiVdqKQLlUyFSk5hJLdQyUSoZBRG8kMOYSRLoZIuVNKFSqZCJacwkluoZCJUMgoP8iSHMJKlUEkXKulCJVOhkksYyC1UMhEqGYUfMpJDGMhaqKQLlXShkqlQySUM5BYqmQiVjMKEVHIIA1kLlTShklMYyEyo5BIGcguVTIRKHsKM3OQQBrIWKmlCJaewILdQySWM5CtUMhEqeQhzcpFDGMhaqOQQBnIKC3ILlVzCSL5CJROhkoewIp0cwkDWQiUfYSCXsCC3UMkljOQrVDIRKnkKK9LIIQxkLbyRS1iQW6jkEkbyFSqZCJU8hSU5yCEMZC28kK+wILdQySWM5CtUMhEq+RGW5EMOYSBrYU9uYUFuoZJLGMlXqGQiVPIrLAnIIQxkLWxJERbkFiq5hJF8hUomQiUTYUVADmEga2FHqrAgt1DJJQzkFiqZCJXMhBVBDmEga2FHqrAgt1DJJQzkFiqZCJXMhTlBDmEga2FHqrAgt1DJJQzkFiqZCJUshDmRQxjIWtiSIlQyFSq5hIHcQiUToZKlMCNyCCNZCltShEqmQiWXMJBbqGQiVLIRfokcwkiWwp7cQiVToZJTGMktVDIRKtkKTyKH8CAroRLCQG6hkqlQySmM5BYqmQiVPESq8CDShAdZCJUQRvIVKpkKlXRhJEWoZCJU8hCQIoxEmvAkc6ESCCO5hEqmQiVNeJAiVDIRKhmFg3yFkUgTfskpIJdQCYSRXEIlU6GSQ3iSIlQyESoZhUZO4UGkC3tyCpV8hJGcQiVToRIIv6QIlUyESgbhSz7Ck0gX9uQUKvkIIzmFDenCP5AurMggVDIIb0S68EK6UMkhjKQLG9KFfyBdWJIqVDIILwQ5hT3pQiWH8CBN2JEmvJMurEkVKhmEF4Jcwp40oZJDeJAm7EgT3kkX1qQKlQzCC0EuYU+aUEkTHuQQdqQJr+QU1qQKlQzCnoB8hS1pQiVNeJBD2JEmvJFL2JAiVDIIewJyC1tyCJV04UE+wo404YV8hQ0pQiWDsCUfUoQdOYRKujCSQ9iRJuzJLWxIESoZhB05SBU25BAqOYVKmrAjTdiSIqxJFSoZhQ05yCAsSRMqOYVCurAjTdiRKqxJFSp5CEvSyEOYky5Ucgpfcgkb0oU1GYU1qUIlT2FOTvIUJuQSKrmEk3yFDTmFOfkVlqQKlfwKE3KRiTCQKtzkFg5ShTW5hCdZCCsyCjeZCiMp5M+U/JmSP1P/AXxFr0xtfrJPAAAAAElFTkSuQmCC'
 CREDITS_ICON = 'iVBORw0KGgoAAAANSUhEUgAAAGQAAAAuCAAAAAD7SuOCAAAEFUlEQVRYCbXBX2iVZQDH8e/veefmnI+uzRrqjEyEqMguMlpo03beYlGkWSC8A+m+7koKDLrSdREE3aTuzosgIgiRCSkUaFFgTdP+aKabbk7kbHOunf0553163rNDoJ6zvY35+Qiof3Et0Ilnw4g7CO+vH4YcXrB01a7GFdxNFDnKURA7Pfi6CejEs2HEHUTi7KlhPAd29+PiLqLIUY7qR2OCtg0BnXg2jCir8PvpIXAOVNu2cwnpGdDn7ww4mnbW0olnw4jyps6fyUKMV7vmtSdqScuA+t4+HGN2rHMf4dkwooLJC2dvEJOoali/5dElpGNAvbu/LEDbRu3Ds2FEJbnBc5diZtSueHLrWlIxoCNHuqbguWeX7sGzYURF09fO9sZ5ZixvzzSShgEd6OmagtaW+vfwbBhR2fRQ76VBStpeXUMaBnSgp2sKWlvqPsCzYcQs3PjVi1dyyIHatjWThkAHerqmoLXF7MWzYcQsHPmhvt5+h5fZ1kwaAn3268EpaG2hE8+GEZUJB4Wrf57PA5ltzaQhUMP0mIOaGkbxbBhRmSTAjR/6B9i8/WHSEIjb2DCiEknM2D8Gbv32ZwJSUGFc3MaGEZXIULL/FlCz9ZWVAXPTzZ9VTckUng0jKjGipOumA5ZvCusDELObvvyF3qdkH54NI8pyEBhKvurLk6hf38gcYi4O5PQtJVvwbBhRlgNjxIxTP46T2qJCQd2UtOPZMKIsB0aGGTe+HiE1B+qmpB3PhhFlORDGUDR54o8caTlQNyXteDaMKMsBQiJRGPtuYLJAOg7UTUk7ng0jynIkREIFhn67cIt0BOqmpB3PhhGpjFwbGBwpOMAxuyqa1A3CAe14NoyYm4DJsdFcIXYQM7tqWXUjR6Idz4YRcxMz4tgxpyqhb6YLsQkml1W14tkwYm6ixDkk5qTDLlYQTPb378WzYURlwhP/mz50XnxubOIkng0jKjMCBI6EKHLMTqCN5AT1VB/Hs5kOKjISRY6EHAkxJ727sq7GkGNdBs9mOihLIIn5Ud/iKooa8Gymg7IERsyThp2jqBHPZjooSyDDPGnYOYoa8Wymg7IEkpgfDTtHUSNe3fO7RDkCCTEvypIQNOBp01tVlCM8g5gPZUnITawmseHNVRBQgZgXZUkov/cTEqtfboOAhaUsnuLvz+whUbNhZzMBC0tZiqaq1k7kAdVv3lEbsLCUJaH8wBtXJvDMAy9tqWNhKQsod+HYTz2jEySqml54qkksJGVBg4dO5haN9Y6CA8x9Tz+26v7FEgtFWeDj49Xg/r5RcI6Emh55yFYbFoqGcIWDR/MyZvjKqHP8Z5FhoWgIp5GjpweGJ/MD2YLjXtAQDgVu4Pr14f5jv0xyL+jyMmcgiGNkjn96Ypp74F/2aVl7EXpBXAAAAABJRU5ErkJggg=='
+
+CREDIT_OFFER_CLOSE = 'iVBORw0KGgoAAAANSUhEUgAAACAAAAAjCAAAAADQhVeGAAAAo0lEQVQ4EYXBiXGDQAAEMG3/RW/uAewkMEjxIl7Ei3gRp8adOJT4UjHFVkNcSkyx1BKHGmKIqQ4x1RbEUJegTiHUt6hLCPUsgnoUQT0JMdS9IKa6E0Ms9V9MsdVfscShfosttvorlpjqRkwx1K0YgnoQRD0LoZ5FUM8S1EfqW8RQp1CXIKbaYqhDDLHUFEstMcVWxKGGWOLQ+CixxZ3GKV7Eix99zSkkT7mTKQAAAABJRU5ErkJggg=='
+CREDIT_OFFER_TOKEN = 'iVBORw0KGgoAAAANSUhEUgAAACcAAAArCAAAAADeCs6SAAADg0lEQVQ4EX3Bf2iUBRzH8ffnee5uurX548Q/LNJ+KeU/UiHUdFEhFgtKyx/THDNn+btBU6MIS1CQamhiIAmG9GOGJxJSQSVScEH9ESFh2cJI+iPmc3feOfXu2fN8u+funHqTXi+lKQuG+38LiTTE/SJOSGT6wglcpTRlP3xxBeLug0/OdGA4fvn0z99nwWH2AmqUNvxPThMyZcmchFEmMAJ/5ykza3p5vIgobcV38xDb8IgDxgjxb9+vuPGVdxFR2l4PTNN2E5FxlSD4+n3hdN5LmdI78tCxyE00uISFkBEyU6Hbl7N6KqBl52DlM0wgEl4wbhAuNuJbmkBz8TuejzdTdbHEDUJvo2/Nr2FqC2dtd1uoGSpS59Q2Y9H9qM1N0eJSkzXq7fsG562Y2npbYy3UWJZRSqsL1j5Hz+2nOU5NwWe0k3stvk0fP8EtCaqKQ9xEqbMULpcHDU1UXLnETb13gnvkgVpcILhc4noiYsBALw3yKEs45ofcoHDCm/Q0GGXPBsijqlBKcs2lTeeB2Jp5Rln3eeQRyb1YouG2bc2iothdoGLj45St/wd5lP20ywLK3pxFxaGj1BycAHTlkAcMrvOpGPNRjEhXjpr184CFIfKAT48EVLWvpmxoBSFVD20FOvPIAxbZMFUNh2WQXUVI1YxdcGGlmTzghQw1sSMysKV+SMTUsQRLv62EPKB3gJppe6AYt2OHqHBado+HzX8wW4MO9PdTM38dn5WWh3RniMQ7FohcF+rVjrXYxQ05KnTUubTqyvaZFrz6J6AVC3HY/DuNL+nhQxONvzdRsW+K8/lBf9L+BAwe86bPmQzOV3tdOpNqnboXKLxzthBv7RoHS/0ibVsYceYV3LvbpTa19rgIjMiZzO23ghER4q+egMZuF7VJc3tAGPWETu4ZhjVjQXMdszu3NzqMJg4cQ+puBpT6MAeJxe1jGUV93xmxriYBSnF8wGDcY4sbqaMDx+2OpxwEKAUDXwbAzvuoo/5+6zUsBJQCwvQvPm88QJ1g61m/JwGBgVIgQR/z1zIin81kMtkfs2iTg4UGSkEMwj5YMSOXzeQv5Av5ISpcmPWolQFKQQw4fA6BcT2H5DIHI6IUuILCB6HAuKYpOfmuKYARUQqQQfbbwSJuMpmcOGmMHElEhDAMlOIqhaJKAlEmIoGBUlQJIZCJemEISiEcxP8IDP4DN3Ff+qVna0cAAAAASUVORK5CYII='
