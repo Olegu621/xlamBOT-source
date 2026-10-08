@@ -216,9 +216,11 @@ class Detect:
         try:
             with _GPU_RUNTIME_LOCK if len(providers) > 1 else nullcontext():
                 model = ort.InferenceSession(self.model_path, sess_options=so, providers=providers)
-        except Exception:
+        except Exception as error:
             if providers == ["CPUExecutionProvider"]:
                 raise
+            import error_telemetry
+            error_telemetry.report('gpu_fallback', 'warning', error, stage='model')
             print(f"GPU initialization failed for {os.path.basename(self.model_path)}; using CPU.")
             return self.load_model(cpu_only=True)
 

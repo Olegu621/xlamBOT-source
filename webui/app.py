@@ -26,6 +26,9 @@ import update_client
 import brawler_calibration
 from . import preferences
 import settings_schema
+import error_telemetry
+import io
+import json
 from training_capture import TrainingRecorder
 from .runtime import RuntimeManager
 from .services import WebDataService
@@ -120,6 +123,38 @@ def create_app(xlambot_main, start_discord_bot=False):
     )
     app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
     app.config["UI_API_TOKEN"] = secrets.token_urlsafe(32)
+
+    try:
+        reports = error_telemetry.initialize()
+    except Exception:
+        reports = error_telemetry.ErrorTelemetry(DATA_ROOT/'error_reports')
+        reports.start()
+    app.extensions['error_reports'] = reports
+
+    @app.get('/api/error-reports')
+    def error_reports_status():
+        reports.drain()
+        return jsonify(reports.status())
+
+    @app.post('/api/error-reports')
+    def error_reports_preferences():
+        payload = request.get_json(silent=True) or {}
+        if not isinstance(payload, dict):
+            raise ValueError('Invalid reporting preferences')
+        return jsonify(reports.configure(payload.get('enabled'), payload.get('min_level', 'error')))
+
+    @app.get('/api/error-reports/download')
+    def error_reports_download():
+        content = json.dumps(reports.export(), ensure_ascii=False, indent=2).encode('utf-8')
+        return send_file(io.BytesIO(content), mimetype='application/json', as_attachment=True,
+                         download_name='xlambot-error-reports.json')
+
+    @app.post('/api/error-reports/test')
+    def error_reports_test():
+        if not reports.enabled or not reports.endpoint:
+            return jsonify(ok=False, code='reporting_unavailable'), 409
+        reports.report('test_report', 'critical', stage='manual')
+        return jsonify(ok=True, queued=True)
 
     resource_updater = ResourceUpdater(resolve_project_path("static").parent, DATA_ROOT)
     app.extensions['resource_updater'] = resource_updater
@@ -837,7 +872,8 @@ def create_app(xlambot_main, start_discord_bot=False):
     def handle_unexpected_error(error):
         if isinstance(error, HTTPException):
             return error
-        app.logger.exception("Unhandled request error at %s", request.path)
+        error_telemetry.report('ui_request_failed', 'error', error, stage='ui')
+        app.logger.exception("Unhandled request error at %s", request.path, extra={'telemetry_reported': True})
         return jsonify({"ok": False, "message": str(error)}), 500
 
     @app.get("/api/queue")
