@@ -25,11 +25,20 @@ def modern_daily_reward(frame):
     small=cv2.resize(frame,(320,180),interpolation=cv2.INTER_AREA)
     dark=np.all(small<50,axis=2).astype(np.uint8)*255
     contours,_=cv2.findContours(dark,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+    stars=[]
     for c in contours:
         x,y,bw,bh=cv2.boundingRect(c);area=cv2.contourArea(c)
         vertices=len(cv2.approxPolyDP(c,.025*cv2.arcLength(c,True),True))
-        if (90<=bw<=120 and 90<=bh<=130 and x<160<x+bw and 35<=y<=60
-                and 5400<=area<=10000 and 6<=vertices<=16):return True
+        if (85<=bw<=120 and 90<=bh<=130 and 40<=x<=220 and 35<=y<=65
+                and 5400<=area<=10000 and 6<=vertices<=16):
+            if x<160<x+bw:return True
+            stars.append((x,y,bw,bh))
+    # Double rewards place two matching stars on either side of the centre.
+    # One off-centre silhouette must not authorize a reward action by itself.
+    for a in stars:
+        for b in stars:
+            if (a[0]+a[2]<160<b[0] and abs(a[1]-b[1])<10
+                    and abs(a[2]-b[2])<12 and abs(a[3]-b[3])<12):return True
     return False
 
 def seasonal_announcement_dismiss_position(frame):

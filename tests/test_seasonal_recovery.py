@@ -24,6 +24,15 @@ class SeasonalRecoveryTests(unittest.TestCase):
   for w,h in [(960,540),(1280,720),(1920,1080)]:
    self.assertTrue(modern_daily_reward(cv2.resize(reward(),(w,h))))
    self.assertIsNotNone(seasonal_announcement_dismiss_position(cv2.resize(announcement(),(w,h))))
+ def test_double_reward_requires_both_matching_stars(self):
+  f=reward();f[120:]=[40,130,85]
+  source=reward()[176:628,448:836]
+  star=cv2.resize(source,(364,408))
+  f[192:600,252:616]=star;f[192:600,668:1032]=star
+  for w,h in [(960,540),(1280,720),(1920,1080)]:
+   self.assertTrue(modern_daily_reward(cv2.resize(f,(w,h))))
+  f[192:600,668:1032]=[40,130,85]
+  self.assertFalse(modern_daily_reward(f))
  def test_title_without_star_or_dimmed_reward_is_not_enough(self):
   f=reward();f[120:]=80;self.assertFalse(modern_daily_reward(f))
   f=reward();f[:100]=80;self.assertFalse(modern_daily_reward(f))
