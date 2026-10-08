@@ -16,7 +16,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 REPOSITORY = 'Olegu621/xlamBOT'
 BOOTSTRAP = 1
-BUNDLED_REVISION = 58
+BUNDLED_REVISION = 59
 PUBLIC_KEY = '9a7d7864c03c38ece7f571ca9808aa41a37b0f1d468e3b2c74e1dbe1b4b36b32'
 MAX_SIZE = 64 * 1024 * 1024
 ACTIVE_OVERLAY = None
