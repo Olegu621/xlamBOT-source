@@ -1070,7 +1070,22 @@ def atomic_write_text(path, text):
                 handle.write(text)
                 handle.flush()
                 os.fsync(handle.fileno())
-            os.replace(temporary, path)
+            # Windows readers and scanners can briefly open the destination
+            # without FILE_SHARE_DELETE. Keep the old file intact and retry
+            # the same flushed temporary file; never fall back to truncation.
+            delays = (0.01, 0.02, 0.04, 0.08, 0.16, 0.25, 0.25)
+            for attempt in range(len(delays) + 1):
+                try:
+                    os.replace(temporary, path)
+                    break
+                except OSError as error:
+                    if getattr(error, "winerror", None) not in (5, 32, 33) or attempt == len(delays):
+                        raise
+                    time.sleep(delays[attempt])
         finally:
-            if temporary is not None and temporary.exists():
-                temporary.unlink()
+            if temporary is not None:
+                try:
+                    temporary.unlink(missing_ok=True)
+                except OSError:
+                    # Cleanup must not hide the actual write failure.
+                    pass
