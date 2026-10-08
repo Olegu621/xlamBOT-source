@@ -96,7 +96,37 @@ async function receive(request,env,ctx) {
     return json({error:old?'conflicting_report':'capacity'},old?409:429);
   }
   await env.DB.prepare('INSERT OR IGNORE INTO groups(fingerprint) VALUES(?)').bind(item.fingerprint).run();
+  ctx.waitUntil(deliver(env).catch(()=>{}));
   return json({accepted:item.id},202);
+}
+
+export async function deliver(env,send=fetch) {
+  if(!env.ERROR_TELEGRAM_BOT_TOKEN || !env.ERROR_TELEGRAM_CHAT_ID) return false;
+  const now=Date.now()/1000,lease=random(16);
+  const acquired=await env.DB.prepare('UPDATE delivery_lock SET lease=?,until=? WHERE id=1 AND until<=? RETURNING id').bind(lease,now+120,now).first();
+  if(!acquired) return false;
+  try {
+    const row=await env.DB.prepare(`SELECT * FROM groups WHERE (total>notified)=1 AND retry_at<=?
+      AND (last_sent=0 OR last_sent<=?) ORDER BY priority DESC LIMIT 1`).bind(now,now-600).first();
+    if(!row) return false;
+    const example=await env.DB.prepare('SELECT * FROM events WHERE fingerprint=? LIMIT 1').bind(row.fingerprint).first();
+    row.users=(await env.DB.prepare('SELECT COUNT(DISTINCT installation) users FROM events WHERE fingerprint=?').bind(row.fingerprint).first()).users;
+    const text=`xlamBOT · ${example.level.toUpperCase()}\n${example.code} · ${example.stage}\nVersion ${example.version} / r${example.revision}\nReports: ${row.total} · installations: ${row.users}\n${example.exception}\n${example.trace}`.slice(0,4000);
+    try {
+      const response=await send('https://api.telegram.org/bot'+env.ERROR_TELEGRAM_BOT_TOKEN+'/sendMessage',{
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:env.ERROR_TELEGRAM_CHAT_ID,text,link_preview_options:{is_disabled:true}}),
+        redirect:'manual',signal:AbortSignal.timeout(10000)});
+      if(response.status!==200 || (await response.json()).ok!==true) throw Error('delivery_failed');
+    } catch {
+      const failures=Math.min(row.failures+1,10);
+      await env.DB.prepare('UPDATE groups SET failures=?,retry_at=? WHERE fingerprint=?').bind(failures,now+Math.min(3600,5*2**failures),row.fingerprint).run();
+      return false;
+    }
+    await env.DB.prepare('UPDATE groups SET notified=?,last_sent=?,failures=0,retry_at=0 WHERE fingerprint=?').bind(row.total,now,row.fingerprint).run();
+    return true;
+  } finally {
+    await env.DB.prepare('UPDATE delivery_lock SET until=? WHERE id=1 AND lease=?').bind(Date.now()/1000+2,lease).run();
+  }
 }
 
 export default {
@@ -116,5 +146,6 @@ export default {
       env.DB.prepare("DELETE FROM rate WHERE (key LIKE 'register:%' AND bucket<?) OR ((key LIKE 'events:%' OR key LIKE 'statistics:%' OR key LIKE 'telegram:%') AND bucket<?)").bind(Math.floor(Date.now()/3600000)-48,Math.floor(Date.now()/60000)-2880),
       env.DB.prepare('DELETE FROM telegram_updates WHERE lease<?').bind(Date.now()/1000-7*86400)
     ]);
+    ctx.waitUntil(deliver(env).catch(()=>{}));
   }
 };

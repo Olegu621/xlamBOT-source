@@ -32,24 +32,17 @@ export async function statistics(db,period='alltime',now=Date.now()/1000) {
   for(const source of ['observed','estimated']) trophies[source]=await db.prepare(`SELECT COUNT(delta) measured,SUM(delta) net,SUM(CASE WHEN delta>0 THEN delta ELSE 0 END) gained,SUM(CASE WHEN delta<0 THEN -delta ELSE 0 END) lost FROM stats_matches WHERE played>=? AND source=?`).bind(since,source).first();
   return {online,total,...matches,trophies};
 }
-const n = value => Number(value).toLocaleString('ru-RU');
-export function formatStatistics(data,period) {
-  const labels={stats:'Сводка',today:'Сегодня (МСК)',hour:'Последний час',alltime:'За всё время'};
-  const lines=[`xlamBOT · ${labels[period]||labels.alltime}`,`В игре сейчас: ${n(data.online.bots)} ботов на ${n(data.online.pcs)} ПК`,`На паузе: ${n(data.online.paused)}`,`Всего подключались: ${n(data.total.bots)} ботов на ${n(data.total.pcs)} ПК`,'',`Боёв: ${n(data.matches)}`,`Победы: ${n(data.wins)} · Поражения: ${n(data.losses)} · Ничьи: ${n(data.draws)}`,`Побед: ${data.matches?(100*data.wins/data.matches).toFixed(1)+'%':'нет данных'}`];
-  for(const [source,title] of [['observed','Подтверждённые трофеи'],['estimated','Расчётные трофеи']]) {
-    const t=data.trophies[source];
-    lines.push('',title,t.measured?`Получено: +${n(t.gained)} · Потеряно: −${n(t.lost)} · Итог: ${t.net>=0?'+':''}${n(t.net)}`:'Нет измерений');
-  }
-  lines.push('',`Боёв без измерения трофеев: ${n(data.matches-data.trophies.observed.measured-data.trophies.estimated.measured)}`);
-  lines.push('','Только добровольно подключённые ПК. Расчётные трофеи определяются по результату боя. Онлайн обновляется раз в минуту.');
-  return lines.join('\n');
+export async function onlineCount(db,now=Date.now()/1000) {
+  const row=await db.prepare('SELECT COUNT(*) AS bots FROM stats_devices WHERE active=1 AND paused=0 AND seen>=?').bind(now-150).first();
+  return row.bots;
 }
+export const formatOnline=count=>`Онлайн сейчас: ${Number(count).toLocaleString('ru-RU')}`;
 function equal(a,b) {if(typeof a!=='string'||typeof b!=='string'||!b||a.length!==b.length)return false;let d=0;for(let i=0;i<a.length;i++)d|=a.charCodeAt(i)^b.charCodeAt(i);return d===0;}
 export async function telegramCommand(request,env,readBody,send=fetch) {
   if(!equal(request.headers.get('X-Telegram-Bot-Api-Secret-Token'),env.TELEGRAM_WEBHOOK_SECRET))return json({error:'unauthorized'},401);
   const update=await readBody(request),message=update.message;
   if(!Number.isSafeInteger(update.update_id) || !message || !Number.isSafeInteger(message.chat?.id))return json({ok:true});
-  const command=/^\/(stats|today|hour|alltime|start|help)(?:@([A-Za-z0-9_]+))?(?:\s|$)/.exec(message.text||'');
+  const command=/^\/(online|stats|today|hour|alltime|start|help)(?:@([A-Za-z0-9_]+))?(?:\s|$)/.exec(message.text||'');
   if(!command || (command[2] && command[2].toLowerCase()!==(env.TELEGRAM_BOT_USERNAME||'xlambottt_bot').toLowerCase()))return json({ok:true});
   const now=Date.now()/1000;
   const previous=await env.DB.prepare('SELECT done FROM telegram_updates WHERE id=?').bind(update.update_id).first();
@@ -64,16 +57,7 @@ export async function telegramCommand(request,env,readBody,send=fetch) {
     return json({ok:!!existing?.done},existing?.done?200:503);
   }
   try {
-    let text;
-    if(['help','start'].includes(command[1]))text='xlamBOT · статистика ПК-ботов\n/stats — сводка\n/today — сегодня (МСК)\n/hour — последний час\n/alltime — всё время\n\nДобавьте бота в чат. Данные поступают от пользователей, использующих «Общую статистику» в настройках ПК-бота. Ошибки в Telegram не отправляются.';
-    else {
-      text=formatStatistics(await statistics(env.DB,command[1]),command[1]);
-      if(command[1]==='stats')for(const period of ['today','hour']) {
-        const s=await statistics(env.DB,period);
-        const t=s.trophies.estimated,o=s.trophies.observed;
-        text+='\n\n'+(period==='today'?'Сегодня (МСК)':'Последний час')+`: ${n(s.matches)} боёв, ${n(s.wins)} побед.\nПодтверждённый прирост: ${o.measured?'+'+n(o.gained):'нет измерений'}; расчётный: ${t.measured?'+'+n(t.gained):'нет измерений'}`;
-      }
-    }
+    const text=formatOnline(await onlineCount(env.DB));
     const payload={chat_id:message.chat.id,text,link_preview_options:{is_disabled:true}};
     if(Number.isSafeInteger(message.message_thread_id))payload.message_thread_id=message.message_thread_id;
     const response=await send('https://api.telegram.org/bot'+env.TELEGRAM_BOT_TOKEN+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),redirect:'manual',signal:AbortSignal.timeout(10000)});

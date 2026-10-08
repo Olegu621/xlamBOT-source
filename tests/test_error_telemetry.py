@@ -24,6 +24,20 @@ class ReceiverSession:
 
 
 class ErrorReportsTest(unittest.TestCase):
+    def test_default_reports_deliver_and_explicit_opt_out_survives_restart(self):
+        self.assertTrue(self.reporter.enabled)
+        self.reporter.report('runtime_crash', 'critical')
+        self.assertTrue(self.reporter.send_once())
+        self.reporter.configure(False, 'error')
+        reloaded = ErrorTelemetry(self.root/'client', 'https://receiver.example', session=self.session)
+        self.assertFalse(reloaded.enabled)
+        reloaded.report('runtime_crash')
+        self.assertFalse(reloaded.send_once())
+        for content in ('broken json', '[]', '{"enabled":false}'):
+            (self.root/'client/state.json').write_text(content, 'utf-8')
+            broken = ErrorTelemetry(self.root/'client', 'https://receiver.example', session=self.session)
+            self.assertFalse(broken.enabled)
+
     def test_pending_and_fallback_reports_identify_executing_overlay(self):
         bootstrap=SimpleNamespace(ACTIVE_OVERLAY=Path('releases/74/content'),BUNDLED_REVISION=60,
                                   read_state=Mock(return_value={'revision':72,'pending':74}))
