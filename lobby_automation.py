@@ -8,6 +8,10 @@ from utils import load_toml_as_dict, config_bool, load_brawlers_info, normalize_
 
 class LobbyAutomation:
 
+    def _frame_state(self, frame):
+        reader = getattr(type(self.window_controller), 'screen_state', None)
+        return reader(self.window_controller, frame) if reader else get_state(frame)
+
     def __init__(self, window_controller):
         self.gray_pixels_treshold = load_toml_as_dict("./cfg/bot_config.toml").get('idle_pixels_minimum', 500)
         self.idle_reconnect_coords = load_toml_as_dict("cfg/buttons_config.toml")["idle_reconnect"]
@@ -162,7 +166,7 @@ class LobbyAutomation:
             return "error"
 
         def fresh_state():
-            return get_state(self.window_controller.screenshot())
+            return self._frame_state(self.window_controller.screenshot())
 
         state = fresh_state()
         if state != "lobby":
@@ -240,7 +244,7 @@ class LobbyAutomation:
                     if self._sleep_interruptible(0.8, runtime_control, stop_event):
                         return "aborted"
                     frame = self.window_controller.screenshot()
-                    state = get_state(frame)
+                    state = self._frame_state(frame)
                     if frame is None:
                         continue
                     card = trophy_reader.read_card(frame, card_index=index)
@@ -315,15 +319,15 @@ class LobbyAutomation:
             runtime_control=runtime_control)
 
     def select_brawler(self, brawler, get_latest_state, stop_event=None, runtime_control=None):
-        self.window_controller.screenshot()
-        wr = self.window_controller.width_ratio
-        hr = self.window_controller.height_ratio
         brawler = str(brawler).lower().strip()
         normalized_brawler = normalize_brawler_filename(brawler)
         brawler_info = load_brawlers_info().get(normalized_brawler, {})
         brawler_search_name = brawler_info.get("actual_name") or normalized_brawler
 
         x, y = load_toml_as_dict("cfg/buttons_config.toml")["brawlers_menu"]
+        frame = self.window_controller.screenshot()
+        if self._frame_state(frame) != 'lobby':
+            return 'stuck'
         self.window_controller.click(x, y, already_include_ratio=False)
         if self._sleep_interruptible(1.25, runtime_control, stop_event):
             return 'aborted'
@@ -333,7 +337,7 @@ class LobbyAutomation:
                 print("Brawler selection aborted by user.")
                 return "aborted"
             frame = self.window_controller.screenshot()
-            current_state = get_state(frame)
+            current_state = self._frame_state(frame)
             if current_state == "shop":
                 print("Brawler menu is still opening")
                 if self._sleep_interruptible(1, runtime_control, stop_event):
@@ -358,7 +362,7 @@ class LobbyAutomation:
 
             import trophy_reader
             frame=self.window_controller.screenshot()
-            if get_state(frame) != 'brawler_selection':return 'stuck'
+            if self._frame_state(frame) != 'brawler_selection':return 'stuck'
             card=trophy_reader.read_card(frame,card_index=0)
             if str(card.get('brawler') or '').lower().strip() != normalized_brawler:
                 print('Search result did not confirm the requested brawler; no selection tap sent.')
@@ -375,7 +379,7 @@ class LobbyAutomation:
                 print("Brawler selection aborted by user.")
                 return "aborted"
             frame=self.window_controller.screenshot()
-            if get_state(frame) != 'lobby':return 'stuck'
+            if self._frame_state(frame) != 'lobby':return 'stuck'
             self._last_picked = {**card,'brawler':normalized_brawler}
             print("Selected brawler ", brawler_search_name)
             return "success"

@@ -1083,7 +1083,8 @@ class Play:
         self.context = {
                 'player_data': data['player'][0],
                 'enemy_data': data['enemy'],
-                'teammate_data': self.battle_memory.active_allies(data['teammate'], current_time, self.TILE_SIZE*self.window_controller.scale_factor),
+                'teammate_data': (data['teammate'] if self.work_mode in (2, 4) else
+                    self.battle_memory.active_allies(data['teammate'], current_time, self.TILE_SIZE*self.window_controller.scale_factor)),
                 'brawler': brawler,
                 'walls': data['wall'],
                 'bushes': data['bush'],
@@ -1143,9 +1144,18 @@ class Play:
             self.steering.previous = None
             self.fix_movement_keys['toggled'] = False
         elif gas_vector is None:
-            movement = self.remembered_movement(movement, data, current_time)
-            movement = self.steering.choose(movement, current_time,
-                lambda v: self.safe_memory_step(v, data['player'][0], data['wall']))
+            if self.work_mode in (2, 4):
+                if movement != self.last_movement:
+                    if current_time - self.last_movement_change_time >= self.minimum_movement_delay:
+                        self.last_movement_change_time = current_time
+                    else:
+                        movement = self.last_movement
+                else:
+                    self.last_movement_change_time = current_time
+            else:
+                movement = self.remembered_movement(movement, data, current_time)
+                movement = self.steering.choose(movement, current_time,
+                    lambda v: self.safe_memory_step(v, data['player'][0], data['wall']))
             if not (self.work_mode == 1 and self.behavior_report.get('intent') == 'hide'):
                 movement = self.unstuck_movement_if_needed(movement, current_time)
             # Unstick and held directions must pass the same current gas/wall check.
@@ -1156,7 +1166,10 @@ class Play:
             self.steering.previous = None
             self.fix_movement_keys['toggled'] = False
         self.last_movement = movement
-        self.last_movement_change_time = self.steering.changed
+        if gas_vector is not None:
+            self.last_movement_change_time = current_time
+        elif self.work_mode not in (2, 4):
+            self.last_movement_change_time = self.steering.changed
         self.latency['decision_ms'] = (time.perf_counter()-decision_started)*1000
         self.safety_telemetry = {
             'desired': movement_vector,
@@ -1333,6 +1346,13 @@ class Play:
         return walls, bushes
 
     def get_movement(self):
+        if self.work_mode in (2, 4):
+            # Original playstyles own target selection, firing and movement.
+            # A second policy must not replace their direction or suppress fire.
+            self.behavior_report = {'intent': 'classic', 'fire_allowed': True}
+            movement, updated_globals = interpret_playstyle_code(self.playstyle_code, self.context)
+            self.try_ready_super()
+            return movement
         player = self.get_entity_pos(self.context['player_data'])
         safe_range, attack_range, _ = self.get_brawler_range(self.current_brawler)
         plan = self.behavior.plan(self.work_mode,player,self.context['enemy_data'],

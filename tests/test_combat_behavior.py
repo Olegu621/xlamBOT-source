@@ -64,6 +64,24 @@ class CombatBehaviorTests(unittest.TestCase):
         self.assertGreater(plan['report']['preferred_distance'],0)
         self.assertGreater(plan['report']['target'][1],0)
 class CombatIntegrationTests(unittest.TestCase):
+    def test_classic_modes_keep_original_targets_firing_and_movement(self):
+        source=Path(__file__).resolve().parents[1]/'play.py'
+        tree=ast.parse(source.read_text('utf-8'))
+        function=next(f for c in tree.body if isinstance(c,ast.ClassDef) and c.name=='Play' for f in c.body if isinstance(f,ast.FunctionDef) and f.name=='get_movement')
+        for level in (2,4):
+            fired=Mock();context={'enemy_data':[box(150),box(180,40)],'attack':fired}
+            def strategy(code, received):
+                self.assertIs(received,context)
+                received['attack']()
+                return (25,-80),{}
+            ns={'interpret_playstyle_code':strategy}
+            exec(compile(ast.Module(body=[function],type_ignores=[]),'play.py','exec'),ns)
+            policy=Mock()
+            fake=SimpleNamespace(work_mode=level,behavior=policy,behavior_report={'fire_allowed':False},playstyle_code=None,context=context,try_ready_super=Mock())
+            self.assertEqual(ns['get_movement'](fake),(25,-80))
+            fired.assert_called_once();policy.plan.assert_not_called()
+            self.assertTrue(fake.behavior_report['fire_allowed'])
+
     def test_selected_target_is_used_for_attack_without_losing_threat_context(self):
         source=Path(__file__).resolve().parents[1]/'play.py'
         tree=ast.parse(source.read_text('utf-8'))
@@ -73,7 +91,7 @@ class CombatIntegrationTests(unittest.TestCase):
         exec(compile(ast.Module(body=[function],type_ignores=[]),'play.py','exec'),ns)
         policy=CombatBehavior()
         enemies=[box(150),box(180,40)]
-        fake=SimpleNamespace(context={'player_data':box(0),'enemy_data':enemies,'teammate_data':[],'walls':[]},behavior=policy,work_mode=4,current_brawler='brock',TILE_SIZE=40,window_controller=SimpleNamespace(scale_factor=1),get_entity_pos=lambda b:((b[0]+b[2])/2,(b[1]+b[3])/2),get_brawler_range=lambda b:(150,300,400),is_enemy_hittable=lambda p,e,w,s:e[1]>0,persistent_data={'time_since_holding_attack':None},playstyle_code=None,attack=Mock(),try_ready_super=Mock(return_value=False))
+        fake=SimpleNamespace(context={'player_data':box(0),'enemy_data':enemies,'teammate_data':[],'walls':[]},behavior=policy,work_mode=5,current_brawler='brock',TILE_SIZE=40,window_controller=SimpleNamespace(scale_factor=1),get_entity_pos=lambda b:((b[0]+b[2])/2,(b[1]+b[3])/2),get_brawler_range=lambda b:(150,300,400),is_enemy_hittable=lambda p,e,w,s:e[1]>0,persistent_data={'time_since_holding_attack':None},playstyle_code=None,attack=Mock(),try_ready_super=Mock(return_value=False))
         ns['get_movement'](fake)
         self.assertEqual(received[0]['enemy_data'],[enemies[1]])
         self.assertEqual(fake.context['enemy_data'],enemies)
