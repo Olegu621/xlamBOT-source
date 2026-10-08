@@ -60,7 +60,10 @@ async function activity(env,installation,kind,revision=0) {
 export async function remoteRoute(request,env,readBody) {
   const url=new URL(request.url),path=url.pathname,now=Date.now()/1000;
   const scoped=/^\/pc\/([a-f0-9]{32})(\/.*)$/.exec(path);
-  const cors=response=>{if(scoped&&request.headers.get('Origin')==='null'){response.headers.set('Access-Control-Allow-Origin','null');response.headers.set('Access-Control-Allow-Methods','GET, POST, DELETE');response.headers.set('Access-Control-Allow-Headers','Content-Type, X-Xlam-UI-Token');response.headers.set('Access-Control-Expose-Headers','X-Preview-Interval-Ms, Content-Disposition');}return response;};
+  const cors=response=>{if(scoped&&request.headers.get('Origin')==='null'){
+    // Fetched relay responses have immutable headers. Copy before adding CORS.
+    response=new Response(response.body,response);
+    response.headers.set('Access-Control-Allow-Origin','null');response.headers.set('Access-Control-Allow-Methods','GET, POST, DELETE');response.headers.set('Access-Control-Allow-Headers','Content-Type, X-Xlam-UI-Token');response.headers.set('Access-Control-Expose-Headers','X-Preview-Interval-Ms, Content-Disposition');}return response;};
   if(scoped&&request.method==='OPTIONS'&&request.headers.get('Origin')==='null')return cors(new Response(null,{status:204}));
   if(path==='/miniapp'&&request.method==='GET')return new Response(miniPage,{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'}});
   if(path==='/mini/auth'&&request.method==='POST') {

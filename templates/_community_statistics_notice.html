@@ -1,6 +1,0 @@
-{% if community_statistics_enabled and not telegram_remote %}
-<aside class="connect-bar" aria-label="{{ 'Community statistics' if ui_language == 'en' else 'Общая статистика' }}">
-  <span>{{ 'Anonymous community statistics are enabled: device activity and match history, without account names or screenshots.' if ui_language == 'en' else 'Общая статистика включена: активность устройств и история боёв, без имён аккаунтов и скриншотов.' }}</span>
-  <a class="btn btn-ghost" href="/?tab=settings">{{ 'Change in settings' if ui_language == 'en' else 'Изменить в настройках' }}</a>
-</aside>
-{% endif %}
