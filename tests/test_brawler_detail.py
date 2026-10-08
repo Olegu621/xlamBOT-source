@@ -7,9 +7,9 @@ import state_finder
 from stage_manager import StageManager
 from lobby_automation import LobbyAutomation
 
-def screen(w=1280,h=720,missing=None,health_y=.52):
+def screen(w=1280,h=720,missing=None):
  f=np.full((h,w,3),(10,120,240),np.uint8)
- for name,x,y in [('HEALTH',.74,health_y),('HANGER',.20,.76),('HOME',.93,.01)]:
+ for name,x,y in [('PROFILE',.04,.76),('CHAT',.12,.76),('HANGER',.20,.76),('HOME',.93,.01)]:
   if name==missing:continue
   g=d._glyph(getattr(d,name),h);a,b=round(w*x),round(h*y);f[b:b+g.shape[0],a:a+g.shape[1]]=g
  if missing!='SELECT':f[round(h*.87):round(h*.95),round(w*.02):round(w*.25)]=(245,195,0)
@@ -21,7 +21,7 @@ class DetailTests(unittest.TestCase):
    self.assertIsNotNone(d.detail_home_position(screen(w,h)))
    p=d.detail_select_position(screen(w,h));self.assertTrue(p[0]<w*.3 and p[1]>h*.84)
  def test_independent_evidence_required(self):
-  for missing in ['HOME','HEALTH','HANGER','SELECT']:self.assertIsNone(d.detail_select_position(screen(missing=missing)))
+  for missing in ['HOME','PROFILE','CHAT','HANGER','SELECT']:self.assertIsNone(d.detail_select_position(screen(missing=missing)))
   self.assertIsNone(d.detail_home_position(None))
   self.assertIsNone(d.detail_home_position(np.zeros((720,1280),np.uint8)))
  def test_detail_before_generic_shop(self):
@@ -47,8 +47,9 @@ class DetailTests(unittest.TestCase):
    m.runtime_control=SimpleNamespace(should_stop=lambda:True,should_pause=lambda:False);m.close_brawler_detail()
   self.assertEqual(len(calls),1)
 
- def test_max_level_detail_shifts_health_panel_down(self):
+ def test_detail_recognition_does_not_depend_on_health_panel(self):
   for w,h in [(960,540),(1280,720),(1920,1080),(1920,864)]:
    for y in (.52,.60,.68):
-    self.assertIsNotNone(d.detail_home_position(screen(w,h,health_y=y)))
-    self.assertIsNotNone(d.detail_select_position(screen(w,h,health_y=y)))
+    f=screen(w,h);f[round(h*y):round(h*y)+20,round(w*.74):round(w*.74)+40]=255
+    self.assertIsNotNone(d.detail_home_position(f))
+    self.assertIsNotNone(d.detail_select_position(f))
