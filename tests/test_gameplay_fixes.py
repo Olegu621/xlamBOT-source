@@ -56,7 +56,7 @@ class GameplayFixTests(unittest.TestCase):
         namespace={'normalize_brawler_filename':lambda x:x,'load_brawlers_info':lambda:{},'load_toml_as_dict':lambda p:{'brawlers_menu':[1,1],'first_brawler_icon':[2,2],'select_brawler':[3,3]},'get_state':lambda f:f,'time':SimpleNamespace(sleep=lambda t:None)}
         select=method('lobby_automation.py','LobbyAutomation','select_brawler',namespace)
         window=Mock(width_ratio=1,height_ratio=1);window.screenshot.side_effect=['lobby','brawler_selection','brawler_selection','lobby'];window.type_text.return_value=True
-        bot=SimpleNamespace(window_controller=window,_last_picked={'brawler':'carl','trophies':32},_should_interrupt=lambda *a:False,_sleep_interruptible=lambda *a:False)
+        bot=SimpleNamespace(window_controller=window,_last_picked={'brawler':'carl','trophies':32},_confirm_brawler_selection=lambda *a:True,_should_interrupt=lambda *a:False,_sleep_interruptible=lambda *a:False)
         with patch.dict(sys.modules,{'trophy_reader':fake_reader}):
             self.assertEqual(select(bot,'byron',lambda:'brawler_selection'),'success')
         self.assertEqual(bot._last_picked,{'brawler':'byron','trophies':687})
