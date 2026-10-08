@@ -32,7 +32,7 @@ class CreditsReceiptTests(unittest.TestCase):
     def test_caption_token_and_backdrop_are_independently_required(self):
         for top, bottom, left, right in ((160, 230, 490, 790), (440, 500, 585, 695), (610, 720, 0, 1280)):
             frame = receipt()
-            frame[top:bottom, left:right] = (20, 90, 150)
+            frame[top:bottom, left:right] = (90, 100, 100)
             self.assertFalse(credits_reward(frame))
         frame = receipt()
         frame[300:520, 510:800] = (30, 50, 80)
