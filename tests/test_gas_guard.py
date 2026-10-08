@@ -30,7 +30,7 @@ class GasGuardTests(unittest.TestCase):
         p=Play.__new__(Play);p.Detect_gas=object();p.gas_boxes=[[100,100,160,180]]
         p.gas_mask=np.zeros((240,400),np.uint8);p.gas_mask_time=10.;p.gas_detect_interval=.8
         p.gas_player_box=None;p.gas_coverage=0;p.verbose_debug=False;p.update_gas_danger=lambda n:None
-        calls=[];p.detect_gas=lambda frame:calls.append(frame)
+        calls=[];p.gas_detection_ok=True;p.detect_gas=lambda frame:calls.append(frame)
         from unittest.mock import patch
         with patch('play.time.time',return_value=10.11):p.refresh_gas(np.zeros((240,400,3),np.uint8))
         self.assertEqual(len(calls),1)

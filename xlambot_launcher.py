@@ -26,7 +26,7 @@ import time
 import webbrowser
 
 APP_NAME = "xlamBOT"
-VERSION = "0.8.18"
+VERSION = "0.8.19"
 DEFAULT_PORT = 5195
 WIZARD_MARKER = "setup_done.json"
 

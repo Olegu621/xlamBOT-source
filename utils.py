@@ -513,7 +513,7 @@ def save_brawler_icon(brawler_name):
     print(f"Icon not found for brawler '{brawler_name}'")
 
 
-XLAMBOT_VERSION = "0.8.18"
+XLAMBOT_VERSION = "0.8.19"
 # Скачивать нечего: программа полностью локальная.
 DOWNLOAD_URL = ""
 

@@ -11,7 +11,7 @@ class UnknownRecoveryTests(unittest.TestCase):
         return manager
     def test_four_second_grace_then_one_and_half_second_interval(self):
         manager=self.manager()
-        with patch('stage_manager.time.monotonic',side_effect=[1.,4.99,5.,5.5,6.49,6.5]),patch('stage_manager.get_state',return_value='unknown'):
+        with patch('side_menu.side_menu_close_position',return_value=(1203.1999999999998,25.200000000000003)),patch('stage_manager.time.monotonic',side_effect=[1.,4.99,5.,5.5,6.49,6.5]),patch('stage_manager.get_state',return_value='unknown'):
             for i in range(6):manager.recover_unknown()
         self.assertEqual(self.clicks,[(1203.1999999999998,25.200000000000003)]*2)
     def test_known_fresh_screen_cannot_be_clicked_from_stale_unknown_state(self):
@@ -28,7 +28,7 @@ class UnknownRecoveryTests(unittest.TestCase):
 
     def test_known_state_restarts_the_full_grace_period(self):
         manager=self.manager()
-        with patch('stage_manager.time.monotonic',side_effect=[1.,5.,6.,9.99,10.]),patch('stage_manager.get_state',return_value='unknown'):
+        with patch('side_menu.side_menu_close_position',return_value=(1203.1999999999998,25.200000000000003)),patch('stage_manager.time.monotonic',side_effect=[1.,5.,6.,9.99,10.]),patch('stage_manager.get_state',return_value='unknown'):
             manager.recover_unknown()
             manager.recover_unknown()
             manager.reset_unknown_recovery()

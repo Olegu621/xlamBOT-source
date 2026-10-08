@@ -119,7 +119,12 @@ class BotInstance:
         self.no_detections_action_threshold = 60 * 8
         self.state = None
         self.stop_event = stop_event
-        self.state_lock = threading.Lock()
+        from runtime_observation import Observations
+        self.observations = Observations()
+        self.state_lock = self.observations.lock
+        self.window_controller.observations = self.observations
+        self.window_controller.stop_requested = self.should_stop
+        self.window_controller.observe_action_frame = self.observe_action_frame
         self.latest_state_frame_time = 0.0
         self.current_frame_time = 0.0
         self.processed_fps = 0.0
@@ -245,34 +250,51 @@ class BotInstance:
 
     def set_latest_state(self, state, frame_time=None):
         with self.state_lock:
-            if state == 'unknown':
-                observed = getattr(self.Play, 'world_state', {})
-                if observed.get('player_present') and time.time()-observed.get('timestamp',0) < .3:
-                    state = 'match'
-            previous_state = self.state
+            stamp = frame_time if frame_time is not None else time.time()
+            if not self.observations.publish(state, stamp):
+                return False
+            previous_state = getattr(self, '_last_confirmed_state', self.state)
             self.state = state
             if previous_state == 'match' and state not in ('match','unknown'):
                 self.Play.reset_battle_pending = True
-            self.latest_state_frame_time = frame_time if frame_time is not None else time.time()
-        if state != 'match':
-            self.window_controller.gameplay_frame_time = None
-            self.window_controller.release_all_inputs()
+            if state != 'unknown':
+                self._last_confirmed_state = state
+            self.Stage_manager.observe_state(state)
+            self.latest_state_frame_time = stamp
+        # Classifiers publish observations only. The worker/watchdog owns input.
+        return True
 
 
     def get_latest_state(self):
         with self.state_lock:
             if time.time()-self.latest_state_frame_time > self.max_cached_state_age:
-                return 'unknown'
+                return 'frame_stale'
             return self.state
 
 
     def handle_detected_state(self, state):
+        observation = self.observations.snapshot()
+        if state != self.get_latest_state() or state != observation.state:
+            return
+        with self.window_controller.decision_scope(observation, allow_menu_transitions=True):
+            self._handle_detected_state(state)
+
+    def observe_action_frame(self, frame, frame_time):
+        if not self.window_controller.frame_is_fresh(frame_time):
+            raise StaleFrameError('Input rejected: stale menu frame')
+        state = get_state(frame)
+        self.set_latest_state(state, frame_time)
+        observation = self.observations.snapshot()
+        if observation.state != state:
+            raise StaleFrameError('Input rejected: newer screen superseded menu frame')
+        return observation
+
+    def _handle_detected_state(self, state):
         if state != "match":
             self.window_controller.gameplay_frame_time = None
         if state is None:
             return
         if state == "idle_disconnect":
-            self.set_latest_state(state)
             from disconnect_dialog import idle_disconnect_reload_position
             frame = self.window_controller.screenshot()
             reload_position = idle_disconnect_reload_position(frame)
@@ -286,7 +308,6 @@ class BotInstance:
             self.window_controller.click(*reload_position, already_include_ratio=True)
             return
         if state == "connection_lost":
-            self.set_latest_state(state)
             # The connection-lost dialog is not a game state, so it must not be
             # stored as one: the bot would then believe it is somewhere it is
             # not. Tapping RETRY LOGIN is the whole handling.
@@ -302,7 +323,6 @@ class BotInstance:
             self.window_controller.release_all_inputs()
             self.window_controller.click(retry[0], retry[1], already_include_ratio=True)
             return
-        self.set_latest_state(state)
         print(f"[{self.device_label}] State: {state}")
         if state == "lobby" and not self.picked_first_brawler:
             # The main loop must confirm the initial selection before a timed
@@ -474,7 +494,76 @@ class BotInstance:
                     self.stop_gracefully()
                     return
 
+    def _pick_initial_brawler(self):
+        with self.window_controller.decision_scope(self.observations.snapshot(), allow_menu_transitions=True):
+            return self._pick_initial_brawler_step()
+
+    def _pick_initial_brawler_step(self):
+        if self.Stage_manager.brawlers_pick_data[0]['automatically_pick']:
+            next_brawler_name = self.Stage_manager.brawlers_pick_data[0]['brawler']
+            print(f"[{self.device_label}] Picking brawler automatically")
+            if self.runtime_control:
+                self.runtime_control.mark_running()
+            if self.Stage_manager._pick_lowest_trophies():
+                select_brawler = self.lobby_automator.select_brawler_by_sort(
+                    self.get_latest_state, runtime_control=self.runtime_control,
+                    sort_point=self.Stage_manager.brawler_sort_point())
+                # Only the game's own sort knows the real minimum, so the
+                # name read from the card is what gets used from here on.
+                print(f"[{self.device_label}] Lowest-trophy pick returned: {select_brawler}")
+            else:
+                select_brawler = self.lobby_automator.select_brawler(
+                    next_brawler_name, self.get_latest_state, runtime_control=self.runtime_control)
+
+            # A failed or errored selection leaves the bot in the lobby
+            # with no brawler chosen, so it is retried a few times and
+            # then given up on: an endless retry here is what used to
+            # keep the Stop button from doing anything.
+            for _attempt in range(3):
+                # None used to pass this test, which ended the retries and
+                # then recorded a pick that never happened.
+                if select_brawler == "success":
+                    break
+                if select_brawler in ("aborted", "stuck"):
+                    break
+                print(f"[{self.device_label}] Automatic brawler selection returned "
+                      f"{select_brawler}, retrying.")
+                if self.ping_when_stuck:
+                    screenshot = self.window_controller.screenshot()
+                    notify_user("bot_failed_brawler_selection", screenshot, self.Stage_manager)
+                if self.sleep_interruptible(2) == "stop":
+                    self.stop_gracefully()
+                    break
+                select_brawler = self.lobby_automator.select_brawler_by_sort(
+                    self.get_latest_state, runtime_control=self.runtime_control,
+                    sort_point=self.Stage_manager.brawler_sort_point())
+
+            # "aborted" means a stop, "stuck" means the screen is no
+            # longer the brawler menu. Neither is a reason to press on.
+            if select_brawler in ("aborted", "stuck"):
+                return False
+            if select_brawler != "success":
+                # Nothing was chosen. Leave picked_first_brawler alone so
+                # the next lobby tick tries again rather than starting a
+                # match on whoever the game had selected before.
+                print(f"[{self.device_label}] First pick was not confirmed "
+                      f"({select_brawler!r}); will retry on the next lobby tick.")
+                time.sleep(2)
+                return False
+
+            self.picked_first_brawler = True
+
+            # The pick is only real once it is written down, otherwise
+            # the trophy observer still points at the guessed brawler.
+            self.Stage_manager._adopt_picked_brawler(
+                self.Stage_manager.current_brawler(), 0)
+            self.update_trophy_observer()
+        else:
+            self.picked_first_brawler = True
+        return True
+
     def _main_loop(self):
+        self.window_controller.input_owner = threading.get_ident()
         s_time = time.time()
         c = 0
         last_processed_stamp = 0.0
@@ -499,72 +588,8 @@ class BotInstance:
                         continue
 
             if not self.picked_first_brawler and self.get_latest_state() == "lobby":
-                if self.Stage_manager.brawlers_pick_data[0]['automatically_pick']:
-                    next_brawler_name = self.Stage_manager.brawlers_pick_data[0]['brawler']
-                    print(f"[{self.device_label}] Picking brawler automatically")
-                    if self.runtime_control:
-                        self.runtime_control.mark_running()
-                    if self.Stage_manager._pick_lowest_trophies():
-                        select_brawler = self.lobby_automator.select_brawler_by_sort(
-                            self.get_latest_state, runtime_control=self.runtime_control,
-                            sort_point=self.Stage_manager.brawler_sort_point())
-                        # Only the game's own sort knows the real minimum, so the
-                        # name read from the card is what gets used from here on.
-                        print(f"[{self.device_label}] Lowest-trophy pick returned: {select_brawler}")
-                    else:
-                        select_brawler = self.lobby_automator.select_brawler(
-                            next_brawler_name, self.get_latest_state, runtime_control=self.runtime_control)
-
-                    # A failed or errored selection leaves the bot in the lobby
-                    # with no brawler chosen, so it is retried a few times and
-                    # then given up on: an endless retry here is what used to
-                    # keep the Stop button from doing anything.
-                    for _attempt in range(3):
-                        # None used to pass this test, which ended the retries and
-                        # then recorded a pick that never happened.
-                        if select_brawler == "success":
-                            break
-                        if select_brawler in ("aborted", "stuck"):
-                            break
-                        print(f"[{self.device_label}] Automatic brawler selection returned "
-                              f"{select_brawler}, retrying.")
-                        if self.ping_when_stuck:
-                            screenshot = self.window_controller.screenshot()
-                            notify_user("bot_failed_brawler_selection", screenshot, self.Stage_manager)
-                        if self.sleep_interruptible(2) == "stop":
-                            self.stop_gracefully()
-                            break
-                        select_brawler = self.lobby_automator.select_brawler_by_sort(
-                            self.get_latest_state, runtime_control=self.runtime_control,
-                            sort_point=self.Stage_manager.brawler_sort_point())
-
-                    # "aborted" means a stop, "stuck" means the screen is no
-                    # longer the brawler menu. Neither is a reason to press on.
-                    if select_brawler in ("aborted", "stuck"):
-                        continue
-                    if select_brawler != "success":
-                        # Nothing was chosen. Leave picked_first_brawler alone so
-                        # the next lobby tick tries again rather than starting a
-                        # match on whoever the game had selected before.
-                        print(f"[{self.device_label}] First pick was not confirmed "
-                              f"({select_brawler!r}); will retry on the next lobby tick.")
-                        time.sleep(2)
-                        continue
-
-                    self.picked_first_brawler = True
-
-                    # The pick is only real once it is written down, otherwise
-                    # the trophy observer still points at the guessed brawler.
-                    self.Stage_manager._adopt_picked_brawler(
-                        self.Stage_manager.current_brawler(), 0)
-                    self.update_trophy_observer()
-                else:
-                    self.picked_first_brawler = True
-
-            if self.get_latest_state() == 'unknown':
-                self.Stage_manager.recover_unknown()
-            else:
-                self.Stage_manager.reset_unknown_recovery()
+                if not self._pick_initial_brawler():
+                    continue
 
             t_now = time.time()
             frame_start = time.perf_counter()
@@ -647,6 +672,12 @@ class BotInstance:
                 self.sleep_interruptible(.005, allow_pause=False)
                 continue
             last_processed_stamp = self.current_frame_time
+            observation = self.observations.snapshot()
+            if self.get_latest_state() == 'unknown':
+                with self.window_controller.decision_scope(observation):
+                    self.Stage_manager.recover_unknown()
+            else:
+                self.Stage_manager.reset_unknown_recovery()
             self.manage_time_tasks(frame)
 
             # queue[0] is our own guess about who plays; the game picks the
@@ -657,7 +688,8 @@ class BotInstance:
                 brawler = self.Stage_manager.brawlers_pick_data[0]['brawler']
             self.Play.current_brawler = brawler
             try:
-                self.Play.main(frame, brawler, self)
+                with self.window_controller.decision_scope(self.observations.snapshot()):
+                    self.Play.main(frame, brawler, self)
                 world = self.Play.world_state
                 world["thinking_level"] = self.thinking.mode
             except StaleFrameError:

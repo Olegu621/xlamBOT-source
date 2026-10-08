@@ -613,6 +613,7 @@ class Play:
         self.gas_mask_time = time.time()
 
         if self.Detect_gas is None or image is None or getattr(image, "size", 0) == 0:
+            self.gas_detection_ok = False
             return self.gas_boxes
 
         try:
@@ -620,6 +621,7 @@ class Play:
         except Exception as error:
             print(f"Gas detection failed: {error}")
             self.gas_detection_ok = False
+            self._gas_retry_at = time.time() + 1
             return self.gas_boxes
 
         height = image.shape[0]
@@ -639,6 +641,7 @@ class Play:
         self.gas_boxes = boxes
         self.gas_mask = self.build_gas_mask(image, boxes)
         self.gas_detection_ok = True
+        self._gas_retry_at = 0
         self.gas_observed_at = self.gas_mask_time
 
         return self.gas_boxes
@@ -713,7 +716,12 @@ class Play:
         """
         now = time.time()
 
+        if now < getattr(self, '_gas_retry_at', 0):
+            self.gas_state = 'UNAVAILABLE'
+            return
+
         if self.Detect_gas is None or image is None or getattr(image, "size", 0) == 0:
+            self.gas_detection_ok = False
             self.clear_gas_state()
             return
 
@@ -733,6 +741,9 @@ class Play:
         else:
             self.gas_coverage = 0.0
 
+        if not self.gas_detection_ok:
+            self.gas_state = 'UNAVAILABLE'
+            return
         self.update_gas_danger(self.gas_coverage)
 
         if self.verbose_debug:
@@ -1506,6 +1517,12 @@ class Play:
         # already known when the playstyle asks what to do.
         player_box = data['player'][0] if data.get('player') else None
         gas_movement = self.avoid_gas(frame, player_box, data.get('wall') or [], current_time)
+        if self.gas_avoidance and not self.gas_detection_ok:
+            self.gas_state = 'UNAVAILABLE'
+            self.window_controller.release_all_inputs()
+            self.world_state = {'timestamp': frame_time, 'state': 'match', 'player_present': True,
+                                'gas_detection_ok': False, 'reason': 'gas_detector_unavailable'}
+            return
         if not self.window_controller.begin_gameplay_frame(frame, frame_time):
             self.window_controller.release_all_inputs()
             return

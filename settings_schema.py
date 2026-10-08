@@ -16,6 +16,12 @@ def masked(settings):
 
 def validate(name, value, original, path=''):
     label = path or name
+    if name in {'used_threads', 'max_fps'} and '[' not in label:
+        if value == 'auto':
+            return
+        if type(value) is not int or not RANGES[name][0] <= value <= RANGES[name][1]:
+            raise ValueError('Enter an integer in range or auto for ' + label)
+        return
     if name == 'work_mode' and (type(value) is not int or value not in range(1,6)):
         raise ValueError('Выберите режим работы от 1 до 5')
     if label == 'brawler_calibration.point_keys':
@@ -41,6 +47,10 @@ def validate(name, value, original, path=''):
     elif isinstance(original, list):
         valid = isinstance(value, list)
         if valid:
+            if name in {'gas_classes', 'wall_model_classes'}:
+                if any(not isinstance(item, str) or not item.strip() for item in value) or len(set(value)) != len(value):
+                    raise ValueError('Enter unique class names for ' + label)
+                return
             if name not in {'gas_classes', 'wall_model_classes'} and len(value) != len(original):
                 raise ValueError('Keep the array size for ' + label)
             for index, (item, old) in enumerate(zip(value, original)):
