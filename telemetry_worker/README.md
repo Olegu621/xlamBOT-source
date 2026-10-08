@@ -31,6 +31,18 @@ Statistics are self-reported by consenting clients, not a count of downloads or 
 
 Daily cleanup removes error groups inactive for 30 days and Telegram update claims older than seven days. Anonymous match totals and device participation are retained for all-time statistics. Worker observability is disabled; Telegram secrets never enter the PC distribution.
 
+## Private Mini App
+
+Local Settings → Telegram creates a random single-use pairing key valid for ten minutes. PC credentials use Windows user DPAPI. Remote control is off until configured; disconnect blocks commands without stopping gameplay. Each Telegram user can link multiple PCs and sees only their linked PCs. Keep the PC and bot running.
+
+Set the verified owner's numeric `ADMIN_TELEGRAM_USER_ID` in Worker secrets. Public commands are `/online` and `/panel`; expose `/admin` only in the owner's private-chat command scope. The private-chat menu button opens the HTTPS `/miniapp` URL. Apply migration 0003 and the SQLite Durable Object binding before enabling the menu.
+
+Telegram initData uses HMAC verification, a ten-minute freshness window and a private launch restriction. One-hour HttpOnly sessions protect the shell and owner-only admin API. Pairing is atomic; new keys/revocation remove old access. PC views run in an isolated sandbox with separate one-hour grants scoped to one installation. Those grants cannot authenticate admin requests. Pages, APIs and images retain their PC scope, including parallel tabs.
+
+A SQLite Durable Object on the Workers Free plan relays requests over the PC's outbound TLS WebSocket and hibernates when idle. No router ports, inbound local HTTP exposure or paid plan are needed. Allowed device controls, queues, brawler selection, Think/mode controls, calibration, recordings/annotation and statistics reuse protected Flask handlers. Worker and PC independently block general settings, access configuration, updates and shutdown. Deadlines and bounded messages prevent delayed/replayed actions. Export downloads over 32 MiB locally. Screens, history and PC logs are relayed only when the linked owner opens them; the admin journal does not persist them.
+
+Only the verified administrator reads sanitized errors, technical activity and anonymous panel version changes. First observation differs from an actual revision change; repeated heartbeats do not duplicate events. Timestamp/row cursors paginate equal-time records. Raw PC logs belong to each linked owner and are not harvested from other installations. Version observations begin at deployment; old update timestamps cannot be reconstructed. Expired sessions/grants and activity older than 30 days are removed daily. Free-tier quota exhaustion can interrupt remote control while local gameplay continues.
+
 ## Verification
 
 `npm test` executes the production queries and migrations against SQLite with

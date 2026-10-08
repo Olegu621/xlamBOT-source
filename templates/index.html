@@ -37,6 +37,7 @@
     {% include '_community_statistics_notice.html' %}
 
     <main class="studio-main">
+        <details class="card"><summary class="card-head">Telegram · {{ 'Control from your phone' if ui_language == 'en' else 'Управление с телефона' }}</summary><div class="card-body" id="telegramControl"></div></details>
         <section class="studio-view is-active" id="view-dashboard"></section>
         <section class="studio-view" id="view-brawlers"></section>
         <section class="studio-view" id="view-playstyles"></section>
@@ -48,5 +49,5 @@
     <div id="toast" class="toast hidden"></div>
     <script src="{{ url_for('static', filename='js/ui-session.js') }}?v={{ ui_version }}"></script><script src="{{ url_for('static', filename='js/studio.js') }}?v={{ ui_version }}"></script>
 <script src="{{ url_for('static', filename='js/resource_updates.js') }}?v={{ ui_version }}"></script>
-<script src="{{ url_for('static', filename='js/device-experience.js') }}?v={{ ui_version }}"></script></body>
+<script src="{{ url_for('static', filename='js/device-experience.js') }}?v={{ ui_version }}"></script><script src="{{ url_for('static', filename='js/telegram-settings.js') }}?v={{ ui_version }}"></script></body>
 </html>

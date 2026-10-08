@@ -166,7 +166,10 @@ class CommunityStatistics:
             matches, cursors = self.history_batch()
         with self.lock:
             if epoch!=self.epoch: return
-        ack = self._post('/v1/statistics', {'devices':devices,'matches':matches}, credentials['token'])
+        payload = {'devices':devices,'matches':matches}
+        if enabled:
+            payload['revision'] = self.revision
+        ack = self._post('/v1/statistics', payload, credentials['token'])
         if ack.get('accepted') != [m['id'] for m in matches]: raise ValueError('Invalid statistics acknowledgement')
         with self.lock:
             if enabled:
