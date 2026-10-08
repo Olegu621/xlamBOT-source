@@ -667,7 +667,8 @@ def create_app(xlambot_main, start_discord_bot=False):
         items = payload.get("items")
         if not isinstance(items, list):
             raise KeyError("A list of queue items is required.")
-        device_profiles.save_queue(key, items)
+        with device_manager.queue_edit(key):
+            device_profiles.save_queue(key, items)
         return jsonify({"ok": True, "items": device_profiles.load_queue(key)})
 
     @app.get("/api/devices/<path:key>/brawler")
@@ -680,6 +681,10 @@ def create_app(xlambot_main, start_discord_bot=False):
 
     @app.post("/api/devices/<path:key>/brawler")
     def device_set_brawler(key: str):
+        with device_manager.queue_edit(key):
+            return save_device_brawler(key)
+
+    def save_device_brawler(key: str):
         """Play exactly one brawler, or go back to rotating.
 
         The name is checked against the same table play.py reads, because a
@@ -696,10 +701,10 @@ def create_app(xlambot_main, start_discord_bot=False):
         if name and name not in catalog:
             raise KeyError(f"'{name}' is not a known brawler.")
 
-        trophies = 0
+        trophies = None
         for entry in device_profiles.load_queue(key):
             if str(entry.get("brawler", "")).strip().lower() == name:
-                trophies = entry.get("trophies") or 0
+                trophies = entry.get("trophies")
                 break
 
         with device_profiles.use_profile(key):

@@ -7,6 +7,7 @@ per-device logs so the panel can control every phone independently.
 from __future__ import annotations
 
 import collections
+from contextlib import contextmanager
 import re
 import threading
 import time
@@ -388,24 +389,39 @@ class DeviceRuntimeManager:
         from webui.runtime import RuntimeControl
 
         key = device_profiles.sanitize_key(key)
+        runtime = self._runtime_for(key)
+        with runtime._lock:
+            if runtime.is_running:
+                if runtime._state == 'paused':
+                    self._controls.get(key) and self._controls[key].resume()
+                    runtime._state = 'running'
+                    return {'ok': True, 'message': f'Resumed {key}.'}
+                return {'ok': False, 'message': f'{key} is already running ({runtime._state}).'}
+            control = RuntimeControl(runtime._set_state)
+            self._controls[key] = control
+            runtime._control = control
+            runtime._thread = None
+            runtime._started_at = None
+            runtime._state = 'starting'
+            runtime._last_error = ''
+        try:
+            return self._prepare_start(key, serial, runtime, control)
+        finally:
+            with runtime._lock:
+                if not runtime._thread:
+                    runtime._state = 'idle'
+                    runtime._control = None
+
+    def _prepare_start(self, key, serial, runtime, control):
         if serial and canonical_serial(str(serial)) != canonical_serial(self.resolve_serial(key)):
             return {"ok": False, "code": "DEVICE_MISMATCH", "message": "The selected profile belongs to another device."}
         serial = self.resolve_serial(key, serial)
-        runtime = self._runtime_for(key, serial)
+        runtime.serial = serial
         with self._lock:
             duplicate = next((r for k, r in self._runtimes.items()
                               if k != key and r.is_running and canonical_serial(r.serial) == canonical_serial(serial)), None)
         if duplicate:
             return {"ok": False, "code": "DEVICE_ALREADY_RUNNING", "message": f"{serial} is already controlled by {duplicate.key}."}
-        if runtime.is_running and runtime.get_status()["state"] == "stopping":
-            return {"ok": False, "message": f"{key}: waiting for the previous worker to exit."}
-        if runtime.is_running:
-            if runtime.get_status()["state"] == "paused":
-                self._controls.get(key) and self._controls[key].resume()
-                runtime._set_state("running")
-                return {"ok": True, "message": f"Resumed {key}."}
-            return {"ok": False, "message": f"{key} is already running ({runtime.get_status()['state']})."}
-
         queue_data = self._queue_provider(key) if self._queue_provider else device_profiles.load_queue(key)
         queue_data = clean_queue(queue_data or [])
         if not queue_data:
@@ -413,7 +429,6 @@ class DeviceRuntimeManager:
 
         device_profiles.ensure_profile(key)
         config_root = device_profiles.config_root_for(key)
-        control = RuntimeControl(runtime._set_state)
 
         def _on_instance(instance):
             with self._lock:
@@ -450,8 +465,9 @@ class DeviceRuntimeManager:
                     runtime._state = "error"
                     runtime._last_error = result.get("message", "Unknown error")
 
-        with self._lock:
-            self._controls[key] = control
+        with runtime._lock:
+            if control.should_stop():
+                return {'ok': False, 'code': 'START_CANCELLED', 'message': 'Start cancelled by Stop.'}
             runtime._state = "starting"
             runtime._last_error = ""
             runtime._result = None
@@ -490,16 +506,16 @@ class DeviceRuntimeManager:
     def stop(self, key: str) -> dict[str, Any]:
         key = device_profiles.sanitize_key(key)
         runtime = self._runtime_for(key)
-        control = self._controls.get(key)
         with runtime._lock:
+            control = runtime._control
             thread = runtime._thread
             thread_alive = bool(thread and thread.is_alive())
+            if control is not None:
+                control.request_stop()
             if not thread_alive:
                 runtime._state = "idle"
                 runtime._started_at = None
                 return {"ok": True, "message": f"{key} is already stopped."}
-            if control is not None:
-                control.request_stop()
             runtime._state = "stopping"
         if thread:
             thread.join(timeout=20)
@@ -519,10 +535,26 @@ class DeviceRuntimeManager:
         with self._lock:
             keys = list(self._runtimes)
         for key in keys:
-            if self.get_status(key)["is_running"]:
+            status = self.get_status(key)
+            if status["is_running"] or status['state'] == 'starting':
                 self.stop(key)
                 stopped.append(key)
         return {"ok": True, "message": f"Stopped {len(stopped)} device(s).", "stopped": stopped}
+
+    @contextmanager
+    def queue_edit(self, key):
+        """Serialize queue edits with Start and reject a worker's owned queue."""
+        key = device_profiles.sanitize_key(key)
+        with self._start_lock:
+            serial = canonical_serial(self.resolve_serial(key))
+            with self._lock:
+                runtimes = list(self._runtimes.values())
+            for runtime in runtimes:
+                if runtime.key == key or canonical_serial(runtime.serial) == serial:
+                    status = runtime.get_status()
+                    if status['is_running'] or status['state'] == 'starting':
+                        raise ValueError('Остановите бот на этом устройстве перед изменением очереди или бойца.')
+            yield
 
     def get_logs(self, key: str, limit: int = 400) -> list[str]:
         return LOG_HUB.get(device_profiles.sanitize_key(key), limit=limit)

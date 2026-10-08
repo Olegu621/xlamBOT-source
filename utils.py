@@ -353,7 +353,7 @@ def clean_queue(data):
             except (ValueError, TypeError, OverflowError):
                 current_wins = 0
         current_trophies = brawler_data["trophies"]
-        if not isinstance(current_trophies, int):
+        if current_trophies is not None and not isinstance(current_trophies, int):
             try:
                 current_trophies = int(current_trophies)
             except (ValueError, TypeError, OverflowError):

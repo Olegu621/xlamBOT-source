@@ -325,17 +325,19 @@ class LobbyAutomation:
 
         x, y = load_toml_as_dict("cfg/buttons_config.toml")["brawlers_menu"]
         self.window_controller.click(x, y, already_include_ratio=False)
-        time.sleep(1.25)
+        if self._sleep_interruptible(1.25, runtime_control, stop_event):
+            return 'aborted'
         print("Automatic brawler selection started for", brawler_search_name)
         for i in range(100):
             if self._should_interrupt(runtime_control, stop_event):
                 print("Brawler selection aborted by user.")
                 return "aborted"
-            self.window_controller.screenshot()
-            current_state = get_latest_state()
+            frame = self.window_controller.screenshot()
+            current_state = get_state(frame)
             if current_state == "shop":
                 print("Brawler menu is still opening")
-                time.sleep(1)
+                if self._sleep_interruptible(1, runtime_control, stop_event):
+                    return 'aborted'
                 continue
 
             if current_state != "brawler_selection":

@@ -8,6 +8,16 @@ from combat_behavior import CombatBehavior,unique
 def box(x,y=0):return [x-10,y-10,x+10,y+10]
 
 class CombatBehaviorTests(unittest.TestCase):
+    def test_blocked_close_enemy_cannot_silence_visible_enemy_in_range(self):
+        policy = CombatBehavior()
+        blocked, visible = box(10), box(260)
+        policy.target = (10, 0)
+        policy.seen = 0
+        plan = self.choose(2, [blocked, visible], now=.1, policy=policy,
+                           visible=lambda b: b == visible)
+        self.assertEqual(plan['target'], visible)
+        self.assertTrue(plan['report']['fire_allowed'])
+
     def choose(self,mode,enemies,allies=(),attack=300,now=0,policy=None,visible=None):
         return (policy or CombatBehavior()).plan(mode,(0,0),enemies,allies,attack,150,40,100,now,visible)
     def test_modes_use_different_distances_without_ranged_point_blank_rush(self):

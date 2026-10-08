@@ -169,7 +169,7 @@ class RuntimeConsistencyTests(unittest.TestCase):
         with patch('stage_manager.get_state', return_value='lobby'):
             manager.click_star_drop('regular')
         manager.window_controller.press.assert_not_called()
-        with patch('stage_manager.get_state', return_value='star_drop_regular'):
+        with patch('stage_manager.get_state', side_effect=['star_drop_regular', 'lobby']):
             manager.click_star_drop('regular')
         manager.window_controller.press.assert_called_once_with('proceed', .05)
         self.assertFalse(hasattr(manager, '_star_drop_thread'))

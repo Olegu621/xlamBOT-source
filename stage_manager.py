@@ -75,6 +75,7 @@ class StageManager:
             'star_drop_angelic': lambda: self.click_star_drop("angelic"),
             'star_drop_demonic': lambda: self.click_star_drop("demonic"),
             'star_drop_starr_nova': lambda: self.click_star_drop("starr_nova"),
+            'star_drop_loony': lambda: self.click_star_drop("loony"),
             'trophy_reward': lambda: self.window_controller.press("proceed"),
             'prestige_milestone': lambda: self.window_controller.press("continue_or_equip"),
             'end_draw': self.end_game,
@@ -158,11 +159,11 @@ class StageManager:
         current = self.brawlers_pick_data[0] if self.brawlers_pick_data else None
         if current and str(current.get("brawler", "")).strip().lower() == name:
             return False
-        trophies = 0
+        trophies = None
         wins = 0
         for entry in self.brawlers_pick_data:
             if str(entry.get("brawler", "")).strip().lower() == name:
-                trophies = entry.get("trophies") or 0
+                trophies = entry.get("trophies")
                 wins = entry.get("wins") or 0
                 break
         self.brawlers_pick_data = [{
@@ -358,7 +359,7 @@ class StageManager:
             # The game's lowest brawler is not in our queue at all. Add it, or the
             # panel would keep showing a roster the bot is not playing from.
             entry = {"brawler": name, "type": "trophies", "push_until": 1000,
-                     "trophies": trophies or 0, "wins": 0, "win_streak": 0,
+                     "trophies": trophies, "wins": 0, "win_streak": 0,
                      "automatically_pick": True}
             self.brawlers_pick_data.append(entry)
             print(f"{name} was not in the queue, added it so the panel shows the truth.")
@@ -702,13 +703,30 @@ class StageManager:
         self.window_controller.click(width // 2, round(height * .88), already_include_ratio=True)
 
     def click_star_drop(self, drop_type="regular"):
-        if self._should_stop() or self._should_pause():
-            return
-        frame = self.window_controller.screenshot()
-        if get_state(frame) != 'star_drop_' + drop_type:
-            return
-        # One short step on the owning worker; subsequent frames revalidate it.
-        self.window_controller.press('proceed', .25 if drop_type != 'regular' else .05)
+        held = False
+        try:
+            # Original ordinary drops use a tap burst; special drops need a
+            # sustained hold. Each short slice belongs to this device worker.
+            special = drop_type not in ('regular', 'loony')
+            for step in range(80 if special else 8):
+                if self._should_stop() or self._should_pause():
+                    return
+                frame = self.window_controller.screenshot()
+                if get_state(frame) != 'star_drop_' + drop_type:
+                    return
+                if not self.window_controller.frame_is_fresh():
+                    return
+                self.window_controller._check_decision()
+                if special:
+                    held = True
+                    self.window_controller.press('proceed', .1, touch_up=False, touch_down=step == 0)
+                else:
+                    self.window_controller.press('proceed', .05)
+                    if self._sleep_interruptible(.1):
+                        return
+        finally:
+            if held:
+                self.window_controller.press('proceed', 0, touch_up=True, touch_down=False)
 
     def observe_match(self):
         """A new confirmed battle arms exactly one result recording."""

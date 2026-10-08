@@ -58,7 +58,8 @@ class GameplayFixTests(unittest.TestCase):
         window=Mock(width_ratio=1,height_ratio=1);window.screenshot.side_effect=['lobby','brawler_selection','brawler_selection','lobby'];window.type_text.return_value=True
         bot=SimpleNamespace(window_controller=window,_last_picked={'brawler':'carl','trophies':32},_confirm_brawler_selection=lambda *a:True,_should_interrupt=lambda *a:False,_sleep_interruptible=lambda *a:False)
         with patch.dict(sys.modules,{'trophy_reader':fake_reader}):
-            self.assertEqual(select(bot,'byron',lambda:'brawler_selection'),'success')
+            # Cached recognition still says lobby; the new frame is the grid.
+            self.assertEqual(select(bot,'byron',lambda:'lobby'),'success')
         self.assertEqual(bot._last_picked,{'brawler':'byron','trophies':687})
         fake_reader.read_card.return_value={'brawler':'carl'};window.screenshot.side_effect=['lobby','brawler_selection','brawler_selection'];window.click.reset_mock()
         with patch.dict(sys.modules,{'trophy_reader':fake_reader}):
