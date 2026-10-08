@@ -134,6 +134,9 @@ def get_in_game_state(image):
         from disconnect_dialog import idle_disconnect_reload_position
         if idle_disconnect_reload_position(image) is not None:
             return "idle_disconnect"
+        from club_suggestion import club_suggestion_close_position
+        if club_suggestion_close_position(image) is not None:
+            return "club_suggestion"
         from screen_evidence import daily_reward
         if daily_reward(image):
             return 'daily_reward'

@@ -64,6 +64,7 @@ class StageManager:
             'daily_reward': self.dismiss_daily_reward,
             'team_panel': self.close_team_panel,
             'side_menu': self.close_side_menu,
+            'club_suggestion': self.close_club_suggestion,
             'popup': self.close_pop_up,
             'match': lambda: 0,
             'match_making': lambda: 0,
@@ -896,6 +897,20 @@ class StageManager:
     def reset_unknown_recovery(self):
         self._unknown_since = None
         self._last_unknown_tap = -100
+
+    def close_club_suggestion(self):
+        if self._should_stop() or self._should_pause():
+            return
+        now = time.monotonic()
+        if now - getattr(self, '_club_suggestion_last_tap', -100) < 1.5:
+            return
+        from club_suggestion import club_suggestion_close_position
+        position = club_suggestion_close_position(self.window_controller.screenshot())
+        if position is None or self._should_stop() or self._should_pause():
+            return
+        self._club_suggestion_last_tap = now
+        self.window_controller.release_all_inputs()
+        self.window_controller.click(*position, already_include_ratio=True)
 
     def close_side_menu(self):
         if self._should_stop() or self._should_pause():
