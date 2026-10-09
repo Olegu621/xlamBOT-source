@@ -8,6 +8,22 @@
     if (summary) summary.textContent = text('Telegram · Управление с телефона','Telegram · Control from your phone');
     host.innerHTML = `<h3>Telegram · @xlambottt_bot</h3><p>${text('Управляй своим ПК из личных сообщений бота. Создай ключ и вставь его в мини-панель. Ключ действует 10 минут и используется один раз.','Control your PC in the bot’s private chat. Create a key and paste it into the mini panel. Keys expire in 10 minutes and can only be used once.')}</p><p id="telegramState" role="status"></p><div class="row"><input class="input" id="telegramKey" type="password" readonly autocomplete="off" aria-label="${text('Ключ привязки ПК','PC pairing key')}"><button class="btn" id="telegramCopy">${text('Копировать ключ','Copy key')}</button></div><div class="card-actions"><button class="btn btn-primary" id="telegramCreate">${text('Создать ключ привязки','Create pairing key')}</button><a class="btn" href="https://t.me/xlambottt_bot" target="_blank" rel="noreferrer">${text('Открыть Telegram-бота','Open Telegram bot')}</a><button class="btn btn-ghost" id="telegramDisconnect">${text('Отключить доступ','Disconnect access')}</button></div><p class="muted">${text('Новый ключ отменяет прежнюю привязку. Отключение сразу запрещает управление, не останавливая игру. Для доступа ПК и бот должны быть включены.','A new key revokes the previous pairing. Disconnecting immediately blocks remote control without stopping gameplay. The PC and bot must remain on.')}</p>`;
     bindActions();
+    const nameBox = document.createElement('div');
+    nameBox.className = 'row';
+    nameBox.innerHTML = `<label for="telegramPCName">${text('Название этого ПК','Name of this PC')}</label><input class="input" id="telegramPCName" maxlength="64" autocomplete="off" placeholder="${text('Например: Игровой ПК','For instance: Gaming PC')}"><button class="btn" id="telegramNameSave">${text('Сохранить название','Save name')}</button><p class="muted">${text('Отображается в Telegram и отчётах об ошибках. Одно название для всех устройств этого ПК.','Shown in Telegram and error reports. One name for all devices on this PC.')}</p>`;
+    host.prepend(nameBox);
+    XlamSession.fetch('/api/ui/preferences').then(r => r.json()).then(p => { find('telegramPCName').value = p.pc_name || ''; }).catch(()=>{});
+    window.XlamSavePCName = async () => {
+        const button = find('telegramNameSave'); button.disabled = true;
+        try {
+            const r = await XlamSession.fetch('/api/ui/preferences', {method:'POST', headers:{'Content-Type':'application/json'},body:JSON.stringify({pc_name:find('telegramPCName').value})});
+            if (!r.ok) throw Error();
+            find('telegramPCName').value = (await r.json()).pc_name;
+            find('telegramState').textContent = text('Название сохранено','Name saved');
+        } catch (_) { find('telegramState').textContent = text('Не удалось сохранить название','Could not save name'); throw Error('Could not save PC name'); }
+        finally { button.disabled = false; }
+    };
+    find('telegramNameSave').onclick = () => window.XlamSavePCName().catch(()=>{});
     refresh();
     }
     const find = id => host.querySelector('#'+id);

@@ -78,6 +78,8 @@ def clean_event(event):
             raise ValueError('Invalid report identifier')
         clean[key] = value
     clean['device'] = event.get('device') if re.fullmatch(r'[a-f0-9]{12}', str(event.get('device', ''))) else ''
+    from presentation_preferences import validate_pc_name
+    clean['pc_name'] = validate_pc_name(event.get('pc_name', ''))
     clean['app_version'] = identifier(event.get('app_version'))
     revision = event.get('revision', 0)
     clean['revision'] = revision if type(revision) is int and 0 <= revision <= 10000000 else 0
@@ -192,6 +194,8 @@ class ErrorTelemetry:
                  'exception_type': type(error).__name__ if error is not None else 'none',
                  'trace': safe_trace(error), 'first_seen': now, 'last_seen': now, 'count': 1,
                  'device': hashlib.sha256((self.installation+str(device)).encode()).hexdigest()[:12] if device else ''}
+        from presentation_preferences import read
+        event['pc_name'] = read()['pc_name']
         try:
             event = clean_event(event)
             event['_epoch'] = self.consent_epoch

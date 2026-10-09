@@ -792,7 +792,17 @@ def create_app(xlambot_main, start_discord_bot=False):
 
     @app.post('/api/ui/preferences')
     def ui_preferences_save():
-        return jsonify(ok=True, **preferences.save((request.get_json(silent=True) or {}).get('language')))
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict) or not payload or set(payload) - {'language', 'pc_name'}:
+            raise ValueError('Choose valid presentation preferences.')
+        if 'pc_name' in payload:
+            preferences.validate_pc_name(payload['pc_name'])
+        if 'language' in payload and payload['language'] not in {'ru', 'en'}:
+            raise ValueError('Choose Russian or English.')
+        saved = preferences.save(**payload)
+        if 'pc_name' in payload:
+            remote_control.update_pc_name()
+        return jsonify(ok=True, **saved)
 
     @app.get('/api/devices/<key>/history')
     def device_history(key):

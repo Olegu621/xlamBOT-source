@@ -168,6 +168,8 @@ class CommunityStatistics:
             if epoch!=self.epoch: return
         payload = {'devices':devices,'matches':matches}
         if enabled:
+            from presentation_preferences import read
+            payload['pc_name'] = read()['pc_name']
             payload['revision'] = self.revision
         ack = self._post('/v1/statistics', payload, credentials['token'])
         if ack.get('accepted') != [m['id'] for m in matches]: raise ValueError('Invalid statistics acknowledgement')
