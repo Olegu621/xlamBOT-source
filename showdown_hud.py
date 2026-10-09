@@ -10,6 +10,9 @@ CAPTION = 'iVBORw0KGgoAAAANSUhEUgAAAHwAAAAdCAAAAABN3VedAAABy0lEQVRIDcXBQXLjSAADM
 # Alternate current HUD lettering; only constant caption pixels are retained.
 CAPTION_CURRENT = 'iVBORw0KGgoAAAANSUhEUgAAADYAAAAKCAAAAADalvLXAAAAaUlEQVQoFZ3BsQHCMAAEMd3+Qz820EIRKY/kkRwjvy0fy1eu5Y/lbTI5ci1GRuYtIyxDc2XKtUwLizUtk2NZk2Vy5FpGpsWaFhPWEMvkyLVYTNNkLSYsy7FYjlyLkWlZ1jLCYmSxTHnkBVCdQgsiIonvAAAAAElFTkSuQmCC'
 
+# Russian caption without the changing team count or account information.
+CAPTION_RUSSIAN = 'iVBORw0KGgoAAAANSUhEUgAAAF0AAAAMCAAAAAAlyO5NAAAAkUlEQVQ4EbXBgU0AMQADMd/+Q4f2BWKC2nkpx/JGTJMXYrG8kIVlwuTPkGWxsHyWZVkslmOZLJYln2W5lmNiWZZlOYYwYplMIyxzxLLksyzXYk0sy7Isx7IwZJmWNU3LNLEsMU0mx2JZFsuyTFgWlmVZjmUty2KZLGFyLb8mls/kmFiu5Zr8G/k1V3ln5aW89ANzdWkNKtE3EwAAAABJRU5ErkJggg=='
+
 @lru_cache(maxsize=24)
 def _caption(height, factor=1., encoded=CAPTION, reference_height=720):
     raw = cv2.imdecode(np.frombuffer(base64.b64decode(encoded), np.uint8), 0)
@@ -28,12 +31,23 @@ def visible_showdown_caption(frame):
     # Threshold the current pixels, not cached state. Dimmed modal HUDs cannot
     # pass; moving scenery no longer distorts the letters' template score.
     white = (np.all(crop > 205, axis=2).astype(np.uint8)*255)
-    for encoded, reference_height in ((CAPTION, 720), (CAPTION_CURRENT, 212)):
-        for factor in (1., .96, 1.04):
-            glyph = _caption(height, factor, encoded, reference_height)
-            if any(white.shape[i] < glyph.shape[i] for i in (0, 1)):
-                continue
-            _, score, _, _ = cv2.minMaxLoc(cv2.matchTemplate(white, glyph, cv2.TM_CCOEFF_NORMED))
-            if score >= .90:
-                return True
+    for encoded, reference_height in ((CAPTION, 720), (CAPTION_CURRENT, 212), (CAPTION_RUSSIAN, 219)):
+        candidates = [(white,height)]
+        if encoded == CAPTION_RUSSIAN and height > reference_height:
+            scale = reference_height/height
+            transform = np.array([[scale,0,(scale-1)/2],
+                                  [0,scale,(scale-1)/2]],np.float32)
+            normalized = cv2.warpAffine(crop,transform,
+                                        (round(crop.shape[1]*scale),round(crop.shape[0]*scale)),
+                                        flags=cv2.INTER_LINEAR)
+            candidates.append((np.all(normalized > 200,axis=2).astype(np.uint8)*255,
+                               reference_height))
+        for candidate,candidate_height in candidates:
+            for factor in (1., .96, 1.04):
+                glyph = _caption(candidate_height, factor, encoded, reference_height)
+                if any(candidate.shape[i] < glyph.shape[i] for i in (0, 1)):
+                    continue
+                _, score, _, _ = cv2.minMaxLoc(cv2.matchTemplate(candidate, glyph, cv2.TM_CCOEFF_NORMED))
+                if score >= .90:
+                    return True
     return False
