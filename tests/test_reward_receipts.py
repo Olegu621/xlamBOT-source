@@ -136,3 +136,37 @@ class RewardSummaryTests(unittest.TestCase):
         self.assertFalse(r.summary_receipt(f))
         f=self.frame();f[:160]=50
         self.assertFalse(r.summary_receipt(f))
+
+
+class CurrentBlingReceiptTests(unittest.TestCase):
+    def current(self,w=1280,h=720,title=True,token=True):
+        f=np.full((h,w,3),(80,85,210),np.uint8)
+        if title:paste(f,r.BLING_TITLE,round(w*.418),round(h*.122))
+        if token:paste(f,r.CURRENT_BLING_TOKEN,round(w*.480),round(h*.530),False)
+        return f
+
+    def test_current_token_and_legacy_token_both_route_to_receipt(self):
+        for w,h in [(1280,720),(1920,1080),(960,540)]:
+            self.assertEqual(get_state(self.current(w,h)),'reward_received')
+            self.assertTrue(r.bling_receipt(receipt('bling',w,h)))
+
+    def test_current_token_alone_title_alone_and_dimmed_modal_do_not_authorize_tap(self):
+        for frame in [self.current(title=False),self.current(token=False),(self.current()*.7).astype(np.uint8)]:
+            self.assertFalse(r.bling_receipt(frame))
+        frame=self.current();frame[:,:round(frame.shape[1]*.12)]=(230,80,30)
+        self.assertFalse(r.bling_receipt(frame))
+
+    def test_dismissal_rechecks_current_pixels_and_never_taps_after_cancel(self):
+        m=StageManager.__new__(StageManager);frame=self.current();calls=[]
+        m.runtime_control=None
+        m.window_controller=SimpleNamespace(screenshot=lambda:frame,release_all_inputs=lambda:None,click=lambda *p,**kw:calls.append(p))
+        with patch('stage_manager.time.monotonic',return_value=10):
+            m.dismiss_received_reward();m.dismiss_received_reward()
+        self.assertEqual(calls,[(640,634)])
+        frame=self.current(title=False)
+        with patch('stage_manager.time.monotonic',return_value=12):m.dismiss_received_reward()
+        frame=self.current()
+        for stop,pause in [(True,False),(False,True)]:
+            m.runtime_control=SimpleNamespace(should_stop=lambda:stop,should_pause=lambda:pause)
+            with patch('stage_manager.time.monotonic',return_value=14):m.dismiss_received_reward()
+        self.assertEqual(len(calls),1)
