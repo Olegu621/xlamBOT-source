@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/interface.css') }}?v={{ ui_version }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/sprites.css') }}?v={{ ui_version }}"><script src="{{ url_for('static', filename='js/settings-fields.js') }}?v={{ ui_version }}"></script><script src="{{ url_for('static', filename='js/i18n.js') }}?v={{ ui_version }}" defer></script>{% include '_marquee.html' %}<link rel="stylesheet" href="{{ url_for('static', filename='css/device-experience.css') }}?v={{ ui_version }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/polish.css') }}?v={{ ui_version }}"></head>
 <body class="studio-body app-page">
     {% set active_page='settings' %}{% include '_sprites.html' %}{% include '_navigation.html' %}
-    <header class="studio-header"><div class="page-heading"><h1>{{ "Settings" if ui_language == "en" else "Настройки" }}</h1></div>
+    <header class="studio-header"><div class="page-heading"><h1>Настройки</h1></div>
         <a class="studio-brand" href="/panel">
             <img class="studio-logo" src="/api/assets/support/xlambot_logo.png" alt="xlamBOT">
             <div>
@@ -20,7 +20,7 @@
                 <p class="studio-subtitle">Настройки, очередь, плейстайлы, история</p>
             </div>
         </a>
-        <nav class="studio-tabs" id="tabs">
+        <a class="btn btn-ghost setup-shortcut" href="/setup">{{ "Setup guide" if ui_language == "en" else "Мастер настройки" }}</a><nav class="studio-tabs" id="tabs">
             <button class="studio-tab is-active" data-tab="dashboard" type="button">Обзор</button>
             <button class="studio-tab" data-tab="brawlers" type="button">Боец</button>
             <a class="studio-tab" href="/panel">Режим работы</a>
@@ -46,7 +46,7 @@
     </main>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="{{ url_for('static', filename='js/ui-session.js') }}?v={{ ui_version }}"></script><script src="{{ url_for('static', filename='js/studio.js') }}?v={{ ui_version }}"></script>
+    <script src="{{ url_for('static', filename='js/ui-session.js') }}?v={{ ui_version }}"></script><script src="{{ url_for('static', filename='js/settings-sliders.js') }}?v={{ ui_version }}"></script><script src="{{ url_for('static', filename='js/studio.js') }}?v={{ ui_version }}"></script>
 <script src="{{ url_for('static', filename='js/resource_updates.js') }}?v={{ ui_version }}"></script>
 <script src="{{ url_for('static', filename='js/device-experience.js') }}?v={{ ui_version }}"></script><script src="{{ url_for('static', filename='js/telegram-settings.js') }}?v={{ ui_version }}"></script></body>
 </html>

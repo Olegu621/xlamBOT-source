@@ -1,0 +1,16 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const context={window:{addEventListener(){}},document:{documentElement:{lang:'ru'},addEventListener(){}}};
+vm.createContext(context);vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'../static/js/settings-sliders.js'),'utf8'),context);
+const slider=context.window.XlamSliders;
+assert.equal(slider.value({dataset:{presets:'["auto",15,30,60,120]'},value:'0'}),'auto');
+assert.equal(slider.value({dataset:{presets:'["auto",15,30,60,120]'},value:'3'}),60);
+assert.equal(slider.html('emulator_port',5037,'','port'),null);
+assert.equal(slider.html('telegram_token','secret','','token'),null);
+const custom=slider.html('max_fps',37,'data-setting="max_fps"','fps');
+assert.match(custom,/data-custom="true"/);assert.match(custom,/data-custom-value="37"/);assert.match(custom,/value="37"/);
+const confidence=slider.levels('gas_danger_enter',.14);assert.equal(confidence.length,5);assert(confidence.every(v=>v>=0&&v<=1));
+assert.deepEqual(JSON.parse(JSON.stringify(slider.levels('work_mode',2))),[1,2,3,4,5]);
+context.document.documentElement.lang='en';assert.match(slider.html('work_mode',1,'','mode'),/Bush camping/);
+console.log('Stepped settings: custom values, numeric auto union, bounded thresholds and credentials verified.');

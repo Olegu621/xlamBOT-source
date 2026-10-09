@@ -67,3 +67,61 @@ class StatisticsTests(unittest.TestCase):
                 writer=csv.DictWriter(f,fieldnames=columns);writer.writeheader();writer.writerow(dict(date_time='2026-10-07T10:00:00',brawler_name='shelly',result='victory',trophy_delta=8))
             before=observer.history_file.read_bytes();loaded=observer.load_history()
             self.assertEqual(len(loaded),1);self.assertEqual(loaded[0]['account_tag'],'');self.assertEqual(observer.history_file.read_bytes(),before)
+
+    def test_recent_feed_is_sorted_and_unknown_trophies_stay_unknown(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.write(root,'default',[self.row(date='2026-10-07T09:00:00',delta=''),self.row()])
+            p=build(root,now=self.NOW)
+            self.assertEqual(datetime.fromisoformat(p['recent'][0]['time']),datetime(2026,10,7,10).astimezone())
+            self.assertIsNone(p['recent'][1]['delta'])
+            self.assertNotEqual(p['recent'][0]['id'],p['recent'][1]['id'])
+            self.assertEqual(p['summary']['observed_matches'],0)
+            self.assertEqual(p['summary']['estimated_delta'],8)
+            self.assertIsNone(p['summary']['observed_delta'])
+
+    def test_cache_invalidates_after_file_replacement_and_does_not_read_unchanged_csv(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as root:
+            self.write(root,'default',[self.row()])
+            first=build(root,now=self.NOW)
+            with patch.object(Path,'read_text',side_effect=AssertionError('Unchanged CSV was reread')):
+                cached=build(root,now=self.NOW)
+            self.assertEqual(first['summary'],cached['summary'])
+            self.write(root,'default',[self.row(),self.row(delta='-3')])
+            self.assertEqual(build(root,now=self.NOW)['summary']['trophy_delta'],5)
+
+    def test_previous_period_respects_filters_and_same_day_future_is_excluded(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.write(root,'default',[self.row(date='2026-09-25T10:00:00'),self.row(date='2026-09-25T10:00:00',account='#BBB'),self.row(date='2026-10-07T13:00:00'),self.row()])
+            p=build(root,now=self.NOW,account='#AAA')
+            self.assertEqual(p['summary']['matches'],1)
+            self.assertEqual(p['previous']['matches'],1)
+            self.assertEqual(p['previous']['trophy_delta'],8)
+
+    def test_recent_feed_bound_preserves_full_totals(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.write(root,'default',[self.row() for _ in range(80)])
+            p=build(root,now=self.NOW)
+            self.assertEqual(len(p['recent']),50)
+            self.assertEqual(p['summary']['matches'],80)
+            self.assertEqual(p['summary']['trophy_delta'],640)
+
+    def test_aware_timestamps_represent_the_same_battle_in_other_timezones(self):
+        from datetime import timezone
+        with tempfile.TemporaryDirectory() as root:
+            self.write(root,'default',[self.row(date='2026-10-07T08:00:00+00:00')])
+            p=build(root,period='all',now=datetime(2026,10,7,12,tzinfo=timezone.utc))
+            self.assertEqual(p['summary']['matches'],1)
+            self.assertEqual(datetime.fromisoformat(p['recent'][0]['time']),datetime(2026,10,7,8,tzinfo=timezone.utc))
+
+    def test_payload_cache_keeps_runtime_state_separate_and_detects_new_records(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as root,patch.object(_service.utils,'DATA_ROOT',Path(root)):
+            self.write(root,'default',[self.row()])
+            first=_service.payload(period='all');first['live']=[{'state':'running'}]
+            with patch.object(_service,'build',side_effect=AssertionError('Unchanged aggregation was rebuilt')):
+                cached=_service.payload(period='all')
+            self.assertNotIn('live',cached)
+            self.write(root,'default',[self.row(),self.row(delta='-3')])
+            self.assertEqual(_service.payload(period='all')['summary']['matches'],2)
+            self.assertEqual(_service.payload(period='all')['summary']['trophy_delta'],5)

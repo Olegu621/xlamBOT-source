@@ -1013,12 +1013,20 @@ def create_app(xlambot_main, start_discord_bot=False):
     def statistics_page():
         return render_template('statistics.html', ui_api_token=app.config['UI_API_TOKEN'])
 
+    @app.get('/setup')
+    def setup_page():
+        return render_template('setup.html', ui_api_token=app.config['UI_API_TOKEN'])
+
     @app.get('/api/statistics')
     def statistics_data():
         from .statistics import payload
         try:
-            return jsonify(payload(**{k: request.args.get(k, default) for k, default in
-                                      [('period','7'),('device',''),('account',''),('brawler','')]}))
+            data=payload(**{k: request.args.get(k, default) for k, default in
+                           [('period','7'),('device',''),('account',''),('brawler','')]})
+            chosen=request.args.get('device','')
+            data['live']=[{'key':s['key'],'state':s['state'],'is_running':s['is_running']}
+                          for s in device_manager.all_statuses() if not chosen or s['key']==chosen]
+            return jsonify(data)
         except ValueError as error:
             return jsonify(ok=False, message=str(error)), 400
 
