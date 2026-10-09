@@ -1,4 +1,4 @@
-#define AppVersion "0.8.20"
+#define AppVersion "0.8.21"
 #ifndef BootstrapHash
   #error Supply /DBootstrapHash=<SHA256 of verified PC bootstrap EXE>
 #endif
@@ -43,6 +43,7 @@ WizardSmallImageFile=design\mark.png
 SetupIconFile=xlambot.ico
 WizardSizePercent=135,135
 DisableWelcomePage=no
+ShowLanguageDialog=yes
 DisableReadyPage=yes
 ArchiveExtraction=full
 CloseApplications=force
@@ -52,21 +53,140 @@ ExtraDiskSpaceRequired={#PayloadSize}
 
 [Languages]
 Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"
+Name: "en"; MessagesFile: "compiler:Default.isl"
 
 [LangOptions]
 DialogFontName=Segoe UI
 DialogFontSize=10
 
 [Messages]
-SetupWindowTitle=xlamBOT · Установка
-WelcomeLabel1=Установим%nxlamBOT.
-WelcomeLabel2=Всё необходимое для работы бота — в одной аккуратной установке.
-FinishedHeadingLabel=xlamBOT готов.
-FinishedLabel=Можно запускать бота и возвращаться к игре.%n%nДальнейшие обновления он получит автоматически.
-ButtonNext=Установить
-ButtonFinish=Готово
+ru.SetupWindowTitle=xlamBOT · Установка
+en.SetupWindowTitle=xlamBOT · Setup
+ru.WelcomeLabel1=Установим%nxlamBOT.
+en.WelcomeLabel1=Let’s install%nxlamBOT.
+ru.WelcomeLabel2=Всё необходимое для работы бота — в одной аккуратной установке.
+en.WelcomeLabel2=Everything you need to run the bot, in one installation.
+ru.FinishedHeadingLabel=xlamBOT готов.
+en.FinishedHeadingLabel=xlamBOT is ready.
+ru.FinishedLabel=Можно запускать бота и возвращаться к игре.%n%nДальнейшие обновления он получит автоматически.
+en.FinishedLabel=Launch the bot and get back to the game.%n%nFuture updates will arrive automatically.
+ru.ButtonNext=Установить
+en.ButtonNext=Install
+ru.ButtonFinish=Готово
+en.ButtonFinish=Finish
+
+[CustomMessages]
+ru.DownloadFiles=Получаем файлы бота
+en.DownloadFiles=Downloading bot files
+ru.BackupFolder=Не удалось создать резервную папку.
+en.BackupFolder=Could not create the backup folder.
+ru.DataLink=В папке данных найдена ссылка. Установка остановлена для сохранения данных.
+en.DataLink=A link was found in the data folder. Setup stopped to protect your data.
+ru.SaveFile=Не удалось сохранить файл:
+en.SaveFile=Could not preserve file:
+ru.SaveQueue=Не удалось сохранить очередь бойцов.
+en.SaveQueue=Could not preserve the brawler queue.
+ru.PrepareStop=Не удалось подготовить остановку старого бота.
+en.PrepareStop=Could not prepare to stop the installed bot.
+ru.CloseBot=Закройте старый xlamBOT и повторите установку.
+en.CloseBot=Close the installed xlamBOT and run setup again.
+ru.Caption=xlamBOT · Установка
+en.Caption=xlamBOT · Setup
+ru.Latest=Последняя версия бота — без ручной настройки.
+en.Latest=The latest bot version, without manual setup.
+ru.Internet=Потребуется интернет · загрузка около 326 МБ
+en.Internet=Internet required · download approximately 326 MB
+ru.Current=Всегда актуальная версия
+en.Current=Always up to date
+ru.Automatic=Файлы и обновления загружаются автоматически.
+en.Automatic=Files and updates download automatically.
+ru.KeepSettings=Твои настройки остаются с тобой
+en.KeepSettings=Your settings stay with you
+ru.KeepData=Сохраним модели, разметку и профили устройств.
+en.KeepData=We preserve your models, annotations and device profiles.
+ru.Desktop=Создать ярлык на рабочем столе
+en.Desktop=Create a desktop shortcut
+ru.UpdatesOn=Обновления подключены
+en.UpdatesOn=Updates are connected
+ru.CheckUpdates=Бот сам проверит новые версии и загрузит их.
+en.CheckUpdates=The bot checks for new versions and downloads them.
+ru.StepFiles=01  Файлы бота
+en.StepFiles=01  Bot files
+ru.StepVerified=Загружены и проверены
+en.StepVerified=Downloaded and verified
+ru.StepSettings=02  Твои настройки
+en.StepSettings=02  Your settings
+ru.StepMigrate=Переносим автоматически
+en.StepMigrate=Transferred automatically
+ru.StepReady=03  Готово к игре
+en.StepReady=03  Ready to play
+ru.StepFinish=Завершаем установку
+en.StepFinish=Finishing installation
+ru.DownloadTitle=Скачиваем xlamBOT
+en.DownloadTitle=Downloading xlamBOT
+ru.DownloadNote=Получаем проверенную версию программы. Требуется интернет.
+en.DownloadNote=Downloading a verified version. Internet access is required.
+ru.PrepareTitle=Подготавливаем xlamBOT
+en.PrepareTitle=Preparing xlamBOT
+ru.Almost=Осталось совсем немного.
+en.Almost=Almost ready.
+ru.InstallButton=Установить xlamBOT
+en.InstallButton=Install xlamBOT
+ru.Later=Позже
+en.Later=Later
+ru.Cancel=Отмена
+en.Cancel=Cancel
+ru.Ready=xlamBOT готов.
+en.Ready=xlamBOT is ready.
+ru.InstallTitle=Устанавливаем xlamBOT
+en.InstallTitle=Installing xlamBOT
+ru.InstallNote=Размещаем файлы и переносим твои настройки.
+en.InstallNote=Installing files and preserving your settings.
+ru.Finish=Готово
+en.Finish=Finish
+ru.InstallFiles=Установка файлов программы…
+en.InstallFiles=Installing application files…
+ru.FilesReady=Проверенные файлы загружены. Настройки сохранены.
+en.FilesReady=Verified files downloaded. Settings preserved.
+ru.Checksum=Контрольная сумма файлов бота не совпадает.
+en.Checksum=Bot file checksum does not match.
+ru.CopyCache=Не удалось скопировать сохранённые файлы бота.
+en.CopyCache=Could not copy cached bot files.
+ru.PrepareArchive=Не удалось подготовить сборку файлов программы.
+en.PrepareArchive=Could not prepare to assemble application files.
+ru.JoinArchive=Не удалось собрать архив программы.
+en.JoinArchive=Could not assemble the application archive.
+ru.DownloadDone=Загрузка завершена
+en.DownloadDone=Download complete
+ru.Extract=Распаковываем файлы и проверяем готовность программы.
+en.Extract=Extracting files and checking the application.
+ru.MissingFiles=В архиве отсутствуют необходимые файлы бота.
+en.MissingFiles=Required bot files are missing from the archive.
+ru.BootstrapChecksum=Контрольная сумма запускающего файла не совпадает.
+en.BootstrapChecksum=Launcher checksum does not match.
+ru.TargetFolder=Для чистой установки нужна отдельная папка с именем xlamBOT.
+en.TargetFolder=Setup requires a separate folder named xlamBOT.
+ru.OldFolder=Не удалось подтвердить папку старого бота. Установка остановлена.
+en.OldFolder=Could not verify the previous bot folder. Setup stopped.
+ru.DownloadError=Не удалось загрузить xlamBOT. Проверьте интернет и повторите установку.
+en.DownloadError=Could not download xlamBOT. Check your internet connection and try again.
+ru.BackupTitle=Сохраняем твою настройку
+en.BackupTitle=Preserving your settings
+ru.BackupNote=Создаём резервную копию перед обновлением.
+en.BackupNote=Creating a backup before updating.
+ru.DeleteOld=Не удалось удалить старую программу. Данные сохранены:
+en.DeleteOld=Could not remove the previous application. Data preserved at:
+ru.Progress=%1 из %2 МБ · Дождитесь завершения загрузки
+en.Progress=%1 of %2 MB · Please wait for the download to finish
+ru.FinishedBody=Можно запускать бота и возвращаться к игре.%n%nДальнейшие обновления он получит автоматически.
+en.FinishedBody=Launch the bot and get back to the game.%n%nFuture updates will arrive automatically.
+ru.UninstallLabel=Удалить xlamBOT
+en.UninstallLabel=Uninstall xlamBOT
+ru.LaunchBot=Запустить xlamBOT
+en.LaunchBot=Launch xlamBOT
 
 [Files]
+Source: "design\rail-en.bmp"; Flags: dontcopy
 Source: "{tmp}\payload\*"; DestDir: "{app}"; Excludes: "_internal\cfg\*,_internal\models\*,_internal\playstyles\*,_internal\latest_brawler_data.json"; Flags: external ignoreversion recursesubdirs createallsubdirs
 Source: "{tmp}\payload\_internal\cfg\*"; DestDir: "{app}\_internal\cfg"; Flags: external onlyifdoesntexist recursesubdirs createallsubdirs
 Source: "{tmp}\payload\_internal\models\*"; DestDir: "{app}\_internal\models"; Flags: external onlyifdoesntexist recursesubdirs createallsubdirs
@@ -76,13 +196,13 @@ Source: "{tmp}\payload\_internal\latest_brawler_data.json"; DestDir: "{app}\_int
 [Icons]
 #ifndef TestInstaller
 Name: "{group}\xlamBOT"; Filename: "{app}\xlamBOT.exe"
-Name: "{group}\Удалить xlamBOT"; Filename: "{uninstallexe}"
+Name: "{group}\{cm:UninstallLabel}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\xlamBOT"; Filename: "{app}\xlamBOT.exe"; Check: DesktopShortcutWanted
 #endif
 
 [Run]
 #ifndef TestInstaller
-Filename: "{app}\xlamBOT.exe"; Description: "Запустить xlamBOT"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\xlamBOT.exe"; Description: "{cm:LaunchBot}"; Flags: nowait postinstall skipifsilent
 #endif
 
 [Code]
@@ -148,7 +268,7 @@ function DownloadProgress(const Url, FileName: String; const Progress, ProgressM
 begin
   Result := True;
   if ProgressMax > 0 then
-    DownloadPage.SetText('Получаем файлы бота', IntToStr(Progress div 1048576) + ' из ' + IntToStr(ProgressMax div 1048576) + ' МБ · Дождитесь завершения загрузки');
+    DownloadPage.SetText(CustomMessage('DownloadFiles'), FmtMessage(CustomMessage('Progress'), [IntToStr(Progress div 1048576), IntToStr(ProgressMax div 1048576)]));
 end;
 
 procedure CopyTree(const SourceDir, DestDir: String);
@@ -157,19 +277,19 @@ var
   SourceName, DestName: String;
 begin
   if not DirExists(SourceDir) then exit;
-  if not ForceDirectories(DestDir) then RaiseException('Не удалось создать резервную папку.');
+  if not ForceDirectories(DestDir) then RaiseException(CustomMessage('BackupFolder'));
   if FindFirst(SourceDir + '\*', Found) then begin
     try
       repeat
         if (Found.Name <> '.') and (Found.Name <> '..') then begin
           if (Found.Attributes and $400) <> 0 then
-            RaiseException('В папке данных найдена ссылка. Установка остановлена для сохранения данных.');
+            RaiseException(CustomMessage('DataLink'));
           SourceName := SourceDir + '\' + Found.Name;
           DestName := DestDir + '\' + Found.Name;
           if (Found.Attributes and FILE_ATTRIBUTE_DIRECTORY) <> 0 then
             CopyTree(SourceName, DestName)
           else if not FileCopy(SourceName, DestName, False) then
-            RaiseException('Не удалось сохранить файл: ' + SourceName);
+            RaiseException(CustomMessage('SaveFile') + SourceName);
         end;
       until not FindNext(Found);
     finally
@@ -189,7 +309,7 @@ begin
   if FileExists(SourceRoot + '\_internal\latest_brawler_data.json') then begin
     ForceDirectories(DestRoot + '\_internal');
     if not FileCopy(SourceRoot + '\_internal\latest_brawler_data.json', DestRoot + '\_internal\latest_brawler_data.json', False) then
-      RaiseException('Не удалось сохранить очередь бойцов.');
+      RaiseException(CustomMessage('SaveQueue'));
   end;
 end;
 
@@ -202,36 +322,41 @@ begin
   StringChangeEx(AppExe, '''', '''''', True);
   Script := '$ErrorActionPreference = ''Stop''; Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq ''' + AppExe + ''' } | ForEach-Object { $p = Get-Process -Id $_.ProcessId; Stop-Process -Id $_.ProcessId -Force; $p.WaitForExit() }';
   if not SaveStringToFile(ExpandConstant('{tmp}\stop-installed-bot.ps1'), Script, False) then
-    RaiseException('Не удалось подготовить остановку старого бота.');
+    RaiseException(CustomMessage('PrepareStop'));
   if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
       '-NoProfile -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\stop-installed-bot.ps1') + '"', '', SW_HIDE, ewWaitUntilTerminated, Code) or (Code <> 0) then
-    RaiseException('Закройте старый xlamBOT и повторите установку.');
+    RaiseException(CustomMessage('CloseBot'));
 end;
 
 procedure InitializeWizard;
 var
   Footer: TNewStaticText;
 begin
-  WizardForm.Caption := 'xlamBOT · Установка';
+  WizardForm.Caption := CustomMessage('Caption');
+  if ActiveLanguage = 'en' then begin
+    ExtractTemporaryFile('rail-en.bmp');
+    WizardForm.WizardBitmapImage.Bitmap.LoadFromFile(ExpandConstant('{tmp}\rail-en.bmp'));
+    WizardForm.WizardBitmapImage2.Bitmap.LoadFromFile(ExpandConstant('{tmp}\rail-en.bmp'));
+  end;
   WizardForm.WelcomeLabel1.Font.Name := 'Segoe UI Semibold';
   WizardForm.WelcomeLabel1.Font.Size := 27;
   WizardForm.WelcomeLabel1.Top := ScaleY(29);
   WizardForm.WelcomeLabel1.Height := ScaleY(88);
   WizardForm.WelcomeLabel2.Top := ScaleY(126);
   WizardForm.WelcomeLabel2.Height := ScaleY(28);
-  WizardForm.WelcomeLabel2.Caption := 'Последняя версия бота — без ручной настройки.';
-  PageText(WizardForm.WelcomePage, 'Потребуется интернет · загрузка около 326 МБ', 155, 10, False);
-  PageText(WizardForm.WelcomePage, 'Всегда актуальная версия', 197, 12, True);
-  PageText(WizardForm.WelcomePage, 'Файлы и обновления загружаются автоматически.', 225, 10, False);
-  PageText(WizardForm.WelcomePage, 'Твои настройки остаются с тобой', 272, 12, True);
-  PageText(WizardForm.WelcomePage, 'Сохраним модели, разметку и профили устройств.', 300, 10, False);
+  WizardForm.WelcomeLabel2.Caption := CustomMessage('Latest');
+  PageText(WizardForm.WelcomePage, CustomMessage('Internet'), 155, 10, False);
+  PageText(WizardForm.WelcomePage, CustomMessage('Current'), 197, 12, True);
+  PageText(WizardForm.WelcomePage, CustomMessage('Automatic'), 225, 10, False);
+  PageText(WizardForm.WelcomePage, CustomMessage('KeepSettings'), 272, 12, True);
+  PageText(WizardForm.WelcomePage, CustomMessage('KeepData'), 300, 10, False);
   DesktopChoice := TNewCheckBox.Create(WizardForm);
   DesktopChoice.Parent := WizardForm.WelcomePage;
   DesktopChoice.Left := WizardForm.WelcomeLabel1.Left;
   DesktopChoice.Top := ScaleY(368);
   DesktopChoice.Width := WizardForm.WelcomeLabel1.Width;
   DesktopChoice.Height := ScaleY(24);
-  DesktopChoice.Caption := 'Создать ярлык на рабочем столе';
+  DesktopChoice.Caption := CustomMessage('Desktop');
   DesktopChoice.Checked := True;
   WizardForm.NextButton.Width := ScaleX(160);
   WizardForm.NextButton.Left := WizardForm.CancelButton.Left - WizardForm.NextButton.Width - ScaleX(12);
@@ -243,14 +368,14 @@ begin
   WizardForm.FinishedHeadingLabel.Top := ScaleY(29);
   WizardForm.FinishedLabel.Top := ScaleY(116);
   WizardForm.FinishedLabel.Height := ScaleY(72);
-  WizardForm.FinishedLabel.Caption := 'Можно запускать бота и возвращаться к игре.' + #13#10 + #13#10 + 'Дальнейшие обновления он получит автоматически.';
-  PageText(WizardForm.FinishedPage, 'Обновления подключены', 215, 12, True);
-  PageText(WizardForm.FinishedPage, 'Бот сам проверит новые версии и загрузит их.', 243, 10, False);
+  WizardForm.FinishedLabel.Caption := CustomMessage('FinishedBody');
+  PageText(WizardForm.FinishedPage, CustomMessage('UpdatesOn'), 215, 12, True);
+  PageText(WizardForm.FinishedPage, CustomMessage('CheckUpdates'), 243, 10, False);
   WizardForm.RunList.Top := ScaleY(338);
   WizardForm.RunList.Height := ScaleY(60);
-  InstallationStep(0, '01  Файлы бота', 'Загружены и проверены');
-  InstallationStep(1, '02  Твои настройки', 'Переносим автоматически');
-  InstallationStep(2, '03  Готово к игре', 'Завершаем установку');
+  InstallationStep(0, CustomMessage('StepFiles'), CustomMessage('StepVerified'));
+  InstallationStep(1, CustomMessage('StepSettings'), CustomMessage('StepMigrate'));
+  InstallationStep(2, CustomMessage('StepReady'), CustomMessage('StepFinish'));
   Footer := TNewStaticText.Create(WizardForm);
   Footer.Parent := WizardForm;
   Footer.Left := ScaleX(24);
@@ -258,9 +383,9 @@ begin
   Footer.Width := ScaleX(250);
   Footer.Font.Size := 9;
   Footer.Caption := 'xlamBOT  /  {#AppVersion}';
-  DownloadPage := CreateDownloadPage('Скачиваем xlamBOT', 'Получаем проверенную версию программы. Требуется интернет.', @DownloadProgress);
+  DownloadPage := CreateDownloadPage(CustomMessage('DownloadTitle'), CustomMessage('DownloadNote'), @DownloadProgress);
   DownloadPage.ShowBaseNameInsteadOfUrl := True;
-  StagePage := CreateOutputMarqueeProgressPage('Подготавливаем xlamBOT', 'Осталось совсем немного.');
+  StagePage := CreateOutputMarqueeProgressPage(CustomMessage('PrepareTitle'), CustomMessage('Almost'));
 end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
@@ -277,36 +402,36 @@ end;
 procedure CurPageChanged(CurPageID: Integer);
 begin
   WizardForm.BackButton.Visible := False;
-  if CurPageID = wpWelcome then WizardForm.NextButton.Caption := 'Установить xlamBOT';
-  if CurPageID = wpWelcome then WizardForm.CancelButton.Caption := 'Позже'
-    else WizardForm.CancelButton.Caption := 'Отмена';
+  if CurPageID = wpWelcome then WizardForm.NextButton.Caption := CustomMessage('InstallButton');
+  if CurPageID = wpWelcome then WizardForm.CancelButton.Caption := CustomMessage('Later')
+    else WizardForm.CancelButton.Caption := CustomMessage('Cancel');
   if CurPageID = wpFinished then WizardForm.CancelButton.Visible := False;
   if CurPageID = wpFinished then begin
-    WizardForm.FinishedHeadingLabel.Caption := 'xlamBOT готов.';
+    WizardForm.FinishedHeadingLabel.Caption := CustomMessage('Ready');
     WizardForm.FinishedLabel.Top := ScaleY(116);
     WizardForm.FinishedLabel.Height := ScaleY(72);
-    WizardForm.FinishedLabel.Caption := 'Можно запускать бота и возвращаться к игре.' + #13#10 + #13#10 + 'Дальнейшие обновления он получит автоматически.';
+    WizardForm.FinishedLabel.Caption := CustomMessage('FinishedBody');
   end;
   if CurPageID = wpInstalling then begin
-    WizardForm.PageNameLabel.Caption := 'Устанавливаем xlamBOT';
-    WizardForm.PageDescriptionLabel.Caption := 'Размещаем файлы и переносим твои настройки.';
+    WizardForm.PageNameLabel.Caption := CustomMessage('InstallTitle');
+    WizardForm.PageDescriptionLabel.Caption := CustomMessage('InstallNote');
   end;
 #ifdef TestInstaller
   // Isolated rendering previews do not install or modify the bot.
   if (CurPageID = wpWelcome) and (ExpandConstant('{param:DESIGNPAGE|}') = 'finish') then begin
     WizardForm.OuterNotebook.ActivePage := WizardForm.FinishedPage;
-    WizardForm.FinishedHeadingLabel.Caption := 'xlamBOT готов.';
-    WizardForm.NextButton.Caption := 'Готово';
+    WizardForm.FinishedHeadingLabel.Caption := CustomMessage('Ready');
+    WizardForm.NextButton.Caption := CustomMessage('Finish');
     WizardForm.CancelButton.Visible := False;
   end;
   if (CurPageID = wpWelcome) and (ExpandConstant('{param:DESIGNPAGE|}') = 'install') then begin
     WizardForm.OuterNotebook.ActivePage := WizardForm.InnerPage;
     WizardForm.InnerNotebook.ActivePage := WizardForm.InstallingPage;
     WizardForm.MainPanel.Visible := True;
-    WizardForm.PageNameLabel.Caption := 'Устанавливаем xlamBOT';
-    WizardForm.PageDescriptionLabel.Caption := 'Размещаем файлы и переносим твои настройки.';
-    WizardForm.StatusLabel.Caption := 'Установка файлов программы…';
-    WizardForm.FilenameLabel.Caption := 'Проверенные файлы загружены. Настройки сохранены.';
+    WizardForm.PageNameLabel.Caption := CustomMessage('InstallTitle');
+    WizardForm.PageDescriptionLabel.Caption := CustomMessage('InstallNote');
+    WizardForm.StatusLabel.Caption := CustomMessage('InstallFiles');
+    WizardForm.FilenameLabel.Caption := CustomMessage('FilesReady');
     WizardForm.ProgressGauge.Position := 65;
   end;
 #endif
@@ -325,9 +450,9 @@ begin
     CachedPath := ExpandConstant('{param:PAYLOAD|}');
     if CachedPath <> '' then begin
       if CompareText(GetSHA256OfFile(CachedPath), '{#PayloadHash}') <> 0 then
-        RaiseException('Контрольная сумма файлов бота не совпадает.');
+        RaiseException(CustomMessage('Checksum'));
       if not FileCopy(CachedPath, ArchivePath, False) then
-        RaiseException('Не удалось скопировать сохранённые файлы бота.');
+        RaiseException(CustomMessage('CopyCache'));
     end else begin
       DownloadPage.Clear;
       #include "runtime-download.iss"
@@ -342,14 +467,14 @@ begin
       StringChangeEx(EscapedArchivePath, '''', '''''', True);
       if not SaveStringToFile(JoinScript,
         '$ErrorActionPreference = ''Stop''; $dest = [IO.File]::Create(''' + EscapedArchivePath + '''); try { for ($i = 1; $i -le {#PartsCount}; $i++) { $src = [IO.File]::OpenRead((Join-Path $PSScriptRoot (''part-'' + $i + ''.bin''))); try { $src.CopyTo($dest) } finally { $src.Dispose() } } } finally { $dest.Dispose() }', False) then
-        RaiseException('Не удалось подготовить сборку файлов программы.');
+        RaiseException(CustomMessage('PrepareArchive'));
       if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
         '-NoProfile -ExecutionPolicy Bypass -File "' + JoinScript + '"', '', SW_HIDE, ewWaitUntilTerminated, JoinCode) or (JoinCode <> 0) then
-        RaiseException('Не удалось собрать архив программы.');
+        RaiseException(CustomMessage('JoinArchive'));
     end;
     if CompareText(GetSHA256OfFile(ArchivePath), '{#PayloadHash}') <> 0 then
-      RaiseException('Контрольная сумма файлов бота не совпадает.');
-    StagePage.SetText('Загрузка завершена', 'Распаковываем файлы и проверяем готовность программы.');
+      RaiseException(CustomMessage('Checksum'));
+    StagePage.SetText(CustomMessage('DownloadDone'), CustomMessage('Extract'));
     StagePage.Show;
     try
       ExtractArchive(ArchivePath, ExpandConstant('{tmp}\payload'), '', True, nil);
@@ -358,7 +483,7 @@ begin
     end;
     if not FileExists(ExpandConstant('{tmp}\payload\xlamBOT.exe')) or
        not FileExists(ExpandConstant('{tmp}\payload\_internal\python313.dll')) then
-      RaiseException('В архиве отсутствуют необходимые файлы бота.');
+      RaiseException(CustomMessage('MissingFiles'));
     BootstrapPath := ExpandConstant('{param:BOOTSTRAP|}');
     if BootstrapPath = '' then begin
       DownloadPage.Clear;
@@ -368,19 +493,19 @@ begin
       BootstrapPath := ExpandConstant('{tmp}\xlamBOT-bootstrap.zip');
     end;
     if CompareText(GetSHA256OfFile(BootstrapPath), '{#BootstrapHash}') <> 0 then
-      RaiseException('Контрольная сумма запускающего файла не совпадает.');
+      RaiseException(CustomMessage('BootstrapChecksum'));
     ExtractArchive(BootstrapPath, ExpandConstant('{tmp}\payload'), '', True, nil);
     if CompareText(ExtractFileName(RemoveBackslash(ExpandConstant('{app}'))), 'xlamBOT') <> 0 then
-      RaiseException('Для чистой установки нужна отдельная папка с именем xlamBOT.');
+      RaiseException(CustomMessage('TargetFolder'));
     ReplaceOld := FileExists(ExpandConstant('{app}\xlamBOT.exe'));
     if ReplaceOld then begin
       if not FileExists(ExpandConstant('{app}\_internal\python313.dll')) then
-        RaiseException('Не удалось подтвердить папку старого бота. Установка остановлена.');
+        RaiseException(CustomMessage('OldFolder'));
       StopInstalledBot;
     end;
     Prepared := True;
   except
-    Result := 'Не удалось загрузить xlamBOT. Проверьте интернет и повторите установку.' + #13#10 + GetExceptionMessage;
+    Result := CustomMessage('DownloadError') + #13#10 + GetExceptionMessage;
   end;
 end;
 
@@ -395,7 +520,7 @@ begin
       Suffix := Suffix + 1;
       BackupDir := BackupDir + '-' + IntToStr(Suffix);
     end;
-    StagePage.SetText('Сохраняем твою настройку', 'Создаём резервную копию перед обновлением.');
+    StagePage.SetText(CustomMessage('BackupTitle'), CustomMessage('BackupNote'));
     StagePage.Show;
     try
       CopyTree(ExpandConstant('{app}'), BackupDir);
@@ -406,7 +531,7 @@ begin
     // Download, checksum, target validation and backup all completed before deletion.
     OldDeleted := True;
     if not DelTree(ExpandConstant('{app}'), True, True, True) then
-      RaiseException('Не удалось удалить старую программу. Данные сохранены: ' + BackupDir);
+      RaiseException(CustomMessage('DeleteOld') + BackupDir);
   end;
   if CurStep = ssPostInstall then begin
     if BackupDir <> '' then CopyUserData(BackupDir, ExpandConstant('{app}'));
