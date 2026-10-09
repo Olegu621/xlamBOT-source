@@ -346,7 +346,28 @@ class TrophyObserver:
         return history
 
     def save_history(self):
-        self._atomic_save_history(self.match_history)
+        now = time.monotonic()
+        if now < getattr(self, '_history_retry_at', 0):
+            return False
+        try:
+            self._atomic_save_history(self.match_history)
+        except OSError as error:
+            first_failure = not getattr(self, '_history_dirty', False)
+            self._history_dirty = True
+            self._history_retry_at = now + 30
+            if first_failure:
+                print("Match history could not be saved; results remain in memory and will be retried.")
+                import error_telemetry
+                error_telemetry.report('history_save_failed', 'error', error, stage='storage')
+            return False
+        self._history_dirty = False
+        self._history_retry_at = 0
+        return True
+
+    def retry_history_save(self):
+        if getattr(self, '_history_dirty', False):
+            return self.save_history()
+        return True
 
     def _atomic_save_history(self, history):
         self.history_file.parent.mkdir(parents=True, exist_ok=True)
@@ -366,8 +387,12 @@ class TrophyObserver:
                 os.fsync(handle.fileno())
             self._replace_when_available(temporary, self.history_file)
         finally:
-            if temporary.exists():
-                temporary.unlink()
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                # Preserve the original write failure and the old target file.
+                # An inaccessible temporary file must not crash the owner.
+                pass
 
     @classmethod
     def _normalize_history_row(cls, row):

@@ -30,6 +30,12 @@ class DiscoveryTests(unittest.TestCase):
             mocked.start()
             self.addCleanup(mocked.stop)
 
+    def test_discovery_timeout_returns_unavailable_without_ui_exception(self):
+        from adbutils.errors import AdbTimeout
+        with patch.object(self.module.adb, 'device_list', side_effect=AdbTimeout('timeout')):
+            result = self.module.DeviceRuntimeManager.list_adb_devices()
+        self.assertFalse(result[0]['ok'])
+
     def device(self, serial, metadata_failure=False):
         device = Mock(serial=serial)
         device.get_state.return_value = 'device'

@@ -407,6 +407,11 @@ class BotInstance:
             self.wait_while_paused()
 
     def manage_time_tasks(self, frame):
+        observer = getattr(self.Stage_manager, 'Trophy_observer', None)
+        retry_history = getattr(observer, 'retry_history_save', None)
+        if callable(retry_history):
+            retry_history()
+
         state = self.get_latest_state()
         # New screen observations should not wait for the three-second timer.
         # The timer still retries unchanged screens when a tap was swallowed.
