@@ -204,7 +204,7 @@ def shifted(region, card_index):
     return (x + dx, y + dy, width, height)
 
 
-def read_card(frame, card_index=0):
+def read_card(frame, card_index=0, anchor=None):
     """Read the brawler name and trophies off the first sorted card.
 
     Returns ``{"brawler": name, "trophies": count}`` with either value set to
@@ -216,6 +216,14 @@ def read_card(frame, card_index=0):
     """
     result = {"brawler": None, "trophies": None}
     if not OCR_AVAILABLE or frame is None or frame.size == 0:
+        return result
+    if anchor is not None:
+        from owned_cards import reading_regions
+        name_region, trophy_region = reading_regions(frame, anchor)
+        known = _known_brawler_names()
+        text = _read_region_text(frame, name_region, NAME_OCR_CONFIG)
+        result["brawler"] = _match_brawler_name(re.sub(r"[^A-Z0-9]", "", text.upper()), known)
+        result["trophies"] = _read_region_digits(frame, trophy_region, allow_zero=True, text_color='yellow_digits')
         return result
     result["brawler"] = _read_card_name(frame, card_index)
     result["trophies"] = _read_region_digits(
@@ -363,7 +371,7 @@ def _read_region_digits(frame, region, allow_zero=False, text_color='auto'):
               & (rgb[:,:,0] > rgb[:,:,2] + 60))
     white = ((rgb.min(axis=2) > 165) & (rgb.max(axis=2)-rgb.min(axis=2) < (45 if text_color == 'white' else 85)))
     mask = white if text_color == 'white' else yellow if np.count_nonzero(yellow) >= 20 else white
-    if text_color == 'account':
+    if text_color in ('account', 'yellow_digits'):
         count, components, stats, _ = cv2.connectedComponentsWithStats(mask.astype(np.uint8), 8)
         keep=[i for i in range(1,count)
               if stats[i,cv2.CC_STAT_HEIGHT] >= max(7,crop.shape[0]*0.32)
