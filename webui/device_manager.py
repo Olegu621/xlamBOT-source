@@ -679,6 +679,9 @@ class DeviceRuntimeManager:
             data["detected_state"] = instance.get_latest_state()
         except Exception:
             data["detected_state"] = None
+        stamp = getattr(instance, "latest_state_frame_time", 0)
+        data["state_observation_age"] = max(0, time.time() - stamp) if stamp else None
+        data["state_classification_ms"] = getattr(instance, "state_classification_ms", None)
         try:
             # Gas has no visible UI, so expose what the model sees. Without this
             # there is no way to tell "no gas" apart from "detector broken".
