@@ -63,6 +63,18 @@ class ErrorReportsTest(unittest.TestCase):
     def enabled(self):
         self.reporter.configure(True, 'warning')
 
+    def test_history_storage_failure_reaches_receiver_without_private_message(self):
+        from trophy_observer import TrophyObserver
+        observer = TrophyObserver.__new__(TrophyObserver)
+        observer.match_history = []
+        with patch.object(observer, '_atomic_save_history', side_effect=OSError('PRIVATE DISK PATH')), patch('error_telemetry._service', self.reporter):
+            self.assertFalse(observer.save_history())
+        self.assertTrue(self.reporter.send_once())
+        self.assertTrue(self.receiver.extensions['deliver_once']())
+        text = self.telegram.post.call_args.kwargs['json']['text']
+        self.assertIn('application_exception', text)
+        self.assertNotIn('PRIVATE DISK PATH', text)
+
     def test_sanitized_durable_delivery_and_grouping(self):
         self.enabled()
         try:

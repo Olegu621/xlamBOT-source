@@ -78,6 +78,23 @@ class VideoRecoveryTests(unittest.TestCase):
         bot.should_stop = Mock(return_value=False)
         return bot
 
+    def test_timeout_reports_device_and_video_recovery_separately(self):
+        for unavailable, expected in [(True, 'DeviceRecoveryTimeout'), (False, 'VideoRecoveryTimeout')]:
+            bot = self.bot()
+            bot._device_recovering = unavailable
+            bot.check_transport_recovery(False, now=10)
+            with self.assertRaises(BotHalt) as failure:
+                bot.check_transport_recovery(False, now=70)
+            self.assertEqual(type(failure.exception).__name__, expected)
+
+    def test_manual_stop_at_recovery_deadline_is_not_an_error(self):
+        bot = self.bot()
+        bot.check_transport_recovery(False, now=10)
+        bot.should_stop.return_value = True
+        bot.recover_video_stream(0, now=70)
+        bot.window_controller.reconnect_scrcpy.assert_not_called()
+        self.assertEqual(bot._transport_lost_since, 10)
+
     def test_live_static_video_retries_before_the_halt_deadline(self):
         bot = self.bot()
         bot.window_controller.is_stream_alive.return_value = True

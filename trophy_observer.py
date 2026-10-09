@@ -358,7 +358,7 @@ class TrophyObserver:
             if first_failure:
                 print("Match history could not be saved; results remain in memory and will be retried.")
                 import error_telemetry
-                error_telemetry.report('history_save_failed', 'error', error, stage='storage')
+                error_telemetry.report('application_exception', 'error', error, stage='runtime')
             return False
         self._history_dirty = False
         self._history_retry_at = 0
