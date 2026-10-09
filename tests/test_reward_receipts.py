@@ -76,3 +76,26 @@ class RewardReceiptTests(unittest.TestCase):
         manager.dismiss_received_reward()
 
 
+
+
+class LockedSkinReceiptTests(unittest.TestCase):
+    def frame(self):
+        f=receipt('skin')
+        f[580:660,:]=35
+        f[438:591,844:1191]=0
+        paste(f,r.REQUIRED_BRAWLER,856,450)
+        return f
+
+    def test_locked_skin_with_remaining_items_uses_receipt_handler(self):
+        f=self.frame()
+        self.assertTrue(r.locked_skin_receipt(f))
+        self.assertEqual(get_state(f),'reward_received')
+        self.assertIsNone(r.skin_receipt_continue_position(f))
+
+    def test_locked_skin_preview_or_isolated_label_is_not_a_receipt(self):
+        for bounds in [(650,720),(440,500)]:
+            f=self.frame();f[bounds[0]:bounds[1]]=0
+            self.assertFalse(r.locked_skin_receipt(f))
+        f=self.frame();f[490:591,844:1191]=255
+        self.assertFalse(r.locked_skin_receipt(f))
+        self.assertFalse(r.locked_skin_receipt(None))
