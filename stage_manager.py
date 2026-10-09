@@ -81,6 +81,7 @@ class StageManager:
             'star_drop_demonic': lambda: self.click_star_drop("demonic"),
             'star_drop_starr_nova': lambda: self.click_star_drop("starr_nova"),
             'star_drop_loony': lambda: self.click_star_drop("loony"),
+            'star_drop_chaos': lambda: self.click_star_drop("chaos"),
             'trophy_reward': lambda: self.window_controller.press("proceed"),
             'prestige_milestone': lambda: self.window_controller.press("continue_or_equip"),
             'end_draw': self.end_game,
@@ -712,7 +713,7 @@ class StageManager:
         try:
             # Original ordinary drops use a tap burst; special drops need a
             # sustained hold. Each short slice belongs to this device worker.
-            special = drop_type not in ('regular', 'loony')
+            special = drop_type not in ('regular', 'loony', 'chaos')
             for step in range(80 if special else 8):
                 if self._should_stop() or self._should_pause():
                     return
