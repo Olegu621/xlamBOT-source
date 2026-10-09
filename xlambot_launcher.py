@@ -26,7 +26,7 @@ import time
 import webbrowser
 
 APP_NAME = "xlamBOT"
-VERSION = "0.8.20"
+VERSION = "0.8.22"
 DEFAULT_PORT = 5195
 WIZARD_MARKER = "setup_done.json"
 
@@ -141,6 +141,12 @@ def claim_single_instance() -> bool:
 
 
 def main() -> int:
+    shell = None
+    logs = None
+    if os.name == 'nt' and is_frozen():
+        from desktop_shell import LogBuffer
+        logs = sys.stdout if isinstance(sys.stdout, LogBuffer) else LogBuffer(sys.stdout)
+        sys.stdout = sys.stderr = logs
     if not claim_single_instance():
         print("xlamBOT уже запущен. Закройте окно программы и попробуйте снова.")
         print("Если окна нет, возможно программа запущена свёрнутым значком в трее.")
@@ -176,7 +182,7 @@ def main() -> int:
         except Exception:
             needs_wizard = True
 
-    if needs_wizard and os.environ.get("XLAMBOT_SKIP_WIZARD") != "1":
+    if needs_wizard and not is_frozen() and os.environ.get("XLAMBOT_SKIP_WIZARD") != "1":
         code = run_wizard()
         try:
             import json
@@ -194,7 +200,7 @@ def main() -> int:
     url = f"http://127.0.0.1:{port}"
 
     print(f"\nПанель управления: {url}")
-    print("Закрыть программу - нажмите Стоп или закройте это окно.\n")
+    print("Панель и консоль доступны через значок xlamBOT в системном трее.\n")
 
     threading.Thread(target=open_ui, args=(url,), daemon=True).start()
 
@@ -207,9 +213,27 @@ def main() -> int:
         update_client.mark_healthy()
         if is_frozen():
             threading.Thread(target=app.config['update_manager'].loop, daemon=True).start()
-        # threaded=True иначе панель подвисает на долгих опросах устройства
-        app.run(host="127.0.0.1", port=port, threaded=True, debug=False,
-                use_reloader=False)
+        from werkzeug.serving import make_server
+        server = make_server('127.0.0.1', port, app, threaded=True)
+        def stop_all():
+            app.config['device_manager'].stop_all()
+            app.config['runtime_manager'].stop()
+        def shutdown():
+            with app.config['update_manager'].lock:
+                app.config['update_manager'].installing = True
+            stop_all()
+            server.shutdown()
+        app.extensions['shutdown_server'] = shutdown
+        if logs is not None:
+            from desktop_shell import DesktopShell
+            shell = DesktopShell(url, logs, stop_all, shutdown).start()
+        try:
+            server.serve_forever(poll_interval=.2)
+        finally:
+            stop_all()
+            server.server_close()
+            if shell:
+                shell.close()
     except KeyboardInterrupt:
         print("\nОстановлено.")
     except Exception as error:  # noqa: BLE001
@@ -219,6 +243,33 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if sys.stdout is None:
+        from desktop_shell import LogBuffer
+        sys.stdout = sys.stderr = LogBuffer()
+    if '--tray-self-test' in sys.argv:
+        import json
+        import time
+        from pathlib import Path
+        from desktop_shell import DesktopShell, LogBuffer
+        buffer = LogBuffer()
+        shell = DesktopShell('http://127.0.0.1:5195', buffer, lambda:None, lambda:None).start()
+        gui, c = shell.gui, shell.c
+        try:
+            gui.SendMessage(shell.hwnd, c.WM_COMMAND, 2, 0)
+            buffer.write('tray self-test\n')
+            gui.SendMessage(shell.hwnd, c.WM_APP+2, 0, 0)
+            shown = bool(gui.IsWindowVisible(shell.console))
+            gui.SendMessage(shell.console, c.WM_CLOSE, 0, 0)
+            hidden = not gui.IsWindowVisible(shell.console)
+            gui.SendMessage(shell.hwnd, c.WM_COMMAND, 2, 0)
+            reopened = bool(gui.IsWindowVisible(shell.console))
+            text = gui.GetWindowText(shell.edit)
+            result = {'shown':shown,'close_hides':hidden,'reopened':reopened,'logs_visible':'tray self-test' in text}
+        finally:
+            shell.close()
+        result['closed'] = shell.closed.is_set()
+        Path(os.environ['XLAMBOT_SELF_TEST_OUTPUT']).write_text(json.dumps(result),encoding='utf-8')
+        sys.exit(0 if all(result.values()) else 1)
     if '--restart-self-test' in sys.argv or '--restart-child-test' in sys.argv:
         import json
         import update_client
@@ -243,8 +294,13 @@ if __name__ == "__main__":
         headers = {'X-Xlam-UI-Token': app.config['UI_API_TOKEN']}
         response = client.get('/api/updates/status', headers=headers)
         update_client.mark_healthy()
-        print(json.dumps({'overlay': str(overlay), 'utils': utils.__file__, 'app': webui.app.__file__,
+        result = json.dumps({'overlay': str(overlay), 'utils': utils.__file__, 'app': webui.app.__file__,
                           'api_status': response.status_code, 'revision': update_client.read_state().get('revision'),
-                          'panel_status': client.get('/panel').status_code}, ensure_ascii=True))
+                          'panel_status': client.get('/panel').status_code}, ensure_ascii=True)
+        if os.environ.get('XLAMBOT_SELF_TEST_OUTPUT'):
+            from pathlib import Path
+            Path(os.environ['XLAMBOT_SELF_TEST_OUTPUT']).write_text(result, encoding='utf-8')
+        else:
+            print(result)
         sys.exit(0 if response.status_code == 200 else 1)
     sys.exit(main())

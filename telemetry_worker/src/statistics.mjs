@@ -1,3 +1,4 @@
+import {cleanPCName, savePCName} from './pc-name.mjs';
 const validID = value => typeof value==='string' && /^[a-f0-9]{32}$/.test(value);
 const json=(body,status=200)=>Response.json(body,{status});
 export function cleanStatistics(body,now) {
@@ -14,10 +15,11 @@ export function cleanStatistics(body,now) {
   });
   const revision=body.revision??0;
   if(!Number.isInteger(revision)||revision<0||revision>10000000)throw Error('invalid');
-  return {devices,matches,revision};
+  return {devices,matches,revision,pc_name:cleanPCName(body.pc_name)};
 }
 export async function receiveStatistics(body,owner,env) {
-  const now=Date.now()/1000,{devices,matches,revision:appRevision}=cleanStatistics(body,now);
+  const now=Date.now()/1000,{devices,matches,revision:appRevision,pc_name}=cleanStatistics(body,now);
+  await savePCName(env.DB,owner,pc_name);
   const sql=[env.DB.prepare('UPDATE stats_devices SET active=0,paused=0 WHERE installation=?').bind(owner)];
   const revision=appRevision||Math.max(0,...devices.map(d=>d.revision));
   if(revision) {

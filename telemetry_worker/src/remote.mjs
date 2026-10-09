@@ -1,3 +1,4 @@
+import {cleanPCName, savePCName} from './pc-name.mjs';
 import {miniPage} from './mini-page.mjs';
 const hex=bytes=>Array.from(bytes,x=>x.toString(16).padStart(2,'0')).join('');
 const random=()=>hex(crypto.getRandomValues(new Uint8Array(32)));
@@ -81,6 +82,11 @@ export async function remoteRoute(request,env,readBody) {
       await activity(env,installation,'pairing_key_created');return json({key,expires:now+600});
     }
     if(path==='/v1/remote/status'&&request.method==='GET')return json({paired:!!(await env.DB.prepare('SELECT user_id FROM remote_links WHERE installation=?').bind(installation).first())?.user_id});
+    if(path==='/v1/remote/status'&&request.method==='POST') {
+      const body=await readBody(request);
+      await savePCName(env.DB,installation,cleanPCName(body.pc_name));
+      return json({paired:!!(await env.DB.prepare('SELECT user_id FROM remote_links WHERE installation=?').bind(installation).first())?.user_id});
+    }
     if(path==='/v1/remote/revoke'&&request.method==='POST') {
       await env.DB.prepare('DELETE FROM remote_links WHERE installation=?').bind(installation).run();
       if(env.REMOTE)await env.REMOTE.get(env.REMOTE.idFromName(installation)).fetch(new Request('https://relay/revoke',{method:'POST'}));
@@ -101,8 +107,8 @@ export async function remoteRoute(request,env,readBody) {
   if(!auth)return cors(json({error:'open_in_private_telegram'},401));
   if(request.method!=='GET'&&request.headers.get('Origin')!==url.origin&&!(scoped&&request.headers.get('Origin')==='null'))return cors(json({error:'invalid_origin'},403));
   if(path==='/mini/status'&&request.method==='GET') {
-    const links=(await env.DB.prepare('SELECT installation FROM remote_links WHERE user_id=? ORDER BY installation').bind(auth.user_id).all()).results;
-    const pcs=[];for(const r of links){const grant=random();await env.DB.prepare('INSERT INTO mini_grants VALUES(?,?,?,?)').bind(await sha(grant),auth.user_id,r.installation,now+3600).run();pcs.push({id:r.installation,name:'ПК '+r.installation.slice(0,6),grant});}
+    const links=(await env.DB.prepare('SELECT remote_links.installation,installation_names.name FROM remote_links LEFT JOIN installation_names USING(installation) WHERE user_id=? ORDER BY installation').bind(auth.user_id).all()).results;
+    const pcs=[];for(const r of links){const grant=random();await env.DB.prepare('INSERT INTO mini_grants VALUES(?,?,?,?)').bind(await sha(grant),auth.user_id,r.installation,now+3600).run();pcs.push({id:r.installation,name:r.name||'ПК '+r.installation.slice(0,6),grant});}
     return json({pcs,admin:auth.user_id===env.ADMIN_TELEGRAM_USER_ID});
   }
   if(path==='/mini/pair'&&request.method==='POST') {

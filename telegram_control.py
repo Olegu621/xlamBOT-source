@@ -157,6 +157,24 @@ class TelegramControl:
             return {'enabled':self.enabled,'state':self.state,'paired':self.paired,'key':self.key if self.expires > time.time() else '',
                     'expires':self.expires,'bot':'https://t.me/xlambottt_bot'}
 
+    def update_pc_name(self):
+        """Update an existing pairing without reconnecting or changing its key."""
+        with self.lock:
+            if not self.enabled or not self.credentials:
+                return
+            token = self.credentials['token']
+        def update():
+            try:
+                from presentation_preferences import read
+                import requests
+                requests.post(self.endpoint+'/v1/remote/status',
+                    json={'pc_name':read()['pc_name']},
+                    headers={'Authorization':'Bearer '+token}, timeout=(4,12), allow_redirects=False)
+            except Exception:
+                # Statistics heartbeats and reconnects retry the same metadata.
+                pass
+        threading.Thread(target=update, daemon=True, name='xlambot-pc-name').start()
+
     def configure(self, action):
         with self.lock:
             if action == 'create_key':
@@ -217,7 +235,8 @@ class TelegramControl:
             if not self.enabled:
                 self.stopped.wait(1); continue
             try:
-                self.paired = bool(self.api('/v1/remote/status').get('paired'))
+                from presentation_preferences import read
+                self.paired = bool(self.api('/v1/remote/status', {'pc_name': read()['pc_name']}).get('paired'))
                 with self.lock:
                     if not self.enabled: continue
                     connection = SecureSocket(self.credentials['token'], self.stopped, self.endpoint)

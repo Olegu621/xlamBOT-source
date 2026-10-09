@@ -12,6 +12,10 @@ def canonical(value):
 
 def build_archive(exe, source, target):
     payloads={'xlamBOT.exe':Path(exe).read_bytes()}
+    for name in ('win32/win32gui.pyd', 'win32/win32api.pyd'):
+        binary = Path(exe).parent / '_internal' / name
+        if binary.is_file() and not binary.is_symlink():
+            payloads['_internal/'+name] = binary.read_bytes()
     for directory in ['static','templates']:
         for path in sorted((Path(source)/directory).rglob('*')):
             if path.is_file() and not path.is_symlink():
@@ -41,7 +45,7 @@ def main():
     args.output.mkdir(parents=True)
     files=build_archive(args.exe,args.source_repo,args.output/'bootstrap.zip')
     data=(args.output/'bootstrap.zip').read_bytes()
-    manifest={'repository':'Olegu621/xlamBOT','version':'0.8.20','runtime':'0.8.18','revision':args.revision,
+    manifest={'repository':'Olegu621/xlamBOT','version':'0.8.22','runtime':'0.8.18','revision':args.revision,
               'source_commit':commit,'file':'bootstrap.zip','bytes':len(data),'sha256':hashlib.sha256(data).hexdigest(),'files':files}
     key=serialization.load_pem_private_key(args.key.read_bytes(),password=None)
     envelope={'manifest':manifest,'signature':key.sign(canonical(manifest)).hex()}

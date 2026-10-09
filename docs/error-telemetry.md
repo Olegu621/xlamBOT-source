@@ -134,3 +134,9 @@ reports and the durable outbox; Telegram credentials are Worker secrets. See
 `telemetry_worker/README.md` for deployment, free quotas and retention. Windows
 hosting above remains an optional alternative; prior tunnel URLs are not the
 client delivery address.
+
+PC display name: users may enter a name of up to 64 printable characters in
+Settings → Telegram or the first-run guide. This shared presentation preference
+is independent of device profiles and is included in error reports and Telegram
+PC lists. No Windows hostname is read automatically. Clearing the name restores
+an anonymous PC identifier. Updating the language preserves the PC name.

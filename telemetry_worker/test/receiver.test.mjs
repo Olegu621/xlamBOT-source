@@ -10,7 +10,7 @@ function dbAdapter(sqlite) {
   const statement=(sql,args=[])=>({bind(...values){return statement(sql,values);},async first(){return sqlite.prepare(sql).get(...args) || null;},async all(){return {results:sqlite.prepare(sql).all(...args)};},async run(){return {meta:{changes:Number(sqlite.prepare(sql).run(...args).changes)}};}});
   return {prepare:statement,async batch(items){sqlite.exec('BEGIN');try{const results=[];for(const item of items)results.push(await item.run());sqlite.exec('COMMIT');return results;}catch(error){sqlite.exec('ROLLBACK');throw error;}}};
 }
-beforeEach(()=>{sqlite=new DatabaseSync(':memory:');sqlite.exec(readFileSync(new URL('../migrations/0001.sql',import.meta.url),'utf8'));sqlite.exec(readFileSync(new URL('../migrations/0002_statistics.sql',import.meta.url),'utf8'));sqlite.exec(readFileSync(new URL('../migrations/0003_remote_panel.sql',import.meta.url),'utf8'));env={DB:dbAdapter(sqlite)};pending=[];});
+beforeEach(()=>{sqlite=new DatabaseSync(':memory:');sqlite.exec(readFileSync(new URL('../migrations/0001.sql',import.meta.url),'utf8'));sqlite.exec(readFileSync(new URL('../migrations/0002_statistics.sql',import.meta.url),'utf8'));sqlite.exec(readFileSync(new URL('../migrations/0003_remote_panel.sql',import.meta.url),'utf8'));sqlite.exec(readFileSync(new URL('../migrations/0004_pc_names.sql',import.meta.url),'utf8'));env={DB:dbAdapter(sqlite)};pending=[];});
 afterEach(()=>sqlite.close());
 const ctx={waitUntil(p){pending.push(p);}};
 async function call(path,data,token,extra={}) {
@@ -242,4 +242,21 @@ test('a reporting PC records its panel revision even with no ADB devices',async(
   const a=await register();assert.equal((await call('/v1/statistics',{devices:[],matches:[],revision:79},a.token)).status,202);
   assert.equal(sqlite.prepare('SELECT revision FROM panel_versions').get().revision,79);
   assert.equal((await call('/v1/statistics',{devices:[],matches:[],revision:true},a.token)).status,400);
+});
+
+test('PC names are owner-bound, editable and visible only to the linked owner',async()=>{
+  const a=await register(),b=await register(),alice=await login(123);
+  const key=await (await call('/v1/remote/key',{},a.token)).json();
+  await mini('/mini/pair',{key:key.key},alice);
+  assert.equal((await call('/v1/remote/status',{pc_name:'  Игровой ПК  '},a.token)).status,200);
+  assert.equal((await call('/v1/remote/status',{pc_name:'Other PC'},b.token)).status,200);
+  let pcs=(await (await mini('/mini/status',undefined,alice)).json()).pcs;
+  assert.equal(pcs.length,1);assert.equal(pcs[0].name,'Игровой ПК');
+  for(const pc_name of [null,1,'a'.repeat(65),'PC\nforged log','\u202ePC']) {
+    assert.notEqual((await call('/v1/remote/status',{pc_name},a.token)).status,200);
+  }
+  assert.equal(sqlite.prepare('SELECT name FROM installation_names WHERE installation=?').get(a.installation).name,'Игровой ПК');
+  await call('/v1/remote/status',{pc_name:''},a.token);
+  pcs=(await (await mini('/mini/status',undefined,alice)).json()).pcs;
+  assert.equal(pcs[0].name,'ПК '+a.installation.slice(0,6));
 });

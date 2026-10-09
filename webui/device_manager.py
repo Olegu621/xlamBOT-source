@@ -535,6 +535,19 @@ class DeviceRuntimeManager:
         # Disconnected workers still need a stop signal; discovery cannot see them.
         with self._lock:
             keys = list(self._runtimes)
+            runtimes = list(self._runtimes.values())
+            instances = list(self._instances.values())
+        # Signal every worker before waiting for any of them. A blocked first
+        # worker must not leave the remaining devices moving during shutdown.
+        for runtime in runtimes:
+            with runtime._lock:
+                if runtime._control is not None:
+                    runtime._control.request_stop()
+        for instance in instances:
+            try:
+                instance.window_controller.release_all_inputs()
+            except Exception as error:
+                print('Could not release device inputs during Stop: '+str(error))
         for key in keys:
             status = self.get_status(key)
             if status["is_running"] or status['state'] == 'starting':
