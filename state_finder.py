@@ -143,6 +143,9 @@ def get_in_game_state(image):
         from screen_evidence import daily_reward
         if daily_reward(image):
             return 'daily_reward'
+        from new_brawler_receipt import new_brawler_continue_position
+        if new_brawler_continue_position(image) is not None:
+            return 'new_brawler'
         from reward_received import is_reward_received
         if is_reward_received(image):
             return "reward_received"
