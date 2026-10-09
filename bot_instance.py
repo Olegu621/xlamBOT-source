@@ -148,7 +148,6 @@ class BotInstance:
         print(f"[{self.device_label}] Initialization complete, starting main loop.")
         self.picked_first_brawler = False
         self._connection_lost_handled = 0.0
-        self._last_static_notice = 0.0
         self.time_since_checked_if_brawl_stars_crashed = time.time()
         self.check_if_brawl_stars_crashed_timer = load_toml_as_dict("cfg/time_tresholds.toml")["check_if_brawl_stars_crashed"]
         self.ping_when_stuck = load_toml_as_dict("cfg/webhook_config.toml")["ping_when_stuck"]
@@ -475,6 +474,23 @@ class BotInstance:
                 'Бот остановлен. Проверьте окно эмулятора и перезапустите его перед Стартом.'
             )
 
+    def recover_video_stream(self, frame_time, now=None):
+        """Retry video before the halt deadline, without restarting the game."""
+        now = time.monotonic() if now is None else now
+        self.check_transport_recovery(False, now)
+        # A short encoder pause is normal on still screens. Longer pauses need
+        # a new capture: a live socket alone cannot make an old frame usable.
+        stale_age = time.time() - frame_time if frame_time > 0 else float('inf')
+        if stale_age < 5 or self.should_stop():
+            return
+        if now - getattr(self, '_last_video_reconnect', float('-inf')) < 15:
+            return
+        self._last_video_reconnect = now
+        print(f'[{self.device_label}] Video unavailable; reconnecting capture on the same device.')
+        self.window_controller.reconnect_scrcpy(max_retries=1)
+        # Successful ADB negotiation does not prove video recovery. Clear the
+        # loss timer only after the main loop receives a real fresh frame.
+
 
     def main(self):
         self.time_since_last_webhook_ping = time.time()
@@ -631,46 +647,26 @@ class BotInstance:
                     self.stop_gracefully()
                     return
                 continue
-            frame = self.window_controller.screenshot()
             frame, self.current_frame_time = self.window_controller.get_latest_frame()
-
-            _, last_ft = self.window_controller.get_latest_frame()
-            if last_ft > 0 and (t_now - last_ft) > self.window_controller.FRAME_STALE_TIMEOUT:
-                self.check_transport_recovery(False)
-                stale_age = t_now - last_ft
-                self.Play.window_controller.release_movement()
-                # A live stream with a still screen is a real pause (a match
-                # loading, the emulator backgrounded), not a broken feed, so
-                # reconnecting would only throw away a working connection.
-                if self.window_controller.is_stream_alive() and stale_age <= 90:
-                    # Still dialogs must be dismissed too; waiting for a new
-                    # picture before checking them would leave them up forever.
-                    if self.Time_management.idle_check():
-                        # scrcpy can stop emitting identical frames on a still
-                        # reward/dialog. Reclassify only recognized overlays;
-                        # never send a generic proceed tap on a static screen.
-                        overlay_state = get_state(frame)
-                        if overlay_state in ('reward_received', 'daily_reward', 'team_panel', 'idle_disconnect', 'connection_lost'):
-                            self.handle_detected_state(overlay_state)
-                    if t_now - self._last_static_notice >= 30:
-                        self._last_static_notice = t_now
-                        print(f"[{self.device_label}] Screen looks static for {stale_age:.0f}s (feed alive, continuing).")
-                    if self.sleep_interruptible(0.1) == "stop":
-                        self.stop_gracefully()
-                        return
-                    continue
-                if stale_age > 30:
-                    print(f"[{self.device_label}] Scrcpy feed stale for {stale_age:.0f}s -- attempting reconnect")
-                    if not self.window_controller.reconnect_scrcpy():
-                        print(f"[{self.device_label}] Reconnect failed -- restarting Brawl Stars")
-                        self.restart_brawl_stars()
-                else:
-                    print(f"[{self.device_label}] Stale frame detected -- pausing actions until feed resumes")
-                    if self.sleep_interruptible(1) == "stop":
-                        self.stop_gracefully()
-                        return
+            if (frame is None or self.current_frame_time <= 0
+                    or time.time() - self.current_frame_time > self.window_controller.FRAME_STALE_TIMEOUT):
+                self.recover_video_stream(self.current_frame_time)
+                if self.sleep_interruptible(.1, allow_pause=False) == "stop":
+                    self.stop_gracefully()
+                    return
                 continue
 
+            # Keep coordinate setup in screenshot(), but avoid its 15-second
+            # initial-frame wait during transport recovery.
+            self.window_controller.screenshot()
+            frame, self.current_frame_time = self.window_controller.get_latest_frame()
+            if (frame is None or self.current_frame_time <= 0
+                    or time.time() - self.current_frame_time > self.window_controller.FRAME_STALE_TIMEOUT):
+                self.recover_video_stream(self.current_frame_time)
+                if self.sleep_interruptible(.1, allow_pause=False) == "stop":
+                    self.stop_gracefully()
+                    return
+                continue
             self.check_transport_recovery(True)
             if self.current_frame_time <= last_processed_stamp:
                 self.sleep_interruptible(.005, allow_pause=False)
