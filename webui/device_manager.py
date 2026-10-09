@@ -193,8 +193,9 @@ class DeviceRuntimeManager:
                     except Exception:
                         return default
 
-                props = device.prop
-                entry["model"] = _shell("getprop", "ro.product.model") or (props.model or "")
+                # Optional metadata can fail after get_state() succeeded. Do not
+                # repeat a failed bounded query through the unguarded prop API.
+                entry["model"] = _shell("getprop", "ro.product.model")
                 entry["android_version"] = _shell("getprop", "ro.build.version.release")
                 size = _shell("wm", "size")
                 entry["resolution"] = size.replace("Override size:", "").replace("Physical size:", "").strip()
