@@ -13,6 +13,33 @@ def _badge(height):
                             max(2, round(raw.shape[0]*height/720))))
 
 
+def _rank_card_anchors(frame):
+    h,w = frame.shape[:2]
+    scale = h/720
+    hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
+    purple = cv2.inRange(hsv, (130,90,85), (172,255,255))
+    purple[:round(h*.14)] = 0
+    count,_,stats,centers = cv2.connectedComponentsWithStats(purple)
+    anchors = []
+    for i in range(1,count):
+        x,y,bw,bh,area = stats[i]
+        if not (35*scale <= bw <= 65*scale and 35*scale <= bh <= 65*scale
+                and .75 <= bw/bh <= 1.3 and area >= bw*bh*.35):
+            continue
+        if np.mean(np.all(frame[y:y+bh,x:x+bw] > 180,axis=2)) < .015:
+            continue
+        cx,cy = centers[i]
+        ax,ay = round(cx-245*scale),round(cy+135*scale)
+        radius = max(2,round(18*scale))
+        if ax-radius < 0 or ay-radius < 0 or ax+radius >= w or ay+radius >= h:
+            continue
+        shield = hsv[ay-radius:ay+radius,ax-radius:ax+radius]
+        bronze = cv2.inRange(shield,(8,90,100),(38,255,255))
+        if np.mean(bronze > 0) >= .12:
+            anchors.append((ax,ay))
+    return anchors
+
+
 def first_owned_card(frame):
     if frame is None or frame.ndim != 3 or frame.shape[2] != 3:
         return None
@@ -24,14 +51,15 @@ def first_owned_card(frame):
         return None
     scores = cv2.matchTemplate(crop, glyph, cv2.TM_CCOEFF_NORMED)
     ys,xs = np.where(scores >= .91)
-    if not len(xs):
+    candidates = [(int(x)+glyph.shape[1]//2,top+int(y)+glyph.shape[0]//2)
+                  for x,y in zip(xs,ys)]
+    # Zero-trophy owned cards use a bronze rank shield instead of the cup.
+    # Require both the numbered power badge and its separate rank shield.
+    candidates.extend(_rank_card_anchors(frame))
+    if not candidates:
         return None
-    # Sorted cards are read row first, then left to right. The badge is inside
-    # an owned card; locked cards show a padlock and currency instead.
-    row = int(ys.min())
-    candidates = [(int(x),int(y)) for x,y in zip(xs,ys) if y <= row + round(h*.025)]
-    x,y = min(candidates)
-    return (x+glyph.shape[1]//2, top+y+glyph.shape[0]//2)
+    row = min(y for x,y in candidates)
+    return min((x,y) for x,y in candidates if y <= row+round(h*.025))
 
 
 def resolved_card(frame, configured):

@@ -42,3 +42,22 @@ class OwnedCardTests(unittest.TestCase):
         self.assertEqual(digits.call_args.args[1],trophies)
         self.assertGreater(name[0],900)
         self.assertGreater(trophies[0],900)
+
+    def test_zero_trophy_rank_card_precedes_later_legacy_card(self):
+        import cv2
+        for w,h in [(1280,720),(1920,1080),(960,540)]:
+            frame=self.grid(w,h)
+            frame[round(h*.18):round(h*.5)]=(15,110,245)
+            scale=h/720
+            cx,cy=round(w*.69),round(h*.18)
+            cv2.circle(frame,(cx,cy),round(25*scale),(190,25,230),-1)
+            cv2.putText(frame,'3',(cx-round(10*scale),cy+round(10*scale)),
+                        cv2.FONT_HERSHEY_SIMPLEX,.8*scale,(255,255,255),2)
+            ax,ay=round(cx-245*scale),round(cy+135*scale)
+            frame[ay-round(12*scale):ay+round(12*scale),ax-round(10*scale):ax+round(10*scale)]=(230,140,30)
+            point,anchor=c.resolved_card(frame,(510,300))
+            self.assertIsNotNone(anchor)
+            self.assertGreater(point[0],900)
+            self.assertLess(anchor[1],h*.45)
+            frame[ay-round(18*scale):ay+round(18*scale),ax-round(18*scale):ax+round(18*scale)]=(15,110,245)
+            self.assertEqual(c._rank_card_anchors(frame),[])
