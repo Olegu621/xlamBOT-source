@@ -7,6 +7,9 @@ _HEADER = cv2.cvtColor(_HEADER, cv2.COLOR_BGR2RGB)
 
 def is_reward_received(frame):
     from seasonal_rewards import xp_doubler_reward, points_reward, gadget_reward, credits_reward
+    from reward_receipts import bling_receipt
+    if bling_receipt(frame):
+        return True
     if xp_doubler_reward(frame) or points_reward(frame) or gadget_reward(frame) or credits_reward(frame):
         return True
     if frame is None or frame.ndim != 3 or frame.shape[2] != 3:
