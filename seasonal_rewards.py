@@ -43,6 +43,10 @@ def modern_daily_reward(frame):
 
 def seasonal_announcement_dismiss_position(frame):
     if frame is None or frame.ndim!=3 or frame.shape[2]!=3:return None
+    from reward_receipts import skin_receipt_continue_position
+    receipt_continue = skin_receipt_continue_position(frame)
+    if receipt_continue is not None:
+        return receipt_continue
     offer_close = credit_offer_dismiss_position(frame)
     if offer_close is not None:
         return offer_close
