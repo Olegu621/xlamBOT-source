@@ -374,7 +374,10 @@ class BotInstance:
                 last_checked_frame_time = frame_time
                 try:
                     if self.window_controller.frame_is_fresh(frame_time):
-                        self.set_latest_state(get_state(frame), frame_time=frame_time)
+                        started = time.perf_counter()
+                        state = get_state(frame)
+                        self.state_classification_ms = (time.perf_counter() - started) * 1000
+                        self.set_latest_state(state, frame_time=frame_time)
                 except Exception as error:
                     print(f"[{self.device_label}] State checker failed: {error}")
                 self.state_checker_stop_event.wait(0.1)
