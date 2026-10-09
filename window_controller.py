@@ -6,7 +6,7 @@ import time
 from contextlib import contextmanager, nullcontext
 
 import capture_transport as scrcpy
-from adbutils import AdbDevice
+from adbutils import AdbDevice, AdbError
 from adb_connection import AUTO_CONNECTOR, BoundedAdbClient, foreground_package, canonical_device_serial, unique_devices
 adb = BoundedAdbClient()
 from debug_view import DebugViewPublisher
@@ -170,6 +170,10 @@ def discover_device(verbose: bool = False) -> AdbDevice:
 class StaleFrameError(ConnectionError):
     """Drop this decision and wait for a fresh frame."""
 
+class CaptureConnectionError(ConnectionError):
+    """Capture could not connect; the owner may retry the same device."""
+
+
 class WindowController:
     def __init__(self, max_fps="auto", serial=None):
         self.input_lock = threading.RLock()
@@ -244,7 +248,9 @@ class WindowController:
                 self.stop_scrcpy_with_timeout()
             if getattr(self, "_device_lease", None):
                 self._device_lease.close()
-            raise ConnectionError(f"Could not initialize capture for {self.serial}: {error}") from error
+            if isinstance(error, (AdbError, ConnectionError, OSError)):
+                raise CaptureConnectionError(f"Could not initialize capture for {self.serial}: {error}") from error
+            raise
         self.are_we_moving = False
         self.PID_JOYSTICK = 1
         self.PID_ATTACK = 2
