@@ -1,5 +1,10 @@
 # PC bootstrap installer
 
+Installer 0.8.21 offers Russian and English. `/LANG=ru` and `/LANG=en` select
+the language for unattended tests. Standard pages, custom progress, shortcuts
+and recovery errors follow that language. Verify both languages with the isolated
+installer and inspect welcome, progress and completion pages before publishing.
+
 The small installer downloads the unchanged 0.8.18 runtime and a separately rebuilt
 0.8.19 bootstrap ZIP (EXE plus matching static/templates) from immutable repository commits. Both downloads have SHA-256
 checks embedded in the installer. The bootstrap descriptor is also Ed25519 signed.

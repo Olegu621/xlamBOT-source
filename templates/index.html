@@ -36,7 +36,7 @@
     </header>
 
     <main class="studio-main">
-        <details class="card"><summary class="card-head">Telegram · {{ 'Control from your phone' if ui_language == 'en' else 'Управление с телефона' }}</summary><div class="card-body" id="telegramControl"></div></details>
+        <details class="card telegram-settings-card" id="telegramSettingsCard" hidden><summary class="card-head">Telegram · {{ 'Control from your phone' if ui_language == 'en' else 'Управление с телефона' }}</summary><div class="card-body" id="telegramControl"></div></details>
         <section class="studio-view is-active" id="view-dashboard"></section>
         <section class="studio-view" id="view-brawlers"></section>
         <section class="studio-view" id="view-playstyles"></section>
