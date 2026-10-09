@@ -1,4 +1,4 @@
-#define AppVersion "0.8.22"
+#define AppVersion "0.8.22.1"
 #ifndef BootstrapHash
   #error Supply /DBootstrapHash=<SHA256 of verified PC bootstrap EXE>
 #endif
@@ -46,7 +46,7 @@ DisableWelcomePage=no
 ShowLanguageDialog=yes
 DisableReadyPage=yes
 ArchiveExtraction=full
-CloseApplications=force
+CloseApplications=no
 RestartApplications=no
 UninstallDisplayIcon={app}\xlamBOT.exe
 ExtraDiskSpaceRequired={#PayloadSize}
@@ -514,6 +514,7 @@ var
   Suffix: Integer;
 begin
   if (CurStep = ssInstall) and ReplaceOld then begin
+    StopInstalledBot;
     BackupDir := ExpandConstant('{localappdata}\xlamBOT\backups\install-') + GetDateTimeString('yyyymmdd-hhnnss', '-', ':');
     Suffix := 0;
     while DirExists(BackupDir) do begin
@@ -523,11 +524,15 @@ begin
     StagePage.SetText(CustomMessage('BackupTitle'), CustomMessage('BackupNote'));
     StagePage.Show;
     try
+      Log('Backing up existing installation after stopping bot.');
       CopyTree(ExpandConstant('{app}'), BackupDir);
     finally
       StagePage.Hide;
     end;
     Log('Saved previous installation: ' + BackupDir);
+    // A pending update helper may have restarted the old executable during
+    // extraction or backup. Stop it again immediately before replacing files.
+    StopInstalledBot;
     // Download, checksum, target validation and backup all completed before deletion.
     OldDeleted := True;
     if not DelTree(ExpandConstant('{app}'), True, True, True) then
@@ -543,6 +548,7 @@ procedure DeinitializeSetup;
 begin
   if OldDeleted and not Finished and (BackupDir <> '') then begin
     try
+      StopInstalledBot;
       CopyTree(BackupDir, ExpandConstant('{app}'));
       Log('Restored previous installation after interrupted setup.');
     except
