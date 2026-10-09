@@ -34,6 +34,14 @@ class BotHalt(RuntimeError):
     """Raised to unwind a bot instance that must stop (e.g. repeated crashes)."""
 
 
+class DeviceRecoveryTimeout(BotHalt):
+    """Device access did not recover before the owner deadline."""
+
+
+class VideoRecoveryTimeout(BotHalt):
+    """No fresh video arrived before the owner deadline."""
+
+
 class StartupCancelled(RuntimeError):
     """Stop or Pause cancelled capture startup."""
 
@@ -501,11 +509,16 @@ class BotInstance:
             self._transport_lost_since = now
             lost_since = now
         self.window_controller.release_all_inputs()
+        if self.should_stop():
+            return
         if now - lost_since >= self.transport_recovery_timeout:
-            raise BotHalt(
+            failure = (DeviceRecoveryTimeout if getattr(self, '_device_recovering', False)
+                       else VideoRecoveryTimeout)
+            raise failure(
                 'Эмулятор или видеопоток недоступен более 60 секунд. '
                 'Бот остановлен. Проверьте окно эмулятора и перезапустите его перед Стартом.'
             )
+
 
     def recover_video_stream(self, frame_time, now=None):
         """Retry video before the halt deadline, without restarting the game."""

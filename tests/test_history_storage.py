@@ -19,7 +19,7 @@ class HistoryStorageTests(unittest.TestCase):
                 observer.add_trophies(result,'shelly',False,{})
                 observer.retry_history_save()
                 self.assertEqual(report.call_count,1)
-                self.assertEqual(report.call_args.args[:2],('history_save_failed','error'))
+                self.assertEqual(report.call_args.args[:2],('application_exception','error'))
             self.assertEqual(observer.history_file.read_bytes(),original)
             self.assertEqual(len(observer.match_history),2)
             self.assertEqual(observer.match_counter,2)
