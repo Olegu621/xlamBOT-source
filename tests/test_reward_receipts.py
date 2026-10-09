@@ -99,3 +99,24 @@ class LockedSkinReceiptTests(unittest.TestCase):
         f=self.frame();f[490:591,844:1191]=255
         self.assertFalse(r.locked_skin_receipt(f))
         self.assertFalse(r.locked_skin_receipt(None))
+
+
+class RewardSequenceTests(unittest.TestCase):
+    def receipt(self):
+        f=np.full((720,1280,3),(0,70,200),np.uint8)
+        paste(f,r.REMAINING,941,661)
+        f[330:450,550:720]=20
+        return f
+
+    def test_remaining_items_reveal_routes_to_interruptible_handler(self):
+        f=self.receipt()
+        self.assertTrue(r.sequence_receipt(f))
+        self.assertEqual(get_state(f),'reward_received')
+
+    def test_counter_without_backdrop_or_item_does_not_authorize_input(self):
+        f=self.receipt();f[140:620,:300]=0
+        self.assertFalse(r.sequence_receipt(f))
+        f=self.receipt();f[330:450,550:720]=(0,70,200)
+        self.assertFalse(r.sequence_receipt(f))
+        f=self.receipt();f[650:,:]=0
+        self.assertFalse(r.sequence_receipt(f))

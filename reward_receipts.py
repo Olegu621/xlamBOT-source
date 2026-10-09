@@ -75,3 +75,20 @@ def locked_skin_receipt(frame):
     return bool(card.size and (np.all(card < 65, axis=2)).mean() > .6)
 
 REQUIRED_BRAWLER = 'iVBORw0KGgoAAAANSUhEUgAAAS4AAAApCAAAAACuWZuTAAAEb0lEQVRoBe3BUW4bWRIEwMj7Hzr3VZF0Nwn9CB7Y8EIR8eMb4sc3xI9viB/fED++IX58Q/z4hvjxDfHjG+L/WI34niK+Fpe6i/9CjfgrasT31IivxKXexH+gRvwVNeJ7asRX4lLv4vfViL+iRnxPjfhKXOpD/LYa8VfUiO+pEV+JS32I31Yj/ooa8T014itxqRX1EL+tRvxDasRX4lIjqBW/rUb8Q2rEV+JSI44aQYmjiFEP8VAjjjriqBE14qVGrBJHES8ljiIeasRNPcSoEdQRo0ZQ4ijioUZc6hKjRrzEpUYcNUIdoUaoS4wacdQRR42oEQ/1EtQRasRDHaFGHPUST3UJagR1xKgR6gg14qiXeKqbGDXiJS41glqhRmoEdYlRI446ghqhRqy6hBqpEU81UiOOusSqm6BGUEeMGqFGasRRl1h1F6NGvMSlRqgV1E0cdYmjRlAjqBFqxKi7qJt4qpug7uKou6BGUEeMGqFugrqLo97EqBEvcak3cdRNHBVqxagjqBVqhBpx1Juom3iqm1BvgnoT1AjqiFEj1E2oN0G9i1EjXuJSdzHqJn6pEaOOoFaoEWrEUStqRN3EU92EWlEjqDdBjaCOGDVC3YRaUSOoh9SKUSNe4lLvYtSKNzVi1Ai1Qo1QI44aQR1BrXhTK1aNoI6gRqgR1AjqiFEjjlqxagR1BDWCGjFqxEtc6kMcteKpLjFqRD2EOoIaQa2gjqBWvKkVo1ZQR6gVagQ1gjpi1IijVoxaQR2hVlAjvhKXGkGtOGrFqrsYNaKeoo6gRlAr1AhqxZtaMWqFGqFWqBHUCOqIUSOOWjFqhRqhVlAjvhKXGnHUCmrFqrsYNaKeoo6gRlDvglrxplaMehdqhRpBjaCOGDXiqBWj3oVaQY34SlxqxFErqBWjVtSIVUfUU9QR1AjqTRy14k2tGPUmqBVqBDWCOmLUiKNWjHoT1ApqxFfiUiOOWkGtGDVCjVh1pI4UqRHUCOomVq14UytG3cSoFWoENYI6YtSIo1aMuolRK6gRX4lLjaAegloxaoQaseqX1EscNeKoETe14k2tWDXipkaoEdQIteKoEUetWDXipkZQI0aNeIlLfQpqxagR6imol6iXOGrEUSNuasWbWrFqxE29CepDUCOOWrFqxE19CmrES1zqU1ArRn0K6iXUUxw14qgVlDhqxZtasWoFJY56E9SnUCOOWrFqBSWO+hTUiJe41Ic4asWoT3HUU6inOGrEqJs4asWbWvFQNzHqLqhPoUYcteKhbmLUh6BGvMSlPsRRK1Z9iKOeQj3FUSNWXeKoFW9qxVNdYtRdHPUh1IijVjzVJUZ9CGrES1zqTaxa8VBPqSNGPQT1EKNGPNQvcdSKN7XipX6JVTcx6il1BDXiqBUv9UusekqNoEa8xKUu8VIrnmoERYx6COohRo14qRWrVrypFZda8Uv9EqtGUAQ14qgVl1rxS41QxFEjXuJfViP+mPiX1Yg/Jv5lNeKPiX9Zjfhj4l9WI/6Y/wF9+7k5VM82twAAAABJRU5ErkJggg=='
+
+
+def sequence_receipt(frame):
+    """A remaining-items counter on the full-screen blue reward reveal."""
+    if not _valid(frame) or _find(frame, REMAINING, (.65,.9,.95,1)) is None:
+        return False
+    h, w = frame.shape[:2]
+    # Require the reveal background on both sides, away from the reward icon.
+    for left, right in [(.03,.22),(.78,.97)]:
+        margin = frame[round(h*.2):round(h*.85),round(w*left):round(w*right)].astype(np.float32)
+        blue = (margin[:,:,2] > margin[:,:,0]*1.3) & (margin[:,:,2] > margin[:,:,1]*1.12)
+        if not blue.size or blue.mean() < .85:
+            return False
+    item = frame[round(h*.32):round(h*.78),round(w*.34):round(w*.66)]
+    dark = np.all(item < 65, axis=2)
+    # The receipt must contain an item, rather than an empty loading screen.
+    return bool(dark.size and .025 < dark.mean() < .6)
