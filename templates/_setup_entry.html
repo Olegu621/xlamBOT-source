@@ -1,0 +1,4 @@
+{% if not telegram_remote %}
+<section id="setupEntry" class="setup-banner" hidden><div><strong id="setupEntryTitle"></strong><p id="setupEntryNote"></p></div><a href="/setup" class="btn btn-ghost" id="setupEntryStart"></a><button id="setupEntryDismiss" type="button" aria-label="Закрыть">×</button></section>
+<dialog id="setupWelcome" class="setup-welcome-dialog"><form method="dialog"><span class="section-eyebrow">XLAMBOT</span><h2 id="setupWelcomeTitle"></h2><p id="setupWelcomeNote"></p><div class="card-actions"><a href="/setup" id="setupWelcomeStart" class="btn btn-primary"></a><button class="btn btn-ghost" id="setupWelcomeLater" value="later"></button></div></form></dialog>
+{% endif %}
