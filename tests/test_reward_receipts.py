@@ -120,3 +120,19 @@ class RewardSequenceTests(unittest.TestCase):
         self.assertFalse(r.sequence_receipt(f))
         f=self.receipt();f[650:,:]=0
         self.assertFalse(r.sequence_receipt(f))
+
+
+class RewardSummaryTests(unittest.TestCase):
+    def frame(self):
+        f=np.full((720,1280,3),(0,70,200),np.uint8)
+        paste(f,r.SUMMARY_TITLE,551,73,False)
+        return f
+
+    def test_high_summary_title_on_receipt_backdrop_is_dismissible(self):
+        self.assertEqual(get_state(self.frame()),'reward_received')
+
+    def test_isolated_summary_header_cannot_dismiss_an_ordinary_menu(self):
+        f=self.frame();f[550:]=50
+        self.assertFalse(r.summary_receipt(f))
+        f=self.frame();f[:160]=50
+        self.assertFalse(r.summary_receipt(f))
