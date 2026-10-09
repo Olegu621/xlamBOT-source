@@ -91,6 +91,10 @@ showdown_place_templates = {
 }
 
 def find_game_result(screenshot):
+    from current_results import current_fourth_place
+    if current_fourth_place(screenshot):
+        return 'trio_showdown_3'
+
     # Match only the stable placement caption, independent of animated skins.
     scores={}
     for place, filename in enumerate(('1st_ru_2026.png','2nd_ru_2026.png','3rd_ru_2026.png')):
