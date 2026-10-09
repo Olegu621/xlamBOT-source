@@ -25,3 +25,15 @@ class HudTests(unittest.TestCase):
   f=np.zeros((720,1280,3),np.uint8);t=_caption(720);f[29:29+t.shape[0],80:80+t.shape[1]//2]=t[:,:t.shape[1]//2,None]
   self.assertFalse(visible_showdown_caption(f))
   self.assertFalse(visible_showdown_caption(None))
+
+ def test_current_caption_low_resolution_and_dim_modal(self):
+  from showdown_hud import CAPTION_CURRENT
+  for w,h in [(376,212),(1280,720),(1920,1080)]:
+   f=np.full((h,w,3),40,np.uint8);g=_caption(h,encoded=CAPTION_CURRENT,reference_height=212)
+   x,y=round(w*.02),round(h*.04)
+   f[y:y+g.shape[0],x:x+g.shape[1]][g>0]=245
+   self.assertTrue(visible_showdown_caption(f))
+   self.assertTrue(state_finder.is_in_showdown_match(f))
+   self.assertFalse(visible_showdown_caption((f*.7).astype(np.uint8)))
+   f[:]=40;f[y:y+g.shape[0],x:x+g.shape[1]//2][g[:,:g.shape[1]//2]>0]=245
+   self.assertFalse(visible_showdown_caption(f))

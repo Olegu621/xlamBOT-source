@@ -27,11 +27,15 @@ from utils import (
 # Imported as plain modules, not as device-scoped helpers: every instance already
 # runs inside its own config_scope, so the state this file touches belongs to the
 # thread's device rather than to whichever device loaded the module first.
-from window_controller import StaleFrameError, WindowController
+from window_controller import CaptureConnectionError, StaleFrameError, WindowController
 
 
 class BotHalt(RuntimeError):
     """Raised to unwind a bot instance that must stop (e.g. repeated crashes)."""
+
+
+class StartupCancelled(RuntimeError):
+    """Stop or Pause cancelled capture startup."""
 
 
 def apply_play_order(queue_data):
@@ -58,6 +62,8 @@ class BotInstance:
 
     def __init__(self, discord_bot, queue_data, stop_event=None, runtime_control=None,
                  serial=None, device_key=None, device_label=None):
+        self.stop_event = stop_event
+        self.runtime_control = runtime_control
         self.discord_bot = discord_bot
         self.serial = serial
         self.device_key = device_key
@@ -82,10 +88,7 @@ class BotInstance:
         from thinking_levels import ThinkingQuality
         self.thinking = ThinkingQuality(load_toml_as_dict("cfg/general_config.toml").get("thinking_mode", "medium"), self.max_fps)
         self._thinking_config_checked = 0.0
-        if self.max_fps:
-            self.window_controller = WindowController(self.max_fps, serial=self.serial)
-        else:
-            self.window_controller = WindowController(serial=self.serial)
+        self.window_controller = self._connect_controller()
         if not self.serial:
             self.serial = self.window_controller.serial
             self.device_key = self.device_key or self.serial
@@ -201,6 +204,28 @@ class BotInstance:
             print(f"[{self.device_label}] Shutting down.")
             self.window_controller.release_all_inputs()
             raise BotHalt("Brawl Stars could not be restarted.")
+
+    def _connect_controller(self):
+        # Unpinned legacy discovery must not pick a different device on retry.
+        attempts = 3 if self.serial else 1
+        for attempt in range(attempts):
+            if self.should_stop() or self.should_pause():
+                raise StartupCancelled("Capture startup cancelled.")
+            try:
+                controller = WindowController(self.max_fps or "auto", serial=self.serial)
+            except CaptureConnectionError:
+                if self.should_stop() or self.should_pause():
+                    raise StartupCancelled("Capture startup cancelled.")
+                if attempt + 1 == attempts:
+                    raise
+                print(f"[{self.device_label}] Capture unavailable; retry {attempt + 2}/{attempts}.")
+                if self.sleep_interruptible(attempt + 1) in ("stop", "pause"):
+                    raise StartupCancelled("Capture startup cancelled.")
+                continue
+            if self.should_stop() or self.should_pause():
+                controller.close()
+                raise StartupCancelled("Capture startup cancelled.")
+            return controller
 
     def should_stop(self):
         return bool(self.stop_event and self.stop_event.is_set()) or \
@@ -728,8 +753,11 @@ def run_bot_instance(discord_bot, queue_data, stop_event=None, runtime_control=N
             device_key=device_key,
             device_label=device_label,
         )
+    except StartupCancelled:
+        return {"ok": True, "message": "Capture startup cancelled."}
     except Exception as error:
-        error_telemetry.report('startup_failed', 'critical', error, device_key or serial, 'startup')
+        severity = 'error' if isinstance(error, CaptureConnectionError) else 'critical'
+        error_telemetry.report('startup_failed', severity, error, device_key or serial, 'startup')
         # Initialization can fail after capture acquired the device. Release it
         # so a retry doesn't leave a permanent DEVICE_BUSY lock or video thread.
         controller = getattr(instance, 'window_controller', None)

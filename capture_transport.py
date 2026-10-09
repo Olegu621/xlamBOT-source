@@ -39,6 +39,14 @@ class Client(original.Client):
         self.encoder_name = encoder_name
         self.control = _CheckedControl(self.control, self)
 
+    def _Client__stream_loop(self):
+        try:
+            super()._Client__stream_loop()
+        except (ConnectionError, OSError):
+            # Socket loss belongs to the owner's bounded capture recovery.
+            # Other failures still reach the application's thread crash hook.
+            self.stop()
+
     def _Client__init_server_connection(self):
         super()._Client__init_server_connection()
         if self.control_socket is not None:

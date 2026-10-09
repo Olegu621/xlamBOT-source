@@ -53,3 +53,15 @@ class DetailTests(unittest.TestCase):
     f=screen(w,h);f[round(h*y):round(h*y)+20,round(w*.74):round(w*.74)+40]=255
     self.assertIsNotNone(d.detail_home_position(f))
     self.assertIsNotNone(d.detail_select_position(f))
+
+ def test_heart_layout_preserves_independent_controls(self):
+  for w,h in [(732,412),(1280,720),(1920,1080)]:
+   f=screen(w,h,missing='HANGER');g=d._glyph(d.HEART,h);x,y=round(w*.38),round(h*.87)
+   f[y:y+g.shape[0],x:x+g.shape[1]]=g
+   self.assertEqual(state_finder.get_in_game_state(f),'brawler_detail')
+   self.assertIsNotNone(d.detail_select_position(f))
+   for missing in ['HOME','PROFILE','CHAT','SELECT']:
+    bad=screen(w,h,missing=missing)
+    bad[round(h*.70):round(h*.84),round(w*.19):round(w*.29)]=(10,120,240)
+    bad[y:y+g.shape[0],x:x+g.shape[1]]=g
+    self.assertIsNone(d.detail_select_position(bad))
