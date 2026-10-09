@@ -247,7 +247,9 @@ class LobbyAutomation:
                     state = self._frame_state(frame)
                     if frame is None:
                         continue
-                    card = trophy_reader.read_card(frame, card_index=index)
+                    from owned_cards import resolved_card
+                    _, anchor = resolved_card(frame, first_card)
+                    card = trophy_reader.read_card(frame, card_index=index, anchor=anchor)
                     name = str(card.get("brawler") or "").strip().lower()
                     # A read is only believed if the name is a brawler that
                     # exists. Anything else is OCR noise, and acting on it would
@@ -269,9 +271,14 @@ class LobbyAutomation:
         except Exception as error:  # noqa: BLE001
             print(f"Reading the lowest-trophy card failed: {error}")
 
-        if fresh_state() != "brawler_selection":
+        frame = self.window_controller.screenshot()
+        if self._frame_state(frame) != "brawler_selection":
             print("Brawler grid was not confirmed before card selection; no tap sent.")
             return "stuck"
+        from owned_cards import resolved_card
+        first_card, _ = resolved_card(frame, first_card)
+        if self._should_interrupt(runtime_control, stop_event):
+            return "aborted"
         self.window_controller.click(first_card[0], first_card[1], already_include_ratio=False)
         if self._sleep_interruptible(1.2, runtime_control, stop_event):
             return "aborted"
