@@ -146,6 +146,9 @@ def get_in_game_state(image):
         from new_brawler_receipt import new_brawler_continue_position
         if new_brawler_continue_position(image) is not None:
             return 'new_brawler'
+        from mega_quest_drop import mega_quest_drop
+        if mega_quest_drop(image):
+            return 'star_drop_chaos'
         from reward_received import is_reward_received
         if is_reward_received(image):
             return "reward_received"
