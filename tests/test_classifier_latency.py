@@ -24,3 +24,22 @@ class ClassifierLatencyTests(unittest.TestCase):
             frame[round(height*.84):]=60
             self.assertFalse(current_lobby(frame))
 
+
+    def test_bright_battle_hud_skips_result_and_reward_scans(self):
+        from showdown_hud import _caption, CAPTION_RUSSIAN
+        for encoded,reference in [(None,720),(CAPTION_RUSSIAN,219)]:
+            for width,height in [(1280,720),(960,540),(1920,1080)]:
+                frame=np.full((height,width,3),40,np.uint8)
+                glyph=_caption(height) if encoded is None else _caption(height,encoded=encoded,reference_height=reference)
+                x,y=round(width*.02),round(height*.04)
+                frame[y:y+glyph.shape[0],x:x+glyph.shape[1]][glyph>0]=245
+                with patch.object(state_finder,'is_in_end_of_a_match',side_effect=AssertionError('result scan')), patch('screen_evidence.daily_reward',side_effect=AssertionError('reward scan')):
+                    self.assertEqual(state_finder.get_state(frame),'match')
+                with patch.object(state_finder,'is_in_connection_lost',return_value=True):
+                    self.assertEqual(state_finder.get_state(frame),'connection_lost')
+                with patch('disconnect_dialog.idle_disconnect_reload_position',return_value=(350,450)):
+                    self.assertEqual(state_finder.get_state(frame),'idle_disconnect')
+                frame=(frame*.7).astype(np.uint8)
+                with patch('screen_evidence.daily_reward',return_value=True) as reward:
+                    self.assertEqual(state_finder.get_state(frame),'daily_reward')
+                    reward.assert_called_once()
