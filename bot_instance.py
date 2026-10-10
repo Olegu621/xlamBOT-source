@@ -314,7 +314,8 @@ class BotInstance:
     def observe_action_frame(self, frame, frame_time):
         if not self.window_controller.frame_is_fresh(frame_time):
             raise StaleFrameError('Input rejected: stale menu frame')
-        state = get_state(frame)
+        from state_finder import get_action_state
+        state = get_action_state(frame)
         self.set_latest_state(state, frame_time)
         observation = self.observations.snapshot()
         if observation.state != state:
@@ -565,9 +566,8 @@ class BotInstance:
             return self._pick_initial_brawler_step()
 
     def _pick_initial_brawler_step(self):
-        from onboarding import onboarding_screen
         frame = self.window_controller.screenshot()
-        if onboarding_screen(frame):
+        if self.window_controller.screen_state(frame) == 'onboarding':
             self.Stage_manager.onboarding.step(self.Stage_manager, frame)
             return False
         if self.Stage_manager.onboarding.pending_transition(self.get_latest_state()):
