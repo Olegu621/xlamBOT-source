@@ -3,7 +3,7 @@ import time
 import numpy as np
 from onboarding import locate
 from onboarding_assets import ROAD_HOME
-from mode_assets import EVENT_NAV,SHOWDOWN_ICON,TRIO_CHOICE,TRIO_LOBBY,NEW_EVENT,TRIO_WIN,RESULT_NEXT
+from mode_assets import EVENT_NAV,SHOWDOWN_ICON,TRIO_CHOICE,TRIO_LOBBY,NEW_EVENT,NEW_EVENT_EN,TRIO_WIN,RESULT_NEXT
 
 def trio_win_next(frame):
     if frame is None or locate(frame,TRIO_WIN,(0,0,.56,.17),.90) is None:return None
@@ -31,6 +31,15 @@ def trio_choice(frame):
     yellow=(patch[:,:,0]>190)&(patch[:,:,1]>155)&(patch[:,:,2]<105)
     return (x+90,y) if yellow.mean()>.45 else None
 
+def english_new_showdown(frame):
+    if not event_screen(frame):return None
+    point=locate(frame,NEW_EVENT_EN,(0,.20,.34,.85),.94)
+    if point is None:return None
+    h,w=frame.shape[:2];x,y=map(round,point)
+    patch=frame[max(0,y-round(h*.20)):min(h,y+round(h*.20)),max(0,x-round(w*.065)):min(w,x+round(w*.065))]
+    yellow=(patch[:,:,0]>210)&(patch[:,:,1]>170)&(patch[:,:,2]<90)
+    return point if yellow.mean()>.70 else None
+
 class TrioSelector:
     def __init__(self):
         self.last_action=0.;self.swipes=0
@@ -52,7 +61,7 @@ class TrioSelector:
         tile=locate(frame,SHOWDOWN_ICON,(0,.15,.98,.86),.89)
         if tile:
             self.last_action=now;controller.click(*tile);return False
-        new_tile=locate(frame,NEW_EVENT,(0,.20,.98,.85),.94)
+        new_tile=english_new_showdown(frame) or locate(frame,NEW_EVENT,(0,.20,.98,.85),.94)
         if new_tile:
             self.last_action=now;controller.click(*new_tile);return False
         if self.swipes>=3:

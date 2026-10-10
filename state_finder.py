@@ -403,6 +403,23 @@ def is_underdog(image):
     return is_template_in_region(image, end_results_path + "underdog.png", region_data['underdog'])
 
 
+def get_action_state(screenshot):
+    """Classify fresh menu evidence within the existing input age budget.
+
+    Controls are checked again at native resolution by their action handlers.
+    Only this menu classification is reduced; capture and battle detection retain
+    their native frames and all observations retain the original capture time.
+    """
+    height, width = screenshot.shape[:2]
+    if height > 360:
+        reduced = cv2.resize(screenshot, (max(1, round(width*360/height)), 360),
+                             interpolation=cv2.INTER_AREA)
+        state = get_in_game_state(reduced)
+        if state != 'unknown':
+            return state
+    return get_in_game_state(screenshot)
+
+
 def get_state(screenshot):
     state = get_in_game_state(screenshot)
     if config_bool(load_toml_as_dict("cfg/debug_settings.toml").get('state_finder_debug'), False):

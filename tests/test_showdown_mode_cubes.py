@@ -64,3 +64,16 @@ class ModeCubeTests(unittest.TestCase):
         self.assertIsNone(choose_cube([target],player,[],[target],40,mask))
         mask[310:370,690:750]=255
         self.assertIsNone(choose_cube([target],player,[],[],40,mask))
+
+    def test_english_new_tile_requires_navigation_and_large_yellow_tile(self):
+        from showdown_mode import english_new_showdown
+        from mode_assets import NEW_EVENT_EN
+        frame=np.zeros((720,1280,3),np.uint8)
+        frame[175:610,83:340]=(255,220,0)
+        for encoded,x,y in [(EVENT_NAV,1087,5),(ROAD_HOME,1200,8),(NEW_EVENT_EN,155,365)]:
+            glyph=template(encoded,720);frame[y:y+glyph.shape[0],x:x+glyph.shape[1]]=glyph
+        self.assertIsNotNone(english_new_showdown(frame))
+        frame[:90]=0
+        self.assertIsNone(english_new_showdown(frame))
+        frame[175:340]=0
+        self.assertIsNone(english_new_showdown(frame))
