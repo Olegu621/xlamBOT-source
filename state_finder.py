@@ -145,6 +145,15 @@ def get_in_game_state(image):
         from showdown_hud import visible_showdown_caption
         if visible_showdown_caption(image):
             return 'match'
+        from onboarding import onboarding_screen
+        from showdown_mode import event_screen
+        from showdown_mode import trio_win_next
+        if trio_win_next(image) is not None:
+            return 'end_trio_showdown_0'
+        if event_screen(image):
+            return 'mode_selection'
+        if onboarding_screen(image):
+            return 'onboarding'
         from brawler_offer import brawler_offer_close_position
         if brawler_offer_close_position(image) is not None:
             return "brawler_offer"

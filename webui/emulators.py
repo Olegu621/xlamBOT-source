@@ -355,7 +355,7 @@ Write-Output $items.Count
             raise ValueError('CLOSE_EMULATOR_FIRST')
         cpu = 4 if (os.cpu_count() or 2) >= 8 else 2
         self.console('modify', '--index', item['index'], '--resolution', '1280,720,240',
-                     '--cpu', cpu, '--memory', 2048, '--root', 0, '--autorotate', 0)
+                     '--cpu', cpu, '--memory', 4096, '--root', 0, '--autorotate', 0)
         # New LDPlayer instances disable ADB by default. Enable local debugging
         # before boot; otherwise the bot never sees the freshly created Android.
         config = self.installation / 'vms' / 'config' / f'leidian{item["index"]}.config'
