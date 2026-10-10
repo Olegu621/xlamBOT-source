@@ -39,5 +39,6 @@ def idle_disconnect_reload_position(frame):
     title_score, _ = _match(frame, TITLE, (.18, .28, .58, .49))
     reload_score, position = _match(frame, RELOAD, (.18, .48, .48, .69))
     if title_score < .84 or reload_score < .78:
-        return None
+        from rejoin_dialog import rejoin_reload_position
+        return rejoin_reload_position(frame)
     return position

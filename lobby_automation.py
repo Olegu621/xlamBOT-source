@@ -24,7 +24,15 @@ class LobbyAutomation:
     def check_for_idle(self, frame):
         from disconnect_dialog import idle_disconnect_reload_position
         position = idle_disconnect_reload_position(frame)
-        if position is None or time.monotonic() - getattr(self, '_last_idle_reload', 0) < 2:
+        if position is None:
+            if time.monotonic() - getattr(self, '_last_idle_reload', float('-inf')) > 180:
+                self._rejoin_retry_count = 0
+            return
+        from rejoin_dialog import rejoin_reload_position
+        rejoin = rejoin_reload_position(frame) is not None
+        retries = getattr(self, '_rejoin_retry_count', 0)
+        interval = 15 * (2 ** min(retries,2)) if rejoin else 2
+        if time.monotonic() - getattr(self, '_last_idle_reload', float('-inf')) < interval:
             return
         # Recheck the current screen: a dialog from a cached frame cannot
         # authorize a click on a lobby that has already appeared.
@@ -32,6 +40,7 @@ class LobbyAutomation:
         if position is None:
             return
         self._last_idle_reload = time.monotonic()
+        self._rejoin_retry_count = retries + 1 if rejoin else 0
         self.window_controller.release_all_inputs()
         self.window_controller.gameplay_frame_time = None
         self.window_controller.click(*position, already_include_ratio=True)
