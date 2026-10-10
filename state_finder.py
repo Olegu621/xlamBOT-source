@@ -138,6 +138,13 @@ def get_in_game_state(image):
         from disconnect_dialog import idle_disconnect_reload_position
         if idle_disconnect_reload_position(image) is not None:
             return "idle_disconnect"
+        # Disconnect dialogs win even when the underlying battle HUD remains.
+        if is_in_connection_lost(image): return "connection_lost"
+        # A bright current caption confirms gameplay without result/reward scans.
+        # Dimmed modal HUDs and cached battle state cannot authorize this path.
+        from showdown_hud import visible_showdown_caption
+        if visible_showdown_caption(image):
+            return 'match'
         from brawler_offer import brawler_offer_close_position
         if brawler_offer_close_position(image) is not None:
             return "brawler_offer"
@@ -162,7 +169,6 @@ def get_in_game_state(image):
         # First, because the dialog covers the lobby and the lobby template still
         # matches through it. Checked later, the lobby would win every time and
         # the dialog would never be seen.
-        if is_in_connection_lost(image): return "connection_lost"
         from reward_choice import is_reward_choice
         if is_reward_choice(image): return "brawler_choice"
         if team_panel_close_position(image) is not None:
