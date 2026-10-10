@@ -6,6 +6,9 @@ _HEADER = cv2.imdecode(np.frombuffer(base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAA
 _HEADER = cv2.cvtColor(_HEADER, cv2.COLOR_BGR2RGB)
 
 def is_reward_received(frame):
+    from coin_receipt import coin_receipt
+    if coin_receipt(frame):
+        return True
     from seasonal_rewards import xp_doubler_reward, points_reward, gadget_reward, credits_reward
     from reward_receipts import bling_receipt, locked_skin_receipt, sequence_receipt, summary_receipt
     if bling_receipt(frame) or locked_skin_receipt(frame) or sequence_receipt(frame) or summary_receipt(frame):
