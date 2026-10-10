@@ -219,6 +219,8 @@ def install_edition(manager, install_base=False):
         else:
             apply_host(manager, staging, manifest)
     (cache / 'signed-manifest.json').write_bytes(canonical(envelope))
+    from .emulator_language import host_english
+    host_english(manager)
     if fresh:
         for item in manager.instances():
             manager.configure(item)
@@ -275,6 +277,8 @@ def customize_instance(manager, index):
                         'settings put system accelerometer_rotation 0',
                         'settings put global stay_on_while_plugged_in 3'):
             adb('shell ' + command)
+        from .emulator_language import guest_english
+        guest_english(manager,index)
         (manager.home / f'instance-{index}.json').write_bytes(canonical({'revision': revision}))
     finally:
         manager._idle_bot(manager._instance(index))
