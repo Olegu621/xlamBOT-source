@@ -61,3 +61,16 @@ class HudTests(unittest.TestCase):
    current=cv2.resize(frame,(round(388*h/219),h))
    self.assertTrue(visible_showdown_caption(current))
    self.assertFalse(visible_showdown_caption((current*.7).astype(np.uint8)))
+
+ def test_english_solo_caption_rejects_dimmed_modal_and_partial_text(self):
+  from showdown_hud import CAPTION_SOLO_ENGLISH
+  for h in (540,720,1080):
+   f=np.full((h,round(h*16/9),3),40,np.uint8)
+   g=_caption(h,encoded=CAPTION_SOLO_ENGLISH)
+   x,y=round(h*.04),round(h*.04)
+   f[y:y+g.shape[0],x:x+g.shape[1]][g>0]=245
+   self.assertTrue(visible_showdown_caption(f))
+   self.assertFalse(visible_showdown_caption((f*.7).astype(np.uint8)))
+   f[:]=40
+   f[y:y+g.shape[0],x:x+g.shape[1]//2][g[:,:g.shape[1]//2]>0]=245
+   self.assertFalse(visible_showdown_caption(f))

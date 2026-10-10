@@ -17,7 +17,11 @@ from onboarding_assets import ONE_OWNED,SHELLY_NAME,SHELLY_LEVEL_ONE
 from onboarding_assets import SHELLY_DETAIL_NAME,UPGRADE_PRICE,DETAIL_LEVEL_ONE
 from onboarding_assets import UPGRADE_TWO_TITLE,UPGRADE_CONFIRM_PRICE
 
-@lru_cache(maxsize=32)
+import onboarding_assets as russian_assets
+from onboarding_assets_en import ASSETS as ENGLISH_ASSETS
+ENGLISH_GLYPHS = {getattr(russian_assets,name):value for name,value in ENGLISH_ASSETS.items() if hasattr(russian_assets,name)}
+
+@lru_cache(maxsize=96)
 def template(encoded,height):
     raw=cv2.imdecode(np.frombuffer(base64.b64decode(encoded),np.uint8),cv2.IMREAD_COLOR)
     factor=height/720
@@ -33,11 +37,16 @@ def locate(frame,encoded,region,threshold=.85):
     if score<threshold:return None
     return left+point[0]+glyph.shape[1]/2,top+point[1]+glyph.shape[0]/2
 
+def localized(frame,encoded,region,threshold=.85):
+    point=locate(frame,encoded,region,threshold)
+    alternate=ENGLISH_GLYPHS.get(encoded)
+    return point if point is not None or alternate is None else locate(frame,alternate,region,threshold)
+
 def tutorial_screen(frame):
     return frame is not None and locate(frame,SID,(0,.055,.26,.17),.93) is not None
 
 def cookie_decline(frame):
-    if frame is None or locate(frame,COOKIES,(.35,.85,.67,.92),.94) is None:return None
+    if frame is None or localized(frame,COOKIES,(.35,.85,.67,.92),.94) is None:return None
     h,w=frame.shape[:2]
     left=frame[round(.75*h):round(.84*h),round(.05*w):round(.47*w)].mean(axis=(0,1))
     right=frame[round(.75*h):round(.84*h),round(.53*w):round(.94*w)].mean(axis=(0,1))
@@ -46,61 +55,73 @@ def cookie_decline(frame):
     return None
 
 def onboarding_screen(frame):
-    return tutorial_screen(frame) or cookie_decline(frame) is not None or first_result_exit(frame) is not None or first_reward_guide(frame) is not None or instruction_confirm(frame) is not None or power_receipt(frame) or reward_road_home(frame) is not None or guided_upgrade(frame) is not None
+    return tutorial_screen(frame) or cookie_decline(frame) is not None or first_result_exit(frame) is not None or first_reward_guide(frame) is not None or instruction_confirm(frame) is not None or power_receipt(frame) or reward_road_home(frame) is not None or guided_upgrade(frame) is not None or guided_play(frame) is not None
+
+def guided_play(frame):
+    hint=ENGLISH_ASSETS.get('GUIDE_PLAY_HINT');button=ENGLISH_ASSETS.get('GUIDE_PLAY')
+    if frame is None or hint is None or button is None:return None
+    if locate(frame,hint,(.66,.50,.93,.75),.94) is None:return None
+    point=locate(frame,button,(.73,.82,.99,.99),.94)
+    if point is None:return None
+    h,w=frame.shape[:2];r,g,b=cv2.split(frame[round(.68*h):round(.86*h),round(.75*w):round(.86*w)])
+    return point if ((r>210)&(g>130)&(g<230)&(b<185)).mean()>.12 else None
 
 def guided_upgrade(frame):
     if frame is None:return None
-    if locate(frame,UPGRADE_TWO_TITLE,(.20,.05,.80,.18),.95) is not None:
+    if localized(frame,UPGRADE_TWO_TITLE,(.20,.05,.80,.18),.95) is not None:
         price=locate(frame,UPGRADE_CONFIRM_PRICE,(.60,.84,.88,.97),.95)
         h,w=frame.shape[:2];r,g,b=cv2.split(frame[round(.66*h):round(.86*h),round(.65*w):round(.78*w)])
         if price and ((r>210)&(g>130)&(g<230)&(b<185)).mean()>.12:return price
-    if locate(frame,SHELLY_DETAIL_NAME,(.04,.17,.28,.30),.95) is not None and locate(frame,DETAIL_LEVEL_ONE,(.69,.38,.78,.50),.95) is not None:
+    if localized(frame,SHELLY_DETAIL_NAME,(.04,.17,.28,.30),.95) is not None and localized(frame,DETAIL_LEVEL_ONE,(.69,.38,.78,.50),.95) is not None:
         price=locate(frame,UPGRADE_PRICE,(.72,.75,.97,.90),.95)
         h,w=frame.shape[:2];r,g,b=cv2.split(frame[round(.46*h):round(.63*h),round(.76*w):round(.86*w)])
         if price and ((r>210)&(g>130)&(g<230)&(b<185)).mean()>.20:return price
-    if locate(frame,UPGRADE_LOBBY_HINT,(.15,.43,.43,.63),.94) is not None:
-        position=locate(frame,GUIDE_BRAWLERS,(0,.35,.12,.50),.94)
+    if localized(frame,UPGRADE_LOBBY_HINT,(.15,.43,.43,.63),.94) is not None:
+        position=localized(frame,GUIDE_BRAWLERS,(0,.35,.12,.50),.94)
         if position:return position
-    if locate(frame,ONE_OWNED,(.46,.10,.56,.17),.95) is not None and locate(frame,SHELLY_LEVEL_ONE,(.65,.13,.74,.25),.88) is not None:
-        name=locate(frame,SHELLY_NAME,(.56,.29,.70,.40),.72)
+    if localized(frame,ONE_OWNED,(.46,.10,.67,.17),.95) is not None and localized(frame,SHELLY_LEVEL_ONE,(.65,.13,.74,.25),.88) is not None:
+        name=localized(frame,SHELLY_NAME,(.56,.29,.70,.40),.72)
         if name:
             h,w=frame.shape[:2]
             return name[0]-w*.06,name[1]-h*.06
     return None
 
 def reward_road_home(frame):
-    if frame is None or locate(frame,ROAD_HEADER,(.07,0,.35,.10),.94) is None:return None
+    if frame is None or localized(frame,ROAD_HEADER,(.07,0,.35,.10),.94) is None:return None
     return locate(frame,ROAD_HOME,(.90,0,.99,.12),.94)
 
 def power_receipt(frame):
     if frame is None:return False
-    return (locate(frame,POWER_TITLE,(.30,.17,.70,.32),.94) is not None and locate(frame,POWER_ICON,(.40,.45,.60,.65),.92) is not None) or (locate(frame,COIN_TITLE,(.30,.10,.70,.26),.94) is not None and locate(frame,COIN_ICON,(.30,.55,.50,.78),.92) is not None)
+    return (localized(frame,POWER_TITLE,(.30,.17,.70,.32),.94) is not None and locate(frame,POWER_ICON,(.40,.45,.60,.65),.92) is not None) or (localized(frame,COIN_TITLE,(.30,.10,.70,.26),.94) is not None and locate(frame,COIN_ICON,(.30,.55,.50,.78),.92) is not None)
 
 def instruction_confirm(frame):
-    if frame is None or locate(frame,UPGRADE_INFO,(.20,.04,.80,.20),.94) is None:return None
-    return locate(frame,INFO_CONFIRM,(.32,.80,.65,.95),.94)
+    if frame is None or localized(frame,UPGRADE_INFO,(.20,.04,.80,.20),.94) is None:return None
+    return localized(frame,INFO_CONFIRM,(.32,.80,.65,.95),.94)
 
 def first_reward_guide(frame):
     if frame is None:return None
-    claim=locate(frame,GUIDE_CLAIM,(.20,.4,.8,.74),.94) or locate(frame,CLAIM_SMALL,(.20,.4,.8,.74),.94)
-    if claim and locate(frame,ROAD_HEADER,(.07,0,.35,.10),.94) is not None:
+    claim=localized(frame,GUIDE_CLAIM,(.20,.4,.8,.74),.94) or localized(frame,CLAIM_SMALL,(.20,.4,.8,.74),.94)
+    if claim and localized(frame,ROAD_HEADER,(.07,0,.35,.10),.94) is not None:
         h,w=frame.shape[:2];r,g,b=cv2.split(frame[round(.23*h):round(.45*h),round(.40*w):round(.65*w)])
         if ((r>210)&(g>130)&(g<230)&(b<185)).mean()>.12:return claim
-    if frame is None or locate(frame,REWARD_HINT,(.08,.26,.38,.44),.94) is None:return None
+    if frame is None or localized(frame,REWARD_HINT,(.08,.26,.38,.44),.94) is None:return None
     h,w=frame.shape[:2];crop=frame[round(.08*h):round(.26*h),round(.16*w):round(.28*w)]
     r,g,b=cv2.split(crop)
     if ((r>210)&(g>130)&(g<225)&(b<185)).mean()<.18:return None
+    if 'REWARD_HINT' in ENGLISH_ASSETS and locate(frame,ENGLISH_ASSETS['REWARD_HINT'],(.08,.26,.38,.44),.94) is not None:
+        icon=ENGLISH_ASSETS.get('LOBBY_ROAD_REWARD')
+        return locate(frame,icon,(.24,.065,.30,.15),.94) if icon else None
     return w*.218,h*.112
 
 def first_result_exit(frame):
-    if frame is None or locate(frame,FIRST_WIN,(0,0,.50,.20),.94) is None:return None
-    return locate(frame,FIRST_EXIT,(.77,.86,.99,.99),.94)
+    if frame is None or localized(frame,FIRST_WIN,(0,0,.50,.20),.94) is None:return None
+    return localized(frame,FIRST_EXIT,(.77,.86,.99,.99),.94)
 
 def generated_name_confirm(frame):
-    if not tutorial_screen(frame) or locate(frame,NICK_TITLE,(.28,.09,.72,.18),.94) is None:return None
+    if not tutorial_screen(frame) or localized(frame,NICK_TITLE,(.28,.09,.72,.18),.94) is None:return None
     h,w=frame.shape[:2];field=frame[round(.27*h):round(.34*h),round(.27*w):round(.56*w)]
     if np.all(field>215,axis=2).mean()<.55 or np.all(field<60,axis=2).mean()<.03:return None
-    return locate(frame,NICK_OK,(.59,.25,.78,.36),.94)
+    return localized(frame,NICK_OK,(.59,.25,.78,.36),.94)
 
 def age_controls(frame):
     if not tutorial_screen(frame):return None
@@ -209,7 +230,7 @@ class Onboarding:
         self.age_position=None
 
     def pending_transition(self,state):
-        return (self.phase in ('guided_upgrade','first_reward','power_receipt','instruction','return_home','nickname')
+        return (self.phase in ('guided_upgrade','guided_play','first_reward','power_receipt','instruction','return_home','nickname')
                 and state in ('lobby','brawler_selection','brawler_detail')
                 and time.monotonic()-self.last_action < 3)
 
@@ -221,6 +242,9 @@ class Onboarding:
         self.last_action=now
         if stage._should_stop() or stage._should_pause():return True
         controller=stage.window_controller;h,w=frame.shape[:2]
+        play=guided_play(frame)
+        if play:
+            self.phase='guided_play';controller.click(*play);return True
         upgrade=guided_upgrade(frame)
         if upgrade:
             self.phase='guided_upgrade';controller.click(*upgrade);return True

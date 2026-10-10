@@ -304,6 +304,9 @@ Write-Output $items.Count
                     self.job['indices'].append(created['index'])
                 self.phase('configuring')
                 self.configure(created)
+                if action == 'clone':
+                    from .emulator_language import prepare_english
+                    prepare_english(self,created['index'])
                 if action == 'add':
                     from .emulator_distribution import customize_instance
                     customize_instance(self, created['index'])
@@ -335,6 +338,8 @@ Write-Output $items.Count
                     self._wait(lambda rows: not any(i['index'] == index for i in rows))
                 elif action == 'configure':
                     self.configure(item)
+                    from .emulator_language import prepare_english
+                    prepare_english(self,index)
                 elif action == 'customize':
                     from .emulator_distribution import customize_instance
                     customize_instance(self, index)
