@@ -1,0 +1,18 @@
+"""Identify Cannot Rejoin Battle without treating the loading art as a dialog."""
+import numpy as np
+from reward_receipts import _valid,_find
+
+TITLE = 'iVBORw0KGgoAAAANSUhEUgAAARYAAAAeCAAAAADMAm5KAAAD40lEQVRoBe3BQXJjyWJFMZz9L/o684li0W21w4NyhAYfyH/8IP/xg/wukx9N/r6RH+TLvOT/zfyRH438ZMi/mz/yfzbygzzmLX/LyIf5kJ+M/GTIv5sP+dHIY+Qa+UGuOWKO/CUjH4YwV34y+dHkfzGEufKTkcfINfKDHEMeI3/JyIchjyF/0ZBryE9GHiPXyA9yjHwZ8neMfBjyGPIXDXkM+cHIY+Qa+UEY8jLymCuPkTnyGJkjb3Pkmpd8G/Jl5MsceYy8zJEvI8fIHPk05DHkMVeOeWleYuRljjzCyLeRa15yjOZLjtF8yWNewrzk25AvI9e85Bh5zEuukWM0X/LHkMeQa15iXpqXGHnMS44w8k9D5gjzR475I9e8xbzk25AvI8e8hZFr3nKMHPNH/hjyGLmGzJF5aV5i5Jq3EEb+YQhDGHKMHEOOkWPIMeQY+TDkMYQhxwgjx5BjCCPHkGPkjyHHHDmGMOQYeYxcI8eQY4Qw8g8j1wgj1xBGriGMPEaOkQ9DriHHyDXEyDHyGGHkGLmGvM0feYxcI8fIY+QaOUauIcLIvxlh5BrCyDWEkcfIMfJhPuQaeYwYOUYeI4wcI9eQt/mQ/2bkGHmMXCPHyGNEGPnRXGHkGsLINcSQxxBGPswfeYw8Roww5DHEyDFyDXkbcg15myvHyGPkGjlGHiPCyP8w38LINYSRa4ghjyGMfJg/cs2nGGHIY4iRY+Qa8jbkMeSabzlGHiPXCPMpwsg/zREjjFxDGLmGGPIYwsiHIcfINZ9ihCGPIUaOkWvI25AvI8ccMXKMPEauEeZThJFvI4xcI4xcQxi5hhjyGMLIhyHHkGPIhxGGPIYYOUauIW9Dvowwco0cI4+Ra4QhH8KQlxFGrhFGriGMXEMYeYwcIx+GXCPXyIeRY+Qxwsgxcg15G/JlhJFr5Bh5jFwjx8iHHCNfhjByjTByDWHkGsLIY+QY+TDkGnKMfBg5Rh4jjBwj15C3IY8hjFwjx8hj5Bo5Rj7kGHINOUaOIYxcQxi5hjDkGHKMfBjyGDmGXBNGjiHHEEaOkWvI25BrjjByDDlGHiPXyDHkmpBrPuSYo7nCyDWEkWvIMUdz5Jor34Y8hhxzZAgj1xzNkWPkGLmGvM2nHHM0V465wlwxcs2RIeQxb3nMWxi5hjByDbnmJY+58m3Il5FrvoWRx7zkGjlGriFv8yGPecsxV5grRh7zLeRlHvk2R4YYuYYwcg15zCPfhnwb8mXIY65cI1/mkcfIMXINeZu3fJsjQ64h1xAjL3Plyq8y8gvkVxn5BfKrjPwC+U2G/AL5PebKL5DfY478Bv8FwFrZLlzHKx4AAAAASUVORK5CYII='
+RELOAD = 'iVBORw0KGgoAAAANSUhEUgAAAFAAAAAUCAAAAAA/s+ULAAADKklEQVQ4Ea3B7U+VZRzA8e8lD+IZIK5oMA1eiSdeWFMYv/3asN1zy/nwCiplsnTQWq3lP9PS7IL1hJvEIWbEzNoSJB8QYazaTlTEY1GuiIvDOQgH7u6bm/f6gs/HeGwv4/HEYrnL6zyO8aCulsDa0tSDFairZUv3H3W1fOKI5Em8iI25uzNsqfb4NkmorhZYW5oayQDGAxUiS10LqLDl8xkVrGNTrKGUkN8/QuTVfUwlCKmwKXP9dzAeqJBIU/hcnOkuVEikCS1kVbCOTY0V/uhYel/9Hr9rhlBxi8H/MEVAhUQ6f++hWDYxh/FABeuAV57133+kgnVEVLCOUGUDIzeBwnP5c1cJqSyb2J07BFSwDoqbYv98jPFABesAFT76VwXriKhgHaHj8fUPVgh4L3A5RaBl95g5+F87ARWsAw69RGLKeKCCdcCxav+9NRWsI6KCdYRef+rvzwhVnaR3HKho5Kp/ms5ZQAXrgOJW7t8yHqhgHcRfzpnuQoU/swRuzaOCdYTe2jXRQ6j8DN+NAsfji2207P7pa0AF6whcyEn2GQ9UWNwgtpPlzgVUiHRPooJ1hN7N/eVLQqXNDA5B3pv5wwPU16xeyoIK1hF4J//Xa8YDFTbN9qZBhf4MgekUKlhH6O2CiR5C5We4OQIHj/LpQ0qb+eYHUME6Ahdykn3GAxWup/FKltrXQQXriKhgHaHze+avENp/ir4kvLZ3LQnE82Y7QQXrgOJWhgeMBypYR/UxBodABeuIqGAdoRMHspdWCRw5jHWUnDdE/PZFVLAOOHyEngnjgQrWYZqfXml7hArWEVHBOkJVJ7n3PVBwLvZXB9TX+GMbwI7nzdAgKlgHhWdji+2+8UAF62D/KR70o0JHilBmQ4WOFIGNldPl/u3R1WeOlvnXfsO0Fs1fIdRU5tp8FTpSOytqi/wvJjEeqGAd0FSWbU+psKV3XIVI5mJxYwn+ei7cvQ2VDQwME6qpp3tShU3ZG0kwHqhgHVDZwI83VNjSO65CJHORXS9WFcDDe+PAiQP+5WVChW+Yn79SAdbc9P0UYDye1I6SvKU0j2M8tpfx2F7/AzTySUyBaqcMAAAAAElFTkSuQmCC'
+
+
+def rejoin_reload_position(frame):
+    if not _valid(frame) or _find(frame,TITLE,(.24,.31,.75,.44)) is None:
+        return None
+    position=_find(frame,RELOAD,(.24,.56,.40,.66),white=False)
+    if position is None:
+        return None
+    h,w=frame.shape[:2]
+    body=frame[round(h*.34):round(h*.66),round(w*.25):round(w*.75)]
+    grey=(np.max(body,axis=2)-np.min(body,axis=2)<8)&(np.min(body,axis=2)>45)&(np.max(body,axis=2)<85)
+    return position if grey.size and grey.mean()>.8 else None
