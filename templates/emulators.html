@@ -1,0 +1,17 @@
+<!doctype html><html lang="{{ ui_language }}"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="xlam-ui-token" content="{{ ui_api_token }}">
+<title>xlamBOT — {{ 'Emulators' if ui_language == 'en' else 'Эмуляторы' }}</title><link rel="icon" href="/api/assets/support/xlambot_logo.png">
+{% for name in ['panel','interface','sprites','device-experience','polish','emulators'] %}<link rel="stylesheet" href="{{ url_for('static',filename='css/'+name+'.css') }}?v={{ ui_version }}">{% endfor %}
+<script src="{{ url_for('static',filename='js/i18n.js') }}?v={{ ui_version }}" defer></script></head>
+<body class="app-shell panel-page emulators-page">{% include '_sprites.html' %}{% set active_page='emulators' %}{% include '_navigation.html' %}
+<main class="emu-main" data-i18n-skip>
+<header class="emu-header"><div><span class="section-eyebrow">SPECIAL FOR XLAMBOT</span><h1 data-text="title">Эмуляторы</h1><p data-text="subtitle">Твоя игровая станция. Один экземпляр — один бот.</p></div><button class="btn btn-primary" id="emuAdd" data-text="add">＋ Добавить</button></header>
+<section class="emu-edition"><div class="emu-logo" aria-hidden="true">✦</div><div><h2>LDPlayer · xlamBOT</h2><p id="emuEdition"></p></div><div class="emu-toolbar"><button class="btn btn-ghost" id="emuInstall" data-text="install">Установить</button><button class="btn btn-ghost" id="emuUpdate" data-text="update">Обновить мод</button><button class="btn btn-ghost" id="emuPath" data-text="chooseFolder">Выбрать папку</button></div></section>
+<p class="emu-note" data-text="note">Разрешение 1280×720, root выключен. Эмулятор и бот запускаются отдельно. Игра устанавливается отдельно; твои аккаунты остаются на твоём ПК.</p>
+<section id="emuJob" class="emu-job" role="status" aria-live="polite" hidden><span class="emu-spinner" aria-hidden="true"></span><div><strong id="emuPhase"></strong><p id="emuDetail"></p></div></section>
+<p id="emuError" class="emu-error" role="alert" hidden></p><div class="emu-list" id="emuList"></div>
+<section id="emuEmpty" class="emu-empty" hidden><h2 data-text="emptyTitle">Начни с первого эмулятора</h2><p data-text="empty">Установи нашу сборку или выбери папку уже установленного LDPlayer 9.5.37.</p></section>
+<details class="emu-help"><summary data-text="help">Как это работает</summary><p data-text="helpBody">«Добавить» создаёт чистый Android с нашим лаунчером и настройками. «Клонировать» копирует выбранный закрытый экземпляр вместе с его приложениями. «Подготовить» устанавливает 1280×720, 240 DPI и выключает root. «Установить дополнения» добавляет лаунчер и системные настройки, сохраняя игру и аккаунт. Для обновления мода закрой все экземпляры. Обновления бота и эмулятора проверяются раздельно; чужие данные не загружаются.</p></details>
+</main>
+<dialog id="emuDialog"><form id="emuForm"><h2 id="emuDialogTitle"></h2><p id="emuDialogNote"></p><label id="emuLabel" for="emuValue"></label><input class="input" id="emuValue" maxlength="260" autocomplete="off"><div class="emu-dialog-actions"><button type="button" class="btn btn-ghost" id="emuCancel" data-text="cancel">Отмена</button><button type="submit" class="btn btn-primary" id="emuConfirm" data-text="continue">Продолжить</button></div></form></dialog>
+<script src="{{ url_for('static',filename='js/ui-session.js') }}?v={{ ui_version }}"></script><script src="{{ url_for('static',filename='js/emulators.js') }}?v={{ ui_version }}" defer></script></body></html>

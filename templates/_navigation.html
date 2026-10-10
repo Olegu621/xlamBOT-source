@@ -2,6 +2,7 @@
   <a class="app-brand" href="/panel" aria-label="xlamBOT — устройства"><span class="app-monogram app-avatar" aria-hidden="true"></span><span class="app-wordmark">xlam<span>BOT</span><small>Твоя игровая станция</small></span></a>
   <div class="rail-label">Рабочее пространство</div>
   <nav class="app-nav">
+    {% if not telegram_remote %}<a href="/emulators" class="{{ 'is-current' if active_page == 'emulators' else '' }}" title="{{ 'Emulators' if ui_language == 'en' else 'Эмуляторы' }}"><svg class="ui-icon" aria-hidden="true"><use href="#icon-device-desktop"/></svg><span>{{ 'Emulators' if ui_language == 'en' else 'Эмуляторы' }}</span></a>{% endif %}
     <a href="/panel" class="{{ 'is-current' if active_page == 'devices' else '' }}" {{ 'aria-current=page' if active_page == 'devices' else '' }} title="Устройства"><svg class="ui-icon" aria-hidden="true"><use href="#icon-device-desktop"/></svg><span>Устройства</span></a>
     {% if not telegram_remote %}<a href="/" class="{{ 'is-current' if active_page == 'settings' else '' }}" {{ 'aria-current=page' if active_page == 'settings' else '' }} title="Настройки"><svg class="ui-icon" aria-hidden="true"><use href="#icon-adjustments-horizontal"/></svg><span>Настройки</span></a>{% endif %}
     <a href="/training" class="{{ 'is-current' if active_page == 'training' else '' }}" {{ 'aria-current=page' if active_page == 'training' else '' }} title="Обучение"><svg class="ui-icon" aria-hidden="true"><use href="#icon-stack-2"/></svg><span>Обучение</span></a>
