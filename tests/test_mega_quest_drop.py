@@ -71,3 +71,19 @@ class MegaQuestTests(unittest.TestCase):
             frame=screen();frame[120:]=(0,170,40);frame[:120,480:810]=(0,170,40)
             cv2.polylines(frame,[vertices.astype(np.int32)],True,(5,5,5),8)
             self.assertFalse(drop.mega_quest_drop(frame))
+
+    def test_multiple_opening_stars_at_smaller_sizes(self):
+        import cv2
+        outline=np.array([[320,40],[240,123],[128,151],[159,259],[128,373],[240,401],
+                          [322,484],[402,401],[514,372],[483,266],[513,150],[402,123]],np.float32)
+        outline-=outline.mean(axis=0)
+        for count,scale in [(2,.8),(3,.6),(4,.48)]:
+            for w,h in [(1280,720),(960,540),(1920,1080)]:
+                frame=screen(w,h);frame[round(h*.17):]=(20,80,220)
+                frame[:round(h*.17),round(w*.38):round(w*.63)]=(20,80,220)
+                for x in np.linspace(.22,.78,count):
+                    pts=outline*scale*np.array([w/1280,h/720])+[w*x,h*.55]
+                    cv2.polylines(frame,[np.round(pts).astype(np.int32)],True,(5,5,5),max(2,round(6*h/720)))
+                self.assertTrue(drop.mega_quest_drop(frame))
+                frame[:round(h*.17)]=0
+                self.assertFalse(drop.mega_quest_drop(frame))

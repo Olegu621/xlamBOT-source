@@ -24,16 +24,16 @@ def _opening_star(frame):
     # Require its closed alternating tips and recesses, not a background color.
     import cv2
     h,w=frame.shape[:2]
-    left,top=round(w*.25),round(h*.18)
-    crop=frame[top:round(h*.9),left:round(w*.75)]
+    left,top=round(w*.05),round(h*.18)
+    crop=frame[top:round(h*.9),left:round(w*.95)]
     mask=np.all(crop<35,axis=2).astype(np.uint8)*255
     contours=cv2.findContours(mask,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[0]
     for contour in contours:
         area=cv2.contourArea(contour)
-        if area < h*w*.045 or area > h*w*.22:
+        if area < h*w*.015 or area > h*w*.22:
             continue
         x,y,bw,bh=cv2.boundingRect(contour)
-        if not (.2*w < bw < .45*w and .3*h < bh < .75*h):
+        if not (.12*w < bw < .45*w and .2*h < bh < .75*h):
             continue
         polygon=cv2.approxPolyDP(contour,.012*cv2.arcLength(contour,True),True)
         if len(polygon)!=12:
@@ -43,7 +43,7 @@ def _opening_star(frame):
             continue
         points=polygon[:,0,:].astype(np.float32)
         center=points.mean(axis=0)
-        if not (.44*w < center[0]+left < .56*w and .4*h < center[1]+top < .7*h):
+        if not (.18*w < center[0]+left < .82*w and .4*h < center[1]+top < .7*h):
             continue
         radii=np.linalg.norm(points-center,axis=1)
         a,b=radii[::2],radii[1::2]
