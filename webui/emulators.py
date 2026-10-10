@@ -141,9 +141,16 @@ class EmulatorManager:
     def _instance(self, index):
         if type(index) is not int or not 0 <= index <= 9999:
             raise ValueError('INVALID_INSTANCE')
-        for item in self.instances():
-            if item['index'] == index:
-                return item
+        end = time.monotonic() + 3
+        while True:
+            for item in self.instances():
+                if item['index'] == index:
+                    return item
+            # Native inventory can briefly omit an instance while boot updates
+            # its configuration. Never infer deletion or launch a replacement.
+            if time.monotonic() >= end:
+                break
+            time.sleep(0.15)
         raise ValueError('INSTANCE_NOT_FOUND')
 
     def _wait(self, predicate, timeout=120):

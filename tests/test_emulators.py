@@ -74,6 +74,15 @@ class EmulatorTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError,'CONSOLE_FAILED'):
                     manager.console('launch','--index',0)
 
+    def test_transient_native_inventory_during_boot_is_retried(self):
+        with tempfile.TemporaryDirectory() as folder:
+            manager=self.manager(folder)
+            item=dict(index=1,running=True,name='Mine')
+            manager.instances=Mock(side_effect=[[],[item]])
+            with patch('time.sleep'):
+                self.assertEqual(manager._instance(1),item)
+            self.assertEqual(manager.instances.call_count,2)
+
     def test_active_bot_alias_blocks_every_destructive_operation(self):
         with tempfile.TemporaryDirectory() as folder:
             manager = self.manager(folder)
