@@ -43,7 +43,7 @@ def _opening_star(frame):
             continue
         points=polygon[:,0,:].astype(np.float32)
         center=points.mean(axis=0)
-        if not (.18*w < center[0]+left < .82*w and .4*h < center[1]+top < .7*h):
+        if not (.12*w < center[0]+left < .88*w and .3*h < center[1]+top < .82*h):
             continue
         radii=np.linalg.norm(points-center,axis=1)
         a,b=radii[::2],radii[1::2]
