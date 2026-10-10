@@ -294,13 +294,17 @@ if __name__ == "__main__":
         headers = {'X-Xlam-UI-Token': app.config['UI_API_TOKEN']}
         response = client.get('/api/updates/status', headers=headers)
         update_client.mark_healthy()
+        emulator_status = client.get('/api/emulators', headers=headers).status_code
         result = json.dumps({'overlay': str(overlay), 'utils': utils.__file__, 'app': webui.app.__file__,
                           'api_status': response.status_code, 'revision': update_client.read_state().get('revision'),
+                          'emulators_status': client.get('/emulators').status_code,
+                          'emulators_api_status': emulator_status,
+                          'emulators_remote_status': client.get('/api/emulators', headers=headers, environ_overrides={'xlambot.remote':True}).status_code,
                           'panel_status': client.get('/panel').status_code}, ensure_ascii=True)
         if os.environ.get('XLAMBOT_SELF_TEST_OUTPUT'):
             from pathlib import Path
             Path(os.environ['XLAMBOT_SELF_TEST_OUTPUT']).write_text(result, encoding='utf-8')
         else:
             print(result)
-        sys.exit(0 if response.status_code == 200 else 1)
+        sys.exit(0 if response.status_code == 200 and emulator_status == 200 else 1)
     sys.exit(main())

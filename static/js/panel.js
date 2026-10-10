@@ -212,7 +212,7 @@
     // What get_state() reports about the screen, in words. Falling through to the
     // raw string is fine, but "brawler_selection" tells an operator nothing.
     const GAME_STATE_LABELS = {
-        lobby: 'лобби', match: 'матч', match_making: 'поиск матча',
+        lobby: 'лобби', match: 'матч', match_making: 'поиск матча', onboarding: 'обучение игры', mode_selection: 'выбор трио',
         frame_stale: 'ожидание кадра', side_menu: 'меню',
         brawler_detail: 'карточка бойца', brawler_selection: 'выбор бойца', brawler_choice: 'выбор награды', shop: 'магазин', popup: 'окно',
         connection_lost: 'нет связи', idle_disconnect: 'перезагрузка связи', prestige_milestone: 'престиж',

@@ -59,7 +59,13 @@ class StageManager:
         self.time_since_last_stat_change = time.time()
         self.play_again_on_win = load_toml_as_dict("./cfg/bot_config.toml")["play_again_on_win"] == "yes"
         self.window_controller = window_controller
+        from onboarding import Onboarding
+        self.onboarding = Onboarding()
+        from showdown_mode import TrioSelector
+        self.trio_selector = TrioSelector()
         self.states = {
+            'mode_selection': self.select_trio_mode,
+            'onboarding': self.handle_onboarding,
             'shop': self.close_known_menu,
             'brawler_selection': self.close_known_menu,
             'brawler_detail': self.close_brawler_detail,
@@ -487,6 +493,8 @@ class StageManager:
             return
 
         from screen_evidence import unsupported_lobby_mode
+        if not self.trio_selector.step(self,frame,lobby=True):
+            return
         if unsupported_lobby_mode(frame):
             from webui.preferences import read as read_preferences
             message = ("Выбран Нокаут. Переключите игру на Столкновение (трио) и запустите бот снова."
@@ -790,7 +798,12 @@ class StageManager:
                 button_pressed = True
             elif not button_pressed:
                 print("Game has ended, proceeding")
-                self.window_controller.press("proceed")
+                from showdown_mode import trio_win_next
+                confirmed_next = trio_win_next(screenshot)
+                if confirmed_next is not None:
+                    self.window_controller.click(*confirmed_next)
+                else:
+                    self.window_controller.press("proceed")
 
             # Return as soon as a fresh screenshot proves the transition.
             # Keep a bounded wait for animations and honour Stop/Pause promptly.
@@ -870,6 +883,9 @@ class StageManager:
         self.observe_state(state)
         if state != "unknown":
             self.reset_unknown_recovery()
+        if self.onboarding.pending_transition(state):
+            self.handle_onboarding()
+            return
         action = self.states.get(state)
         if action is None:
             return
@@ -886,6 +902,13 @@ class StageManager:
             action(data)
             return
         action()
+
+    def handle_onboarding(self):
+        if self._should_stop() or self._should_pause():return
+        self.onboarding.step(self,self.window_controller.screenshot())
+
+    def select_trio_mode(self):
+        self.trio_selector.step(self,self.window_controller.screenshot())
 
     def close_team_panel(self):
         if self._should_stop() or self._should_pause():

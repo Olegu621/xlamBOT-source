@@ -1131,6 +1131,16 @@ class Play:
                 'height_ratio': self.window_controller.height_ratio
             }
         movement = self.get_movement()
+        if gas_movement is None and self.work_mode != 1:
+            from power_cubes import visible_cubes,choose_cube
+            position = self.get_player_hit_circle(data['player'][0])[0] or self.get_entity_pos(data['player'][0])
+            target = choose_cube(visible_cubes(self.frame),position,
+                [self.get_entity_pos(e) for e in data['enemy']],
+                [self.get_entity_pos(e) for e in data['player']+data['teammate']],
+                self.TILE_SIZE*self.window_controller.scale_factor,self.gas_mask)
+            if target is not None:
+                movement = (target[0]-position[0],target[1]-position[1])
+                self.behavior_report['intent'] = 'collect_cube'
         movement_vector = self.movement_to_vector(movement)
         gas_vector = self.movement_to_vector(gas_movement)
         if movement_vector is None and gas_vector is None:

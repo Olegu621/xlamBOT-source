@@ -1127,6 +1127,8 @@ def create_app(xlambot_main, start_discord_bot=False):
             raise ValueError('Choose a valid Telegram action')
         return jsonify(remote_control.configure(payload['action']))
 
+    from .emulators import register as register_emulators
+    register_emulators(app, device_manager)
     remote_control.start()
     resource_updater.start()
     return app

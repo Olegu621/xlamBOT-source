@@ -1,4 +1,4 @@
-#define AppVersion "0.8.22.1"
+#define AppVersion "0.8.22.2"
 #ifndef BootstrapHash
   #error Supply /DBootstrapHash=<SHA256 of verified PC bootstrap EXE>
 #endif
@@ -184,6 +184,8 @@ ru.UninstallLabel=Удалить xlamBOT
 en.UninstallLabel=Uninstall xlamBOT
 ru.LaunchBot=Запустить xlamBOT
 en.LaunchBot=Launch xlamBOT
+ru.Emulator=Добавить LDPlayer и Brawl Stars из облака
+en.Emulator=Add LDPlayer and Brawl Stars from the cloud
 
 [Files]
 Source: "design\rail-en.bmp"; Flags: dontcopy
@@ -214,6 +216,7 @@ var
   OldDeleted: Boolean;
   Finished: Boolean;
   DesktopChoice: TNewCheckBox;
+  EmulatorChoice: TNewCheckBox;
   StagePage: TOutputMarqueeProgressWizardPage;
 
 procedure PageText(Page: TWinControl; const Caption: String; Y, Size: Integer; Bold: Boolean);
@@ -358,6 +361,14 @@ begin
   DesktopChoice.Height := ScaleY(24);
   DesktopChoice.Caption := CustomMessage('Desktop');
   DesktopChoice.Checked := True;
+  EmulatorChoice := TNewCheckBox.Create(WizardForm);
+  EmulatorChoice.Parent := WizardForm.WelcomePage;
+  EmulatorChoice.Left := WizardForm.WelcomeLabel1.Left;
+  EmulatorChoice.Top := ScaleY(338);
+  EmulatorChoice.Width := WizardForm.WelcomeLabel1.Width;
+  EmulatorChoice.Height := ScaleY(24);
+  EmulatorChoice.Caption := CustomMessage('Emulator');
+  EmulatorChoice.Checked := False;
   WizardForm.NextButton.Width := ScaleX(160);
   WizardForm.NextButton.Left := WizardForm.CancelButton.Left - WizardForm.NextButton.Width - ScaleX(12);
   WizardForm.NextButton.Height := ScaleY(33);
@@ -540,6 +551,11 @@ begin
   end;
   if CurStep = ssPostInstall then begin
     if BackupDir <> '' then CopyUserData(BackupDir, ExpandConstant('{app}'));
+    if EmulatorChoice.Checked then begin
+      if not ForceDirectories(ExpandConstant('{localappdata}\xlamBOT')) or
+         not SaveStringToFile(ExpandConstant('{localappdata}\xlamBOT\install-emulator.request'), '1', False) then
+        RaiseException(CustomMessage('SaveFile'));
+    end;
     Finished := True;
   end;
 end;

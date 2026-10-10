@@ -565,6 +565,15 @@ class BotInstance:
             return self._pick_initial_brawler_step()
 
     def _pick_initial_brawler_step(self):
+        from onboarding import onboarding_screen
+        frame = self.window_controller.screenshot()
+        if onboarding_screen(frame):
+            self.Stage_manager.onboarding.step(self.Stage_manager, frame)
+            return False
+        if self.Stage_manager.onboarding.pending_transition(self.get_latest_state()):
+            self.Stage_manager.handle_onboarding()
+            self.sleep_interruptible(.08, allow_pause=False)
+            return False
         if self.Stage_manager.brawlers_pick_data[0]['automatically_pick']:
             next_brawler_name = self.Stage_manager.brawlers_pick_data[0]['brawler']
             print(f"[{self.device_label}] Picking brawler automatically")
@@ -725,6 +734,16 @@ class BotInstance:
             else:
                 self.Stage_manager.reset_unknown_recovery()
             self.manage_time_tasks(frame)
+
+            if self.get_latest_state() == 'onboarding':
+                try:
+                    with self.window_controller.decision_scope(self.observations.snapshot(),allow_menu_transitions=True):
+                        self.Stage_manager.handle_onboarding()
+                except StaleFrameError:
+                    self.window_controller.release_all_inputs()
+                c += 1
+                self.sleep_interruptible(.08,allow_pause=False)
+                continue
 
             # queue[0] is our own guess about who plays; the game picks the
             # brawler itself. Feeding the guess into Play gave the match the
