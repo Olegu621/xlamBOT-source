@@ -75,3 +75,10 @@ class EnglishOnboardingTests(unittest.TestCase):
         self.assertIsNotNone(o.guided_play(f))
         f[631:670]=0
         self.assertIsNone(o.guided_play(f))
+
+    def test_first_solo_win_requires_current_english_caption_and_exit(self):
+        f=np.zeros((720,1280,3),np.uint8)
+        put(f,'FIRST_WIN',33,18);put(f,'FIRST_EXIT',1094,651)
+        self.assertIsNotNone(o.first_result_exit(f))
+        f[651:]=0
+        self.assertIsNone(o.first_result_exit(f))
