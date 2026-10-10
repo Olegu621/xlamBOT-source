@@ -71,6 +71,7 @@ class StageManager:
             'team_panel': self.close_team_panel,
             'side_menu': self.close_side_menu,
             'club_suggestion': self.close_club_suggestion,
+            'brawler_offer': self.close_brawler_offer,
             'popup': self.close_pop_up,
             'match': lambda: 0,
             'match_making': lambda: 0,
@@ -951,6 +952,22 @@ class StageManager:
     def reset_unknown_recovery(self):
         self._unknown_since = None
         self._last_unknown_tap = -100
+
+    def close_brawler_offer(self):
+        if self._should_stop() or self._should_pause():
+            return
+        now=time.monotonic()
+        if now-getattr(self, '_brawler_offer_last_tap', -100)<1.5:
+            return
+        from brawler_offer import brawler_offer_close_position
+        frame=self.window_controller.screenshot()
+        position=brawler_offer_close_position(frame)
+        fresh=getattr(self.window_controller, 'frame_is_fresh', lambda: True)
+        if position is None or not fresh() or self._should_stop() or self._should_pause():
+            return
+        self.window_controller.release_all_inputs()
+        self.window_controller.click(*position, already_include_ratio=True)
+        self._brawler_offer_last_tap=now
 
     def close_club_suggestion(self):
         if self._should_stop() or self._should_pause():
