@@ -455,6 +455,15 @@ class BotInstance:
 
 
     def check_and_handle_brawl_stars_crash(self):
+        # A reconnect can time out before its decoder delivers the first frame.
+        # Do not hide that later recovery behind the game-process check timer.
+        if getattr(self, '_device_recovering', False):
+            frame, stamp = self.window_controller.get_latest_frame()
+            if (frame is not None and self.window_controller.frame_is_fresh(stamp)
+                    and self.window_controller.is_stream_alive()):
+                self._device_recovering = False
+                self.check_transport_recovery(True)
+                print(f'[{self.device_label}] Fresh video restored; transport recovery completed.')
         c_time = time.time()
         if c_time - self.time_since_checked_if_brawl_stars_crashed > self.check_if_brawl_stars_crashed_timer:
             try:
@@ -697,7 +706,8 @@ class BotInstance:
                 c = 0
 
             if not self.check_and_handle_brawl_stars_crash():
-                self.check_transport_recovery(False)
+                _, recovery_stamp = self.window_controller.get_latest_frame()
+                self.recover_video_stream(recovery_stamp)
                 if self.sleep_interruptible(.1, allow_pause=False) == "stop":
                     self.stop_gracefully()
                     return

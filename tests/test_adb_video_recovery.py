@@ -71,6 +71,45 @@ class DiscoveryTests(unittest.TestCase):
 
 
 class VideoRecoveryTests(unittest.TestCase):
+    def test_late_live_frame_clears_failed_reconnect_without_waiting_for_game_check(self):
+        bot = self.bot()
+        bot._device_recovering = True
+        bot._transport_lost_since = 10
+        bot.time_since_checked_if_brawl_stars_crashed = 99
+        bot.check_if_brawl_stars_crashed_timer = 60
+        bot.window_controller.get_latest_frame.return_value = (object(),99.9)
+        bot.window_controller.frame_is_fresh.return_value = True
+        bot.window_controller.is_stream_alive.return_value = True
+        with patch.object(time,'time',return_value=100):
+            self.assertTrue(bot.check_and_handle_brawl_stars_crash())
+        self.assertFalse(bot._device_recovering)
+        self.assertIsNone(bot._transport_lost_since)
+        bot.window_controller.reconnect_scrcpy.assert_not_called()
+        bot.window_controller.launch_brawl_stars.assert_not_called()
+
+    def test_missing_stale_or_dead_stream_cannot_clear_device_recovery(self):
+        for frame,fresh,alive in [(None,True,True),(object(),False,True),(object(),True,False)]:
+            bot=self.bot();bot._device_recovering=True;bot._transport_lost_since=10
+            bot.time_since_checked_if_brawl_stars_crashed=99;bot.check_if_brawl_stars_crashed_timer=60
+            bot.window_controller.get_latest_frame.return_value=(frame,99.9)
+            bot.window_controller.frame_is_fresh.return_value=fresh
+            bot.window_controller.is_stream_alive.return_value=alive
+            with patch.object(time,'time',return_value=100):
+                self.assertFalse(bot.check_and_handle_brawl_stars_crash())
+            self.assertEqual(bot._transport_lost_since,10)
+
+    def test_unavailable_device_retries_video_independently_of_game_check(self):
+        bot=self.bot();bot.picked_first_brawler=True
+        bot._thinking_config_checked=time.perf_counter();bot.run_for_minutes=0;bot.in_cooldown=False
+        bot.get_latest_state=Mock(return_value='frame_stale')
+        bot.check_and_handle_brawl_stars_crash=Mock(return_value=False)
+        bot.window_controller.get_latest_frame.return_value=(None,0)
+        bot.sleep_interruptible=Mock(return_value='stop');bot.stop_gracefully=Mock()
+        bot._main_loop()
+        bot.window_controller.reconnect_scrcpy.assert_called_once_with(max_retries=1)
+        bot.window_controller.screenshot.assert_not_called()
+        bot.stop_gracefully.assert_called_once()
+
     def bot(self):
         bot = BotInstance.__new__(BotInstance)
         bot.window_controller = Mock()
