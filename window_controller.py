@@ -466,13 +466,12 @@ class WindowController:
         the same prefix rule the panel already trusts, and the package found
         that way is written to the config so the next check is a cheap pidof.
         """
-        for package in (self.BRAWL_STARS_PACKAGE, *KNOWN_BS_PACKAGES):
-            try:
-                if self.device.shell(["pidof", package], timeout=5).strip():
-                    return True
-            except Exception as e:
-                print(f"Error checking whether '{package}' is running: {e}")
-        if is_brawl_stars_package(self.device):
+        for package in dict.fromkeys((self.BRAWL_STARS_PACKAGE, *KNOWN_BS_PACKAGES)):
+            # A failed query is unavailable evidence, not a missing process.
+            # Let the owner enter transport recovery instead of restarting it.
+            if self.device.shell(["pidof", package], timeout=5).strip():
+                return True
+        if is_brawl_stars_package(foreground_package(self.device)):
             self._adopt_foreground_package()
             return True
         return False
@@ -508,20 +507,12 @@ class WindowController:
         print("Brawl stars restarted successfully.")
 
     def is_brawl_stars_running(self):
-        try:
-            opened_app = foreground_package(self.device).strip()
-            if is_brawl_stars_package(opened_app):
-                # A modified build answers under its own id, so match it the way
-                # the panel does and remember it, rather than comparing against
-                # one hardcoded name and calling the game gone while it is in
-                # front of us.
-                if opened_app != self.BRAWL_STARS_PACKAGE:
-                    self._adopt_foreground_package()
-                return True
-            return opened_app == self.BRAWL_STARS_PACKAGE.strip()
-        except Exception as e:
-            print(f"Error checking if Brawl Stars is running: {e}")
-            return False
+        opened_app = foreground_package(self.device).strip()
+        if is_brawl_stars_package(opened_app):
+            if opened_app != self.BRAWL_STARS_PACKAGE:
+                self._adopt_foreground_package()
+            return True
+        return opened_app == self.BRAWL_STARS_PACKAGE.strip()
 
     def screenshot(self):
         frame, frame_time = self.get_latest_frame()

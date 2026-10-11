@@ -8,7 +8,7 @@ from types import ModuleType
 from unittest.mock import Mock, PropertyMock, patch
 
 from adbutils.errors import AdbError
-from test_runtime_consistency import BotInstance, scrcpy
+from test_runtime_consistency import BotInstance, WindowController, scrcpy
 BotHalt = BotInstance.check_transport_recovery.__globals__['BotHalt']
 
 
@@ -71,6 +71,28 @@ class DiscoveryTests(unittest.TestCase):
 
 
 class VideoRecoveryTests(unittest.TestCase):
+    def test_failed_process_or_foreground_query_is_not_game_absence(self):
+        controller=WindowController.__new__(WindowController)
+        controller.BRAWL_STARS_PACKAGE='com.supercell.brawlstars';controller.device=Mock()
+        controller.device.shell.side_effect=AdbError('timeout')
+        with self.assertRaises(AdbError):controller.brawl_stars_process_alive()
+        self.assertEqual(controller.device.shell.call_count,1)
+        globals_=WindowController.is_brawl_stars_running.__globals__
+        with patch.dict(globals_,foreground_package=Mock(side_effect=AdbError('timeout'))):
+            with self.assertRaises(AdbError):controller.is_brawl_stars_running()
+
+    def test_adb_status_failure_enters_recovery_without_relaunching_game(self):
+        bot=self.bot();bot.Play=Mock();bot.set_latest_state=Mock()
+        bot.time_since_checked_if_brawl_stars_crashed=0;bot.check_if_brawl_stars_crashed_timer=30
+        bot.window_controller.brawl_stars_process_alive.side_effect=AdbError('timeout')
+        bot.window_controller.reconnect_scrcpy.return_value=False
+        with patch.object(time,'time',return_value=100):
+            self.assertFalse(bot.check_and_handle_brawl_stars_crash())
+        bot.window_controller.launch_brawl_stars.assert_not_called()
+        bot.window_controller.restart_brawl_stars.assert_not_called()
+        bot.window_controller.release_all_inputs.assert_called()
+        bot.Play.clear_gas_state.assert_called_once()
+
     def test_late_live_frame_clears_failed_reconnect_without_waiting_for_game_check(self):
         bot = self.bot()
         bot._device_recovering = True
