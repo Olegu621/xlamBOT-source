@@ -32,13 +32,22 @@ class StartupTests(unittest.TestCase):
         self.assertEqual(create.call_args.kwargs['serial'], b.serial)
 
     def test_exhaustion_is_bounded_and_unpinned_discovery_is_not_repeated(self):
-        for serial, count in [('emulator-5554', 3), (None, 1)]:
+        for serial, count in [('emulator-5554', 6), (None, 1)]:
             b = self.instance(serial)
             create = Mock(side_effect=CaptureConnectionError())
             with patch.dict(worker, WindowController=create):
                 with self.assertRaises(CaptureConnectionError):
                     b._connect_controller()
             self.assertEqual(create.call_count, count)
+
+    def test_capture_available_after_longer_startup_recovers_without_switching_device(self):
+        b = self.instance()
+        controller = Mock()
+        create = Mock(side_effect=[CaptureConnectionError()] * 5 + [controller])
+        with patch.dict(worker, WindowController=create):
+            self.assertIs(b._connect_controller(), controller)
+        self.assertEqual([call.args[0] for call in b.sleep_interruptible.call_args_list], [1,2,4,8,15])
+        self.assertTrue(all(call.kwargs['serial'] == b.serial for call in create.call_args_list))
 
     def test_programming_error_is_not_retried(self):
         b = self.instance()
