@@ -215,7 +215,7 @@ class BotInstance:
 
     def _connect_controller(self):
         # Unpinned legacy discovery must not pick a different device on retry.
-        attempts = 3 if self.serial else 1
+        attempts = 6 if self.serial else 1
         for attempt in range(attempts):
             if self.should_stop() or self.should_pause():
                 raise StartupCancelled("Capture startup cancelled.")
@@ -227,7 +227,7 @@ class BotInstance:
                 if attempt + 1 == attempts:
                     raise
                 print(f"[{self.device_label}] Capture unavailable; retry {attempt + 2}/{attempts}.")
-                if self.sleep_interruptible(attempt + 1) in ("stop", "pause"):
+                if self.sleep_interruptible(min(2 ** attempt, 15)) in ("stop", "pause"):
                     raise StartupCancelled("Capture startup cancelled.")
                 continue
             if self.should_stop() or self.should_pause():

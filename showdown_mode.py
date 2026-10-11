@@ -42,12 +42,14 @@ def english_new_showdown(frame):
 
 class TrioSelector:
     def __init__(self):
-        self.last_action=0.;self.swipes=0
+        self.last_action=0.;self.swipes=0;self.retry_after=0.
 
     def step(self,stage,frame,lobby=False):
         if stage._should_stop() or stage._should_pause():return False
         if selected_trio(frame):self.swipes=0;return True
+        if frame is None:return False
         now=time.monotonic()
+        if now<self.retry_after:return False
         if now-self.last_action<1.5:return False
         h,w=frame.shape[:2];controller=stage.window_controller
         if lobby:
@@ -65,7 +67,14 @@ class TrioSelector:
         if new_tile:
             self.last_action=now;controller.click(*new_tile);return False
         if self.swipes>=3:
-            raise RuntimeError('Trio Showdown was not confirmed in the event menu. / Трио не найдено в меню событий.')
+            # An unrecognized rotating event is recoverable. Return only through
+            # the Home control confirmed on this frame, then defer a new search.
+            home=locate(frame,ROAD_HOME,(.90,0,1,.12),.94)
+            if home is None:return False
+            controller.click(*home)
+            self.last_action=now;self.swipes=0;self.retry_after=now+30
+            print('Trio Showdown not confirmed; returned home, retry in 30 seconds.')
+            return False
         self.last_action=now;self.swipes+=1
         controller.swipe(w*.76,h*.48,w*.28,h*.48,duration=.3)
         return False

@@ -8,6 +8,31 @@ from onboarding import template
 from power_cubes import visible_cubes,choose_cube
 
 class ModeCubeTests(unittest.TestCase):
+    def test_unrecognized_event_returns_through_confirmed_home_and_waits(self):
+        from test_onboarding import Stage
+        stage=Stage();selector=TrioSelector();selector.swipes=3
+        stage.window_controller.swipe=lambda *args,**kwargs:stage.window_controller.actions.append(('swipe',args))
+        frame=np.zeros((720,1280,3),np.uint8)
+        for encoded,x,y in [(EVENT_NAV,1087,5),(ROAD_HOME,1200,8)]:
+            glyph=template(encoded,720);frame[y:y+glyph.shape[0],x:x+glyph.shape[1]]=glyph
+        with patch('showdown_mode.time.monotonic',return_value=10):
+            self.assertFalse(selector.step(stage,frame))
+        self.assertEqual(len(stage.window_controller.actions),1)
+        self.assertGreater(stage.window_controller.actions[0][1][0],1152)
+        with patch('showdown_mode.time.monotonic',return_value=20):
+            selector.step(stage,frame)
+        self.assertEqual(len(stage.window_controller.actions),1)
+        with patch('showdown_mode.time.monotonic',return_value=41):
+            selector.step(stage,frame)
+        self.assertEqual(stage.window_controller.actions[-1][0],'swipe')
+
+    def test_missing_frame_or_unrecognized_home_cannot_trigger_recovery_taps(self):
+        from test_onboarding import Stage
+        stage=Stage();selector=TrioSelector();selector.swipes=3
+        selector.step(stage,None)
+        selector.step(stage,np.zeros((720,1280,3),np.uint8))
+        self.assertEqual(stage.window_controller.actions,[])
+
     def test_current_trio_win_needs_next_button_and_bright_letters(self):
         from showdown_mode import trio_win_next
         from mode_assets import TRIO_WIN,RESULT_NEXT
