@@ -10,7 +10,7 @@ function dbAdapter(sqlite) {
   const statement=(sql,args=[])=>({bind(...values){return statement(sql,values);},async first(){return sqlite.prepare(sql).get(...args) || null;},async all(){return {results:sqlite.prepare(sql).all(...args)};},async run(){return {meta:{changes:Number(sqlite.prepare(sql).run(...args).changes)}};}});
   return {prepare:statement,async batch(items){sqlite.exec('BEGIN');try{const results=[];for(const item of items)results.push(await item.run());sqlite.exec('COMMIT');return results;}catch(error){sqlite.exec('ROLLBACK');throw error;}}};
 }
-beforeEach(()=>{sqlite=new DatabaseSync(':memory:');sqlite.exec(readFileSync(new URL('../migrations/0001.sql',import.meta.url),'utf8'));sqlite.exec(readFileSync(new URL('../migrations/0002_statistics.sql',import.meta.url),'utf8'));sqlite.exec(readFileSync(new URL('../migrations/0003_remote_panel.sql',import.meta.url),'utf8'));sqlite.exec(readFileSync(new URL('../migrations/0004_pc_names.sql',import.meta.url),'utf8'));env={DB:dbAdapter(sqlite)};pending=[];});
+beforeEach(()=>{sqlite=new DatabaseSync(':memory:');sqlite.exec(readFileSync(new URL('../migrations/0001.sql',import.meta.url),'utf8'));sqlite.exec(readFileSync(new URL('../migrations/0002_statistics.sql',import.meta.url),'utf8'));sqlite.exec(readFileSync(new URL('../migrations/0003_remote_panel.sql',import.meta.url),'utf8'));sqlite.exec(readFileSync(new URL('../migrations/0004_pc_names.sql',import.meta.url),'utf8'));sqlite.exec(readFileSync(new URL('../migrations/0005_installation_platforms.sql',import.meta.url),'utf8'));env={DB:dbAdapter(sqlite)};pending=[];});
 afterEach(()=>sqlite.close());
 const ctx={waitUntil(p){pending.push(p);}};
 async function call(path,data,token,extra={}) {
@@ -61,7 +61,7 @@ test('info and unrepeated warnings are not accepted; public setup is absent',asy
   assert.equal((await worker.fetch(new Request('https://test.example/health'),env,ctx)).status,200);
 });
 
-import {statistics,formatOnline,onlineCount,telegramCommand} from '../src/statistics.mjs';
+import {statistics,formatOnline,onlineCount,onlineByPlatform,telegramCommand} from '../src/statistics.mjs';
 function metrics(overrides={}) {return {devices:[{id:'d'.repeat(32),active:true,paused:false,revision:76}],matches:[{id:'e'.repeat(32),played:Date.now()/1000,result:'victory',delta:10,source:'estimated'}],...overrides};}
 test('statistics uses authenticated ownership, deduplicates matches and expires online',async()=>{
   const a=await register();assert.equal((await call('/v1/statistics',metrics())).status,401);
@@ -76,7 +76,7 @@ test('invalid batch is atomic and estimates are separate from observed trophies'
   assert.equal((await call('/v1/statistics',m,a.token)).status,400);assert.equal((await statistics(env.DB)).matches,0);
   const good=metrics();good.matches.push({...good.matches[0],id:'f'.repeat(32),source:'observed',delta:-5,result:'defeat'});
   await call('/v1/statistics',good,a.token);const s=await statistics(env.DB);assert.equal(s.trophies.estimated.net,10);assert.equal(s.trophies.observed.net,-5);
-  const text=formatOnline(s.online.bots);assert.ok(!text.includes(a.installation));assert.ok(!text.includes('runtime_crash'));
+  const text=formatOnline(await onlineByPlatform(env.DB));assert.ok(!text.includes(a.installation));assert.ok(!text.includes('runtime_crash'));
 });
 test('today uses Moscow midnight and hour is rolling',async()=>{
   const a=await register(),now=Date.now()/1000,midnight=Math.floor((now+10800)/86400)*86400-10800;
@@ -113,7 +113,7 @@ test('every supported Telegram command returns only fresh active bot count',asyn
   let count=0;
   for(const command of ['online','stats','today','hour','alltime','start','help']) {
     const u={update_id:100+count,message:{chat:{id:-100123},text:'/'+command}};
-    const response=await telegramCommand(hook(u),env,r=>r.json(),async(url,o)=>{assert.equal(JSON.parse(o.body).text,'Онлайн сейчас: 1');count++;return Response.json({ok:true});});
+    const response=await telegramCommand(hook(u),env,r=>r.json(),async(url,o)=>{assert.equal(JSON.parse(o.body).text,'Онлайн сейчас:\nPC: 1\nAndroid: 0');count++;return Response.json({ok:true});});
     assert.equal(response.status,200);
   }
   assert.equal(count,7);
@@ -259,4 +259,32 @@ test('PC names are owner-bound, editable and visible only to the linked owner',a
   await call('/v1/remote/status',{pc_name:''},a.token);
   pcs=(await (await mini('/mini/status',undefined,alice)).json()).pcs;
   assert.equal(pcs[0].name,'ПК '+a.installation.slice(0,6));
+});
+
+
+test('platform online preserves legacy PCs, separates Android and expires stopped or paused clients',async()=>{
+  const pc=await register(),android=await register(),stale=await register();
+  await call('/v1/statistics',metrics(),pc.token);
+  await call('/v1/statistics',metrics({platform:'android'}),android.token);
+  await call('/v1/statistics',metrics({platform:'android'}),stale.token);
+  sqlite.prepare('UPDATE stats_devices SET seen=? WHERE installation=?').run(Date.now()/1000-151,stale.installation);
+  assert.deepEqual(await onlineByPlatform(env.DB),{pc:1,android:1});
+  sqlite.prepare('DELETE FROM installation_platforms WHERE installation=?').run(pc.installation);
+  assert.deepEqual(await onlineByPlatform(env.DB),{pc:1,android:1});
+  await call('/v1/statistics',metrics({platform:'android',devices:[{id:'d'.repeat(32),active:true,paused:true,revision:110}]}),android.token);
+  assert.deepEqual(await onlineByPlatform(env.DB),{pc:1,android:0});
+  await call('/v1/statistics',metrics({platform:'android',devices:[]}),android.token);
+  assert.deepEqual(await onlineByPlatform(env.DB),{pc:1,android:0});
+  assert.deepEqual(await onlineByPlatform(env.DB,Date.now()/1000+151),{pc:0,android:0});
+  for(const platform of [null,'ios',1,{},'ANDROID'])assert.equal((await call('/v1/statistics',metrics({platform}),pc.token)).status,400);
+  assert.deepEqual(await onlineByPlatform(env.DB),{pc:1,android:0});
+});
+
+test('Telegram reports mixed active platforms without match history',async()=>{
+  env.TELEGRAM_WEBHOOK_SECRET='test-secret';env.TELEGRAM_BOT_TOKEN='fake';
+  for(const platform of ['pc','android','android']){const a=await register();await call('/v1/statistics',metrics({platform}),a.token);}
+  let text;
+  const u={update_id:990,message:{chat:{id:123},text:'/online'}};
+  const response=await telegramCommand(hook(u),env,r=>r.json(),async(url,o)=>{text=JSON.parse(o.body).text;return Response.json({ok:true});});
+  assert.equal(response.status,200);assert.equal(text,'Онлайн сейчас:\nPC: 1\nAndroid: 2');
 });

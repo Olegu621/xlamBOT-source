@@ -15,12 +15,14 @@ export function cleanStatistics(body,now) {
   });
   const revision=body.revision??0;
   if(!Number.isInteger(revision)||revision<0||revision>10000000)throw Error('invalid');
-  return {devices,matches,revision,pc_name:cleanPCName(body.pc_name)};
+  const platform=body.platform===undefined?'pc':body.platform;
+  if(!['pc','android'].includes(platform))throw Error('invalid');
+  return {devices,matches,revision,platform,pc_name:cleanPCName(body.pc_name)};
 }
 export async function receiveStatistics(body,owner,env) {
-  const now=Date.now()/1000,{devices,matches,revision:appRevision,pc_name}=cleanStatistics(body,now);
+  const now=Date.now()/1000,{devices,matches,revision:appRevision,platform,pc_name}=cleanStatistics(body,now);
   await savePCName(env.DB,owner,pc_name);
-  const sql=[env.DB.prepare('UPDATE stats_devices SET active=0,paused=0 WHERE installation=?').bind(owner)];
+  const sql=[env.DB.prepare('INSERT INTO installation_platforms(installation,platform) VALUES(?,?) ON CONFLICT(installation) DO UPDATE SET platform=excluded.platform').bind(owner,platform),env.DB.prepare('UPDATE stats_devices SET active=0,paused=0 WHERE installation=?').bind(owner)];
   const revision=appRevision||Math.max(0,...devices.map(d=>d.revision));
   if(revision) {
     sql.push(env.DB.prepare("INSERT INTO panel_activity(installation,kind,revision,seen) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM panel_versions WHERE installation=?) THEN 'panel_updated' ELSE 'panel_seen' END,?,? WHERE NOT EXISTS(SELECT 1 FROM panel_versions WHERE installation=? AND revision=?)").bind(owner,owner,revision,now,owner,revision));
@@ -45,7 +47,11 @@ export async function onlineCount(db,now=Date.now()/1000) {
   const row=await db.prepare('SELECT COUNT(*) AS bots FROM stats_devices WHERE active=1 AND paused=0 AND seen>=?').bind(now-150).first();
   return row.bots;
 }
-export const formatOnline=count=>`Онлайн сейчас: ${Number(count).toLocaleString('ru-RU')}`;
+export async function onlineByPlatform(db,now=Date.now()/1000) {
+  const row=await db.prepare(`SELECT COALESCE(SUM(CASE WHEN COALESCE(p.platform,'pc')='pc' THEN 1 ELSE 0 END),0) pc,COALESCE(SUM(CASE WHEN p.platform='android' THEN 1 ELSE 0 END),0) android FROM stats_devices d LEFT JOIN installation_platforms p USING(installation) WHERE d.active=1 AND d.paused=0 AND d.seen>=?`).bind(now-150).first();
+  return {pc:Number(row.pc),android:Number(row.android)};
+}
+export const formatOnline=({pc,android})=>`Онлайн сейчас:\nPC: ${pc.toLocaleString('ru-RU')}\nAndroid: ${android.toLocaleString('ru-RU')}`;
 function equal(a,b) {if(typeof a!=='string'||typeof b!=='string'||!b||a.length!==b.length)return false;let d=0;for(let i=0;i<a.length;i++)d|=a.charCodeAt(i)^b.charCodeAt(i);return d===0;}
 export async function telegramCommand(request,env,readBody,send=fetch) {
   if(!equal(request.headers.get('X-Telegram-Bot-Api-Secret-Token'),env.TELEGRAM_WEBHOOK_SECRET))return json({error:'unauthorized'},401);
@@ -66,7 +72,7 @@ export async function telegramCommand(request,env,readBody,send=fetch) {
     return json({ok:!!existing?.done},existing?.done?200:503);
   }
   try {
-    const text=formatOnline(await onlineCount(env.DB));
+    const text=formatOnline(await onlineByPlatform(env.DB));
     const payload={chat_id:message.chat.id,text,link_preview_options:{is_disabled:true}};
     if(['panel','admin'].includes(command[1])) {
       const admin=command[1]==='admin';
