@@ -269,6 +269,7 @@ test('platform online preserves legacy PCs, separates Android and expires stoppe
   await call('/v1/statistics',metrics({platform:'android'}),stale.token);
   sqlite.prepare('UPDATE stats_devices SET seen=? WHERE installation=?').run(Date.now()/1000-151,stale.installation);
   assert.deepEqual(await onlineByPlatform(env.DB),{pc:1,android:1});
+  assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM panel_versions WHERE installation IN (?,?)').get(android.installation,stale.installation).n,0);
   sqlite.prepare('DELETE FROM installation_platforms WHERE installation=?').run(pc.installation);
   assert.deepEqual(await onlineByPlatform(env.DB),{pc:1,android:1});
   await call('/v1/statistics',metrics({platform:'android',devices:[{id:'d'.repeat(32),active:true,paused:true,revision:110}]}),android.token);

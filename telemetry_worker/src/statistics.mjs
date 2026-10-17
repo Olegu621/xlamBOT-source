@@ -23,7 +23,7 @@ export async function receiveStatistics(body,owner,env) {
   const now=Date.now()/1000,{devices,matches,revision:appRevision,platform,pc_name}=cleanStatistics(body,now);
   await savePCName(env.DB,owner,pc_name);
   const sql=[env.DB.prepare('INSERT INTO installation_platforms(installation,platform) VALUES(?,?) ON CONFLICT(installation) DO UPDATE SET platform=excluded.platform').bind(owner,platform),env.DB.prepare('UPDATE stats_devices SET active=0,paused=0 WHERE installation=?').bind(owner)];
-  const revision=appRevision||Math.max(0,...devices.map(d=>d.revision));
+  const revision=platform==='pc'?(appRevision||Math.max(0,...devices.map(d=>d.revision))):0;
   if(revision) {
     sql.push(env.DB.prepare("INSERT INTO panel_activity(installation,kind,revision,seen) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM panel_versions WHERE installation=?) THEN 'panel_updated' ELSE 'panel_seen' END,?,? WHERE NOT EXISTS(SELECT 1 FROM panel_versions WHERE installation=? AND revision=?)").bind(owner,owner,revision,now,owner,revision));
     sql.push(env.DB.prepare('INSERT INTO panel_versions VALUES(?,?,?) ON CONFLICT(installation) DO UPDATE SET revision=excluded.revision,seen=excluded.seen').bind(owner,revision,now));
