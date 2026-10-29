@@ -1066,11 +1066,10 @@ def create_app(xlambot_main, start_discord_bot=False):
 
     @app.get("/api/assets/brawlers/<path:brawler_name>")
     def brawler_icon(brawler_name: str):
-        icon_path = get_brawler_icon_path(brawler_name)
+        icon_path = get_brawler_icon_path(brawler_name, asset_resolver=resource_updater.asset)
         if icon_path is None:
             return ("", 404)
-        updated = resource_updater.asset(icon_path.relative_to(PROJECT_ROOT).as_posix())
-        return send_file(updated or icon_path)
+        return send_file(icon_path)
 
     @app.get("/api/assets/support/<path:filename>")
     def support_asset(filename: str):

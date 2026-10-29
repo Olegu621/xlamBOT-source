@@ -459,10 +459,15 @@ def get_action_state(screenshot):
     height, width = screenshot.shape[:2]
     if height > 360:
         from screen_evidence import current_lobby
+        from brawler_detail import detail_home_position
         # A native lobby candidate chooses the native classifier, including all
         # modal/tutorial priorities. Its controls can disappear on reduction,
         # causing a full negative pass before repeating the same native scan.
-        if current_lobby(screenshot):
+        # Small detail-page glyphs also lose evidence on reduction. A failed
+        # reduced detail match can falsely succeed as the generic shop screen,
+        # sending recovery home instead of selecting the brawler. Keep the
+        # full classifier (and its modal priority) on a confirmed native page.
+        if current_lobby(screenshot) or detail_home_position(screenshot) is not None:
             return get_in_game_state(screenshot)
     if height > 360:
         reduced = cv2.resize(screenshot, (max(1, round(width*360/height)), 360),

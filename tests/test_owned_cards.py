@@ -32,6 +32,29 @@ class OwnedCardTests(unittest.TestCase):
         self.assertIsNone(c.first_owned_card(frame))
         self.assertEqual(c.resolved_card(frame,(510,300)),((510,300),None))
 
+    def test_first_column_precedes_top_card_in_a_later_column(self):
+        for w,h in [(960,540),(1280,720),(1920,1080),(1920,864)]:
+            with self.subTest(size=(w,h)):
+                frame=np.full((h,w,3),(15,110,245),np.uint8)
+                glyph=c._badge(h)
+                for x,y in [(w*.10,h*.64),(w*.40,h*.36)]:
+                    x,y=round(x),round(y)
+                    frame[y:y+glyph.shape[0],x:x+glyph.shape[1]]=glyph[:,:,None]
+                point,anchor=c.resolved_card(frame,(510,300))
+                self.assertIsNotNone(anchor)
+                self.assertLess(anchor[0],w*.2)
+                self.assertGreater(anchor[1],h*.6)
+                self.assertLess(point[0],1920*.2)
+
+    def test_within_first_column_topmost_owned_card_wins(self):
+        frame=np.full((720,1280,3),(15,110,245),np.uint8)
+        glyph=c._badge(720)
+        for x,y in [(100,450),(108,250),(420,150)]:
+            frame[y:y+glyph.shape[0],x:x+glyph.shape[1]]=glyph[:,:,None]
+        x,y=c.first_owned_card(frame)
+        self.assertLess(x,150)
+        self.assertLess(y,300)
+
     def test_fallback_ocr_reads_selected_card_instead_of_left_tile(self):
         frame=self.grid()
         anchor=c.first_owned_card(frame)

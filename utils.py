@@ -784,7 +784,8 @@ def normalize_brawler_filename(brawler_name: str) -> str:
     return str(brawler_name).lower().replace(' ', '').replace('-', '').replace('.', '').replace('&', '')
 
 
-def get_brawler_icon_path(brawler_name: str) -> Path | None:
+def get_brawler_icon_path(brawler_name: str, asset_resolver=None) -> Path | None:
+    """Find a portrait, including new assets absent from an older installation."""
     if not brawler_name:
         return None
 
@@ -798,6 +799,10 @@ def get_brawler_icon_path(brawler_name: str) -> Path | None:
     ]
 
     for candidate in candidates:
+        if asset_resolver is not None:
+            updated = asset_resolver(candidate.relative_to(PROJECT_ROOT).as_posix())
+            if updated is not None and updated.is_file():
+                return updated
         if candidate.is_file():
             return candidate
     return None

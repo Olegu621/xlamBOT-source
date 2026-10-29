@@ -58,8 +58,12 @@ def first_owned_card(frame):
     candidates.extend(_rank_card_anchors(frame))
     if not candidates:
         return None
-    row = min(y for x,y in candidates)
-    return min((x,y) for x,y in candidates if y <= row+round(h*.025))
+    # The game's grid runs down each column before moving right. Row-first
+    # ordering skipped owned cards lower in the left column in favour of a
+    # later column's top card. Cup/rank centres can differ by a few pixels.
+    column = min(x for x,y in candidates)
+    return min(((x,y) for x,y in candidates if x <= column+round(h*.025)),
+               key=lambda point: (point[1], point[0]))
 
 
 def resolved_card(frame, configured):

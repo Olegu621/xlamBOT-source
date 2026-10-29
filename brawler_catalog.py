@@ -8,10 +8,14 @@ The 80% spacing floor is a bot policy, not an in-game damage threshold.
 Vince's kit: the same official release notes. In 69.230 skills.csv he is
 Stacker: Weapon range 25 and Ulti range 27, including all moth tiers.
 His safe spacing is a bot policy; no caterpillar/debuff detection is implied.
+
+IDs and range evidence: docs/brawler-data.md. Portraits are bundled locally;
+they do not require BrawlAPI or its CDN to be available at runtime.
 """
 
 BUILT_IN_BRAWLERS = {
     'vince': {
+        'id': 16000110,
         'actual_name': 'Vince',
         'rarity': 'Mythic',
         'attack_range': 533,
@@ -23,6 +27,7 @@ BUILT_IN_BRAWLERS = {
         'hold_attack': 0,
     },
     'cosmo': {
+        'id': 16000109,
         'actual_name': 'Cosmo',
         'rarity': 'Mythic',
         'attack_range': 576,

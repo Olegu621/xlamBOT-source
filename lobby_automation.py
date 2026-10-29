@@ -383,6 +383,11 @@ class LobbyAutomation:
             if str(card.get('brawler') or '').lower().strip() != normalized_brawler:
                 print('Search result did not confirm the requested brawler; no selection tap sent.')
                 return 'failed'
+            # Cold OCR can outlive the input observation. Refresh after reading,
+            # as the sorted-card path does, and reject overlays/transitions.
+            frame = self.window_controller.screenshot()
+            if self._frame_state(frame) != 'brawler_selection':
+                return 'stuck'
             first_brawler_x, first_brawler_y = load_toml_as_dict("cfg/buttons_config.toml")["first_brawler_icon"]
             self.window_controller.click(first_brawler_x, first_brawler_y, already_include_ratio=False)
             if self._sleep_interruptible(1, runtime_control, stop_event):

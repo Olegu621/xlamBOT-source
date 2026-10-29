@@ -234,6 +234,15 @@
   "win_streak": 0
  },
  {
+  "brawler": "cosmo",
+  "type": "trophies",
+  "trophies": null,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
   "brawler": "crow",
   "type": "trophies",
   "trophies": 0,
@@ -921,6 +930,15 @@
   "brawler": "trunk",
   "type": "trophies",
   "trophies": 0,
+  "wins": 0,
+  "push_until": 1000,
+  "automatically_pick": true,
+  "win_streak": 0
+ },
+ {
+  "brawler": "vince",
+  "type": "trophies",
+  "trophies": null,
   "wins": 0,
   "push_until": 1000,
   "automatically_pick": true,

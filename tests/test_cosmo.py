@@ -84,7 +84,7 @@ class CosmoTests(unittest.TestCase):
     def test_search_requires_cosmo_card_and_confirmed_detail(self):
         from lobby_automation import LobbyAutomation
         window = Mock()
-        window.screenshot.side_effect = ['lobby', 'brawler_selection', 'brawler_selection', 'lobby']
+        window.screenshot.side_effect = ['lobby', 'brawler_selection', 'brawler_selection', 'brawler_selection', 'lobby']
         bot = SimpleNamespace(window_controller=window, _frame_state=lambda f: f,
             _should_interrupt=lambda *a: False, _sleep_interruptible=lambda *a: False,
             _confirm_brawler_selection=Mock(return_value=True), _last_picked=None)

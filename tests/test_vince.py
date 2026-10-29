@@ -56,7 +56,7 @@ class VinceTests(unittest.TestCase):
             _should_interrupt=lambda *a:False,_sleep_interruptible=lambda *a:False,
             _confirm_brawler_selection=Mock(return_value=True),_last_picked=None)
         reader=SimpleNamespace(read_card=lambda *a,**k:{'brawler':'vince','trophies':12})
-        window.screenshot.side_effect=['lobby','brawler_selection','brawler_selection','lobby']
+        window.screenshot.side_effect=['lobby','brawler_selection','brawler_selection','brawler_selection','lobby']
         with patch.dict('sys.modules',{'trophy_reader':reader}):
             self.assertEqual(LobbyAutomation.select_brawler(bot,'Vince',lambda:'lobby'),'success')
         window.type_text.assert_called_once_with('Vince')

@@ -1,4 +1,5 @@
 import unittest
+import cv2
 from types import SimpleNamespace
 from unittest.mock import patch
 import numpy as np
@@ -65,3 +66,80 @@ class DetailTests(unittest.TestCase):
     bad[round(h*.70):round(h*.84),round(w*.19):round(w*.29)]=(10,120,240)
     bad[y:y+g.shape[0],x:x+g.shape[1]]=g
     self.assertIsNone(d.detail_select_position(bad))
+
+ def inactive_heart_screen(self,w=1280,h=720,missing=None):
+  f=screen(w,h,missing=missing or 'HANGER')
+  # Current VINCE/COSMO pages replace the wardrobe with a muted, unselected
+  # favourite control; the earlier heart template scores only 0.71 on it.
+  f[round(h*.70):round(h*.84),round(w*.19):round(w*.29)]=(10,120,240)
+  g=d._glyph(d.HEART_UNSELECTED,h);x,y=round(w*.385),round(h*.88)
+  f[y:y+g.shape[0],x:x+g.shape[1]]=g
+  return f
+
+ def test_unselected_favourite_recognizes_detail_at_action_resolution(self):
+  for w,h in [(640,360),(960,540),(1280,720),(1920,1080),(1920,864)]:
+   with self.subTest(size=(w,h)):
+    f=self.inactive_heart_screen(w,h)
+    self.assertEqual(state_finder.get_in_game_state(f),'brawler_detail')
+    self.assertEqual(state_finder.get_action_state(f),'brawler_detail')
+    p=d.detail_select_position(f)
+    self.assertIsNotNone(p)
+    self.assertTrue(p[0]<w*.3 and p[1]>h*.84)
+
+ def test_unselected_favourite_requires_all_other_controls_and_yellow_select(self):
+  for missing in ['HOME','PROFILE','CHAT','SELECT']:
+   with self.subTest(missing=missing):
+    self.assertIsNone(d.detail_select_position(self.inactive_heart_screen(missing=missing)))
+  f=self.inactive_heart_screen()
+  f[round(720*.87):round(720*.95),round(1280*.02):round(1280*.25)]=(110,110,110)
+  self.assertIsNone(d.detail_select_position(f))
+
+ def test_current_muted_heart_selects_instead_of_falling_back_to_home(self):
+  f=self.inactive_heart_screen();a=LobbyAutomation.__new__(LobbyAutomation);clicks=[]
+  a.window_controller=SimpleNamespace(screenshot=lambda:f,
+    click=lambda x,y,**kw:clicks.append((x,y,kw)))
+  self.assertTrue(a._confirm_brawler_selection())
+  self.assertEqual(len(clicks),1)
+  x,y,kw=clicks[0]
+  self.assertTrue(x<1280*.3 and y>720*.84)
+  self.assertEqual(kw,{'already_include_ratio':True})
+
+ def test_unselected_heart_survives_capture_compression(self):
+  f=self.inactive_heart_screen()
+  ok,encoded=cv2.imencode('.jpg',cv2.cvtColor(f,cv2.COLOR_RGB2BGR),[cv2.IMWRITE_JPEG_QUALITY,80])
+  self.assertTrue(ok)
+  decoded=cv2.cvtColor(cv2.imdecode(encoded,cv2.IMREAD_COLOR),cv2.COLOR_BGR2RGB)
+  self.assertIsNotNone(d.detail_select_position(decoded))
+
+ def test_native_detail_candidate_keeps_disconnect_modal_priority(self):
+  f=self.inactive_heart_screen()
+  with patch('disconnect_dialog.idle_disconnect_reload_position',return_value=(200,300)):
+   self.assertEqual(state_finder.get_action_state(f),'idle_disconnect')
+
+ def filled_heart_screen(self,w=1280,h=720,missing=None):
+  f=screen(w,h,missing=missing or 'HANGER')
+  f[round(h*.70):round(h*.84),round(w*.19):round(w*.29)]=(10,120,240)
+  g=d._glyph(d.HEART_FILLED,h);x,y=round(w*.384),round(h*.872)
+  f[y:y+g.shape[0],x:x+g.shape[1]]=g
+  return f
+
+ def test_filled_favourite_does_not_turn_detail_into_shop(self):
+  # The real current pink favourite icon does not match either older heart
+  # variant. With this control present, Select must remain reachable.
+  for w,h in [(640,360),(960,540),(1280,720),(1920,1080),(1920,864)]:
+   with self.subTest(size=(w,h)):
+    f=self.filled_heart_screen(w,h)
+    self.assertEqual(state_finder.get_action_state(f),'brawler_detail')
+    self.assertIsNotNone(d.detail_select_position(f))
+
+ def test_filled_favourite_still_requires_independent_controls(self):
+  for missing in ['HOME','PROFILE','CHAT','SELECT']:
+   with self.subTest(missing=missing):
+    self.assertIsNone(d.detail_select_position(self.filled_heart_screen(missing=missing)))
+
+ def test_filled_favourite_survives_compressed_capture(self):
+  f=self.filled_heart_screen()
+  ok,encoded=cv2.imencode('.jpg',cv2.cvtColor(f,cv2.COLOR_RGB2BGR),[cv2.IMWRITE_JPEG_QUALITY,80])
+  self.assertTrue(ok)
+  decoded=cv2.cvtColor(cv2.imdecode(encoded,cv2.IMREAD_COLOR),cv2.COLOR_BGR2RGB)
+  self.assertIsNotNone(d.detail_select_position(decoded))

@@ -55,7 +55,7 @@ class GameplayFixTests(unittest.TestCase):
         fake_reader=SimpleNamespace(read_card=Mock(return_value={'brawler':'byron','trophies':687}))
         namespace={'normalize_brawler_filename':lambda x:x,'load_brawlers_info':lambda:{},'load_toml_as_dict':lambda p:{'brawlers_menu':[1,1],'first_brawler_icon':[2,2],'select_brawler':[3,3]},'get_state':lambda f:f,'time':SimpleNamespace(sleep=lambda t:None)}
         select=method('lobby_automation.py','LobbyAutomation','select_brawler',namespace)
-        window=Mock(width_ratio=1,height_ratio=1);window.screenshot.side_effect=['lobby','brawler_selection','brawler_selection','lobby'];window.type_text.return_value=True
+        window=Mock(width_ratio=1,height_ratio=1);window.screenshot.side_effect=['lobby','brawler_selection','brawler_selection','brawler_selection','lobby'];window.type_text.return_value=True
         bot=SimpleNamespace(window_controller=window,_frame_state=namespace['get_state'],_last_picked={'brawler':'carl','trophies':32},_confirm_brawler_selection=lambda *a:True,_should_interrupt=lambda *a:False,_sleep_interruptible=lambda *a:False)
         with patch.dict(sys.modules,{'trophy_reader':fake_reader}):
             # Cached recognition still says lobby; the new frame is the grid.
@@ -65,5 +65,31 @@ class GameplayFixTests(unittest.TestCase):
         with patch.dict(sys.modules,{'trophy_reader':fake_reader}):
             self.assertEqual(select(bot,'byron',lambda:'brawler_selection'),'failed')
         self.assertEqual(window.click.call_count,1) # menu only, not the wrong card
+
+    def test_slow_name_ocr_requires_a_new_grid_observation_before_card_tap(self):
+        import sys
+        expired=[False]
+        def read_card(*a,**kw):
+            expired[0]=True
+            return {'brawler':'vince','trophies':None}
+        for next_screen,expected,clicks in [('brawler_selection','success',2),('shop','stuck',1)]:
+            with self.subTest(next_screen=next_screen):
+                frames=iter(['lobby','brawler_selection','brawler_selection',next_screen,'lobby'])
+                def screenshot():
+                    expired[0]=False
+                    return next(frames)
+                def click(*a,**kw):
+                    self.assertFalse(expired[0],'OCR expired the decision; refresh before input')
+                window=Mock(screenshot=screenshot,click=Mock(side_effect=click))
+                namespace={'normalize_brawler_filename':lambda x:x,'load_brawlers_info':lambda:{},
+                           'load_toml_as_dict':lambda p:{'brawlers_menu':[1,1],'first_brawler_icon':[2,2]}}
+                select=method('lobby_automation.py','LobbyAutomation','select_brawler',namespace)
+                bot=SimpleNamespace(window_controller=window,_frame_state=lambda f:f,
+                    _confirm_brawler_selection=Mock(return_value=True),_last_picked=None,
+                    _should_interrupt=lambda *a:False,_sleep_interruptible=lambda *a:False)
+                with patch.dict(sys.modules,{'trophy_reader':SimpleNamespace(read_card=read_card)}):
+                    self.assertEqual(select(bot,'vince',lambda:'lobby'),expected)
+                self.assertEqual(window.click.call_count,clicks)
+                if expected=='stuck':bot._confirm_brawler_selection.assert_not_called()
 
 if __name__=='__main__':unittest.main()

@@ -625,6 +625,17 @@ class BotInstance:
             self.Stage_manager.handle_onboarding()
             self.sleep_interruptible(.08, allow_pause=False)
             return False
+        locked = self.Stage_manager.locked_brawler()
+        if locked:
+            # The operator's explicit choice wins before any automatic sort,
+            # including when the queue still contains another brawler.
+            self.Stage_manager._lock_queue_to(locked)
+            self.Stage_manager._select_locked_brawler(locked)
+            if not self.Stage_manager._lock_ok:
+                return False
+            self.picked_first_brawler = True
+            self.update_trophy_observer()
+            return True
         if self.Stage_manager.brawlers_pick_data[0]['automatically_pick']:
             next_brawler_name = self.Stage_manager.brawlers_pick_data[0]['brawler']
             print(f"[{self.device_label}] Picking brawler automatically")
@@ -659,10 +670,14 @@ class BotInstance:
                     notify_user("bot_failed_brawler_selection", screenshot, self.Stage_manager)
                 if self.sleep_interruptible(2) == "stop":
                     self.stop_gracefully()
-                    break
-                select_brawler = self.lobby_automator.select_brawler_by_sort(
-                    self.get_latest_state, runtime_control=self.runtime_control,
-                    sort_point=self.Stage_manager.brawler_sort_point())
+                    return False
+                if self.Stage_manager._pick_lowest_trophies():
+                    select_brawler = self.lobby_automator.select_brawler_by_sort(
+                        self.get_latest_state, runtime_control=self.runtime_control,
+                        sort_point=self.Stage_manager.brawler_sort_point())
+                else:
+                    select_brawler = self.lobby_automator.select_brawler(
+                        next_brawler_name, self.get_latest_state, runtime_control=self.runtime_control)
 
             # "aborted" means a stop, "stuck" means the screen is no
             # longer the brawler menu. Neither is a reason to press on.
@@ -674,7 +689,8 @@ class BotInstance:
                 # match on whoever the game had selected before.
                 print(f"[{self.device_label}] First pick was not confirmed "
                       f"({select_brawler!r}); will retry on the next lobby tick.")
-                time.sleep(2)
+                if self.sleep_interruptible(2, allow_pause=False) == 'stop':
+                    self.stop_gracefully()
                 return False
 
             self.picked_first_brawler = True

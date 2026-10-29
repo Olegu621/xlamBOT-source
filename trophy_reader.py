@@ -304,11 +304,13 @@ def _read_card_name(frame, card_index=0):
         return None
     seen = []
     tried = set()
+    regions = []
     for index, region in enumerate(CARD_NAME_REGIONS):
         moved = _calibrated_card_region(region, card_index, 'card_name')
         if moved in tried:
             continue
         tried.add(moved)
+        regions.append(moved)
         for config in (NAME_OCR_CONFIG, NAME_OCR_LOOSE_CONFIG):
             text = _read_region_text(frame, moved, config)
             if not text:
@@ -321,6 +323,16 @@ def _read_card_name(frame, card_index=0):
                     print(f"Card name read from region {index} as {name} "
                           f"(OCR saw {squashed!r}).")
                 return name
+    # The calibrated rectangle can include artwork beside a short name such
+    # as NITA. Greyscale blends that artwork into the text. Keep the existing
+    # passes first, then isolate the white lettering inside the same region.
+    # This extra pass requires an exact known name, never a fuzzy guess.
+    exact = {re.sub(r"[^A-Z0-9]", "", name.upper()): name for name in known}
+    for moved in regions:
+        text = _read_white_region_text(frame, moved)
+        squashed = re.sub(r"[^A-Z0-9]", "", text.upper())
+        if squashed in exact:
+            return exact[squashed]
     if seen:
         print(f"No brawler matched the card text {seen!r}.")
     return None
@@ -356,6 +368,25 @@ def _read_region_text(frame, region, config, scale=4):
         return pytesseract.image_to_string(upscaled, config=config, timeout=4).strip()
     except Exception as error:  # noqa: BLE001
         print(f"Card OCR failed: {error}")
+        return ""
+
+
+def _read_white_region_text(frame, region):
+    crop = _crop(frame, region)
+    if crop is None:
+        return ""
+    rgb = crop.astype(np.int16)
+    white = (rgb.min(axis=2) > 185) & (np.ptp(rgb, axis=2) < 70)
+    if not np.any(white):
+        return ""
+    letters = np.where(white, 0, 255).astype(np.uint8)
+    letters = cv2.copyMakeBorder(letters, 6, 6, 6, 6,
+                                cv2.BORDER_CONSTANT, value=255)
+    letters = cv2.resize(letters, None, fx=4, fy=4, interpolation=cv2.INTER_CUBIC)
+    try:
+        return pytesseract.image_to_string(letters, config=NAME_OCR_CONFIG, timeout=4).strip()
+    except Exception as error:  # noqa: BLE001
+        print(f"White card-name OCR failed: {error}")
         return ""
 
 
